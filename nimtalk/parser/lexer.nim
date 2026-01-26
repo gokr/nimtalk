@@ -12,6 +12,7 @@ type
     tkLParen, tkRParen, tkLBracket, tkRBracket
     tkAssign, tkReturn, tkPeriod, tkSeparator
     tkSpecial  # ; & | etc
+    tkArrayStart, tkTableStart, tkObjectStart, tkArrow, tkColon
 
   Token* = object
     kind*: TokenKind
@@ -149,7 +150,7 @@ proc parseString(lexer: var Lexer): Token =
   var value = ""
 
   # Skip opening quote
-  if lexer.peek() == '\'':
+  if lexer.peek() == '"':
     discard lexer.next()
   else:
     return Token(kind: tkError, value: "Expected opening quote", line: startLine, col: startCol)
@@ -157,7 +158,7 @@ proc parseString(lexer: var Lexer): Token =
   # Parse string content
   while lexer.pos < lexer.input.len:
     let c = lexer.peek()
-    if c == '\'':
+    if c == '"':
       discard lexer.next()
       break
     elif c == '\\':
@@ -169,7 +170,7 @@ proc parseString(lexer: var Lexer): Token =
       of 't': value.add('\t')
       of 'r': value.add('\r')
       of '\\': value.add('\\')
-      of '\'': value.add('\'')
+      of '"': value.add('"')
       else:
         value.add('\\')
         value.add(esc)
@@ -271,20 +272,49 @@ proc nextToken*(lexer: var Lexer): Token =
     discard lexer.next()
     return Token(kind: tkSpecial, value: "|", line: startLine, col: startCol)
   of ':':
-    # Assignment operator :=
+    # Assignment operator := or colon for object literals
     discard lexer.next()
     if lexer.peek() == '=':
       discard lexer.next()
       return Token(kind: tkAssign, value: ":=", line: startLine, col: startCol)
     else:
-      return Token(kind: tkError, value: "Expected = after :", line: startLine, col: startCol)
+      return Token(kind: tkColon, value: ":", line: startLine, col: startCol)
   of '"':
-    # Comment
-    lexer.skipComment()
-    return nextToken(lexer)  # Continue with next token
+    # String literal
+    return parseString(lexer)
   of '#':
-    # Symbol
-    return parseSymbol(lexer)
+    # Check for array or table literal start
+    discard lexer.next()
+    let nextChar = lexer.peek()
+    if nextChar == '(':
+      discard lexer.next()
+      return Token(kind: tkArrayStart, value: "#(", line: startLine, col: startCol)
+    elif nextChar == '{':
+      discard lexer.next()
+      return Token(kind: tkTableStart, value: "#{", line: startLine, col: startCol)
+    else:
+      # Regular symbol - put back the # and let parseSymbol handle it
+      lexer.pos = lexer.pos - 1  # Put back the #
+      lexer.col = lexer.col - 1   # Adjust column
+      return parseSymbol(lexer)
+  of '{':
+    discard lexer.next()
+    # Check for object literal start {|
+    if lexer.peek() == '|':
+      discard lexer.next()
+      return Token(kind: tkObjectStart, value: "{|", line: startLine, col: startCol)
+    else:
+      return Token(kind: tkError, value: "Expected | after { for object literal", line: startLine, col: startCol)
+  of '}':
+    discard lexer.next()
+    return Token(kind: tkSpecial, value: "}", line: startLine, col: startCol)
+  of '-':
+    discard lexer.next()
+    if lexer.peek() == '>':
+      discard lexer.next()
+      return Token(kind: tkArrow, value: "->", line: startLine, col: startCol)
+    else:
+      return Token(kind: tkError, value: "Expected > after - for arrow operator", line: startLine, col: startCol)
   else:
     # Number, identifier, or error
     if c.isDigit:
