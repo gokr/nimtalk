@@ -33,3 +33,9 @@ Thumbs.db
 
 # Test outputs
 *.out
+tests/test_core
+
+# Nimtalk binaries
+ntalk
+ntalkc
+nimtalk/
