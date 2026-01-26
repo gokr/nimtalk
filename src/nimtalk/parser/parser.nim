@@ -51,7 +51,7 @@ proc initParser*(tokens: seq[Token], filename: string = ""): Parser =
   )
 
 # Peek at current token without advancing
-proc peek(parser: Parser): Token =
+proc peek*(parser: var Parser): Token =
   if parser.pos < parser.tokens.len:
     return parser.tokens[parser.pos]
   else:
