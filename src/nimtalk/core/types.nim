@@ -72,10 +72,15 @@ type
   ObjectLiteralNode* = ref object of Node
     properties*: seq[tuple[name: string, value: Node]]
 
+  PrimitiveNode* = ref object of Node
+    tag*: string                    # Raw tag content like "primitive" or "primitive name=\"clone\""
+    nimCode*: string               # Raw Nim code between tags
+    fallback*: seq[Node]           # Smalltalk AST after closing tag
+
   # Node type enum for pattern matching
   NodeKind* = enum
     nkLiteral, nkMessage, nkBlock, nkAssign, nkReturn,
-    nkArray, nkTable, nkObjectLiteral
+    nkArray, nkTable, nkObjectLiteral, nkPrimitive
 
   # Root object (global singleton)
   RootObject* = ref object of ProtoObject
@@ -119,6 +124,7 @@ proc kind*(node: Node): NodeKind =
   elif node of ArrayNode: nkArray
   elif node of TableNode: nkTable
   elif node of ObjectLiteralNode: nkObjectLiteral
+  elif node of PrimitiveNode: nkPrimitive
   else: raise newException(ValueError, "Unknown node type")
 
 # Value conversion utilities
