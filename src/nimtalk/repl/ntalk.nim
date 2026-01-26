@@ -12,6 +12,20 @@ import ../core/types
 # Main entry point for Nimtalk REPL
 # ============================================================================
 
+# Version constant
+const VERSION* = block:
+  const nimblePath = currentSourcePath().parentDir() / "nimtalk.nimble"
+  const nimbleContent = staticRead(nimblePath)
+  var versionStr = "unknown"
+  for line in nimbleContent.splitLines():
+    let trimmed = line.strip()
+    if trimmed.startsWith("version"):
+      let parts = trimmed.split("=")
+      if parts.len >= 2:
+        versionStr = parts[1].strip().strip(chars={'\"', '\''})
+        break
+  versionStr
+
 proc parseLogLevel(levelStr: string): Level =
   ## Parse log level string to Level enum
   case levelStr.toUpperAscii()
@@ -75,7 +89,7 @@ proc main() =
     of "--help", "-h":
       showUsage()
     of "--version", "-v":
-      echo "Nimtalk v0.1.0"
+      echo "Nimtalk " & VERSION
     else:
       # Check if it's a file or just garbage
       if args[0].endsWith(".nt") and fileExists(args[0]):

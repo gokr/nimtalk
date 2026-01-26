@@ -28,6 +28,82 @@ Tests use Nim's built-in unittest framework. Run tests with:
 nim c -r tests/test_core.nim
 ```
 
+## Logging and Debugging
+
+Both `ntalk` and `ntalkc` support a `--loglevel` option to control logging output. This is useful for debugging execution flow and tracing interpreter behavior.
+
+### Available Log Levels
+
+- `DEBUG` - Detailed tracing of execution flow, message sends, variable lookups
+- `INFO` - General information about operations being performed
+- `WARN` - Warning messages for potentially problematic situations
+- `ERROR` - Error messages (default level)
+- `FATAL` - Fatal error messages only
+
+### Using Logging
+
+**For the REPL (ntalk):**
+```bash
+# Start REPL with debug logging
+ntalk --loglevel DEBUG
+
+# Run a script with debug logging
+ntalk --loglevel DEBUG myprogram.nt
+
+# Evaluate expression with info logging
+ntalk --loglevel INFO -e "3 + 4"
+```
+
+**For the compiler (ntalkc):**
+```bash
+# Compile with debug logging
+ntalkc compile myprogram.nt --loglevel DEBUG
+
+# Build with info logging
+ntalkc build myprogram.nt --loglevel INFO
+
+# Run with debug logging
+ntalkc run myprogram.nt --loglevel DEBUG
+```
+
+### Debug Logging Output
+
+When using `DEBUG` level, you'll see:
+- Each AST node being evaluated and its type
+- Message sends with receiver and selector
+- Method lookups and execution
+- Variable assignments and lookups
+- Activation stack push/pop operations
+- Method entry/exit with return values
+
+Example debug output:
+```
+Evaluating node: nkMessage
+Message send: +
+Message receiver: 3
+Looking up method: +
+Found method, executing
+Executing method with 1 arguments
+Pushing activation, stack depth: 1
+Evaluating node: nkLiteral
+Returning from method: 7
+Popping activation, stack depth: 0
+```
+
+### Adding Debug Logging
+
+When modifying the evaluator or other core components, use the `debug` macro:
+
+```nim
+import std/logging
+
+# In evaluation code
+debug("Message send: ", selector)
+debug("Variable lookup: ", name, " = ", value.toString())
+```
+
+The `debug` statements are only active when the log level is set to DEBUG or lower.
+
 ## Nim Coding Guidelines
 
 ### Code Style and Conventions

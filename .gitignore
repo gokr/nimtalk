@@ -38,8 +38,17 @@ tests/test_core
 # Nimtalk binaries
 ntalk
 ntalkc
-nimtalk/
+/nimtalk/
+# Binary patterns from source directories
+src/nimtalk/compiler/*
+!src/nimtalk/compiler/*.nim
+src/nimtalk/repl/*
+!src/nimtalk/repl/*.nim
+src/nimtalk/codegen/*
+!src/nimtalk/codegen/*.nim
 # Test binaries
+tests/test_evaluator
+tests/test_evaluator.nim
 tests/test_slot_ivars
 tests/test_simple_derive
 tests/test_derive_from_nimtalk

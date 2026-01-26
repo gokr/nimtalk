@@ -164,7 +164,7 @@ Person>>greet [ ^ "Hello" ].       # With period (for familiarity)
 #
 
 # Derive from Object with instance variables
-Person := Object deriveWithIVars: #(name age address)
+Person := Object derive: #(name age address)
 
 #----------------------------------------------------------------
 # Instance creation methods (on the "class")
@@ -231,7 +231,7 @@ Person at: "description" put: [
 # Person - Using >> syntax
 #
 
-Person := Object deriveWithIVars: #(name age address).
+Person := Object derive: #(name age address).
 
 # Class methods (instance creation)
 Person>>newWithName: aName age: anAge [                    # <--- keyword with args!
@@ -313,7 +313,7 @@ alice description print.                   # "Alice (age 31)"
 load: "src/Person.nt".
 
 # Derive with additional ivars
-Employee := Person deriveWithIVars: #(employeeID department salary).
+Employee := Person derive: #(employeeID department salary).
 
 # Instance creation
 Employee>>newWithName: aName age: anAge id: anID dept: aDept salary: aSalary [
@@ -405,7 +405,7 @@ MessageSendNode(
 
 ### Key Points
 
-1. **No new parser for derivation** - `deriveWithIVars:` is just a message
+1. **No new parser for derivation** - `derive:` is just a message
 2. **Optional `>>` syntax** - Parser sugar that converts to `at:put:`
 3. **Conventional distinction** - Classes (capitalized) vs instances (lowercase)
 4. **Global Nimtalk table** - Stores all "classes"
@@ -426,4 +426,4 @@ This gives us the best of both worlds: the flexibility of prototypes with the cl
 
 ---
 
-**Next**: Should we update the implementation plan to reflect this approach? Or are we ready to start coding Phase 1 (adding deriveWithIVars: to Object)?
+**Next**: Should we update the implementation plan to reflect this approach? Or are we ready to start coding Phase 1 (adding derive: to Object)?

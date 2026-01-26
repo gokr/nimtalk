@@ -23,9 +23,20 @@ proc run*(code: string): string =
     return result.toString()
 
 # Version constant
-const version* = "0.1.0"
+const VERSION* = block:
+  const nimblePath = currentSourcePath().parentDir() / "nimtalk.nimble"
+  const nimbleContent = staticRead(nimblePath)
+  var versionStr = "unknown"
+  for line in nimbleContent.splitLines():
+    let trimmed = line.strip()
+    if trimmed.startsWith("version"):
+      let parts = trimmed.split("=")
+      if parts.len >= 2:
+        versionStr = parts[1].strip().strip(chars={'\"', '\''})
+        break
+  versionStr
 
 # Simple evaluation demo
 when isMainModule:
-  echo "Nimtalk v" & version
+  echo "Nimtalk v" & VERSION
   echo "Use 'nimble build' to build the REPL"
