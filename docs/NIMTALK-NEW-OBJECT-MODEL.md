@@ -21,8 +21,8 @@ result := person at: "name".       # Slow hash lookup
 
 ### New Declared Ivar Model (Current)
 ```smalltalk
-# Use deriveWithIVars: message (no special parser syntax needed!)
-Person := Object deriveWithIVars: #(name age)
+# Use derive: message (no special parser syntax needed!)
+Person := Object derive: #(name age)
 
 # Automatic accessors generated - use them directly
 person := Person derive.

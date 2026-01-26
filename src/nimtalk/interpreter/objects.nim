@@ -120,9 +120,9 @@ proc initRootObject*(): RootObject =
     deriveMethod.nativeImpl = cast[pointer](deriveImpl)
     addMethod(rootObject, "derive", deriveMethod)
 
-    let deriveWithIVarsMethod = createCoreMethod("deriveWithIVars:")
+    let deriveWithIVarsMethod = createCoreMethod("derive:")
     deriveWithIVarsMethod.nativeImpl = cast[pointer](deriveWithIVarsImpl)
-    addMethod(rootObject, "deriveWithIVars:", deriveWithIVarsMethod)
+    addMethod(rootObject, "derive:", deriveWithIVarsMethod)
 
     let atMethod = createCoreMethod("at:")
     atMethod.nativeImpl = cast[pointer](atImpl)
@@ -212,16 +212,16 @@ proc deriveWithIVarsImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   ## Create child with self as parent and declared instance variables
   ## Also generates accessor methods for all instance variables
   if args.len < 1:
-    raise newException(ValueError, "deriveWithIVars: requires array of ivar names")
+    raise newException(ValueError, "derive:: requires array of ivar names")
   if args[0].kind != vkArray:
-    raise newException(ValueError, "deriveWithIVars: first argument must be array of strings")
+    raise newException(ValueError, "derive:: first argument must be array of strings")
 
   # Extract ivar names from array
   let ivarArray = args[0].arrayVal
   var childIvars: seq[string] = @[]
   for ivarVal in ivarArray:
     if ivarVal.kind != vkSymbol:
-      raise newException(ValueError, "deriveWithIVars: all ivar names must be symbols")
+      raise newException(ValueError, "derive:: all ivar names must be symbols")
     childIvars.add(ivarVal.symVal)
 
   # If parent has slots, inherit them first

@@ -267,7 +267,7 @@ alice greet                                  # => "Hello, Alice"
 - **Slot-based instance variables**: Objects can declare instance variables explicitly for better performance and encapsulation.
 
 **Slot-based instance variables (fully implemented)**:
-- Objects declare instance variables using `deriveWithIVars: #(ivar1 ivar2)` syntax which is a message send, not special parser syntax
+- Objects declare instance variables using `derive: #(ivar1 ivar2)` syntax which is a message send, not special parser syntax
 - Instance variable access is optimized via direct slot access (149x faster than property bags)
 - Automatic getter/setter methods are generated for all declared instance variables
 - Inheritance combines parent and child instance variables automatically

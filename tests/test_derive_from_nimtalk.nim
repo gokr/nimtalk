@@ -1,7 +1,7 @@
-# Test deriveWithIVars: from Nimtalk code
+# Test derive: from Nimtalk code
 #
 # This tests that we can create classes with instance variables
-# directly from Nimtalk code using the deriveWithIVars: message
+# directly from Nimtalk code using the derive: message
 
 import std/[unittest, tables, strutils]
 import ../src/nimtalk/core/types
@@ -9,15 +9,15 @@ import ../src/nimtalk/interpreter/evaluator
 import ../src/nimtalk/interpreter/objects
 import ../src/nimtalk/parser/parser
 
-suite "deriveWithIVars: from Nimtalk code":
+suite "derive: from Nimtalk code":
   setup:
     var interp = newInterpreter()
     initGlobals(interp)
 
-  test "can call deriveWithIVars: from Nimtalk code":
+  test "can call derive: from Nimtalk code":
     # Create a Person class with instance variables
     let source = """
-Person := Object deriveWithIVars: #(name age).
+Person := Object derive: #(name age).
 """
     let (result, err) = interp.doit(source)
 
@@ -39,7 +39,7 @@ Person := Object deriveWithIVars: #(name age).
   test "can use automatic accessors from Nimtalk code":
     # Create class and instance, then use accessors
     let source = """
-Person := Object deriveWithIVars: #(name age).
+Person := Object derive: #(name age).
 person := Person derive.
 person name: "Alice".
 person age: 30.
@@ -71,8 +71,8 @@ person age: 30.
   test "inheritance of ivars works from Nimtalk code":
     # Create Animal with species, then Dog with breed
     let source = """
-Animal := Object deriveWithIVars: #(species).
-Dog := Animal deriveWithIVars: #(breed).
+Animal := Object derive: #(species).
+Dog := Animal derive: #(breed).
 dog := Dog derive.
 dog species: "Canine".
 dog breed: "Golden Retriever".
@@ -111,8 +111,8 @@ dog breed: "Golden Retriever".
   test "detects duplicate ivar names":
     # Try to create class with duplicate ivar (should error)
     let source = """
-Animal := Object deriveWithIVars: #(species).
-Dog := Animal deriveWithIVars: #(species breed).
+Animal := Object derive: #(species).
+Dog := Animal derive: #(species breed).
 """
     let (result, err) = interp.doit(source)
 
@@ -123,7 +123,7 @@ Dog := Animal deriveWithIVars: #(species breed).
   test "empty ivar array creates object without slots":
     # Create class with no ivars
     let source = """
-Simple := Object deriveWithIVars: #().
+Simple := Object derive: #().
 simple := Simple derive.
 """
     let (result, err) = interp.doit(source)

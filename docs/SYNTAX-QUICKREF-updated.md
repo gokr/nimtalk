@@ -11,8 +11,9 @@ person at: "name" put: "Alice"    # Arbitrary property addition
 ### New (Declared Instance Variables)
 ```smalltalk
 # Declare instance variables when creating prototype
-# (deriveWithIVars: is a regular message, not special syntax)
-Person := Object deriveWithIVars: #(name age)
+# (derive: is a regular message, not special syntax)
+# Symbols in arrays need # prefix: #(#name #age)
+Person := Object derive: #(#name #age)
 
 # Create and initialize object
 person := Person derive.
@@ -27,10 +28,10 @@ result := person name               # Uses generated getter (direct slot access)
 
 ```smalltalk
 # Single inheritance
-Employee := Person deriveWithIVars: #(salary department)
+Employee := Person derive: #(#salary #department)
 
 # Multi-level inheritance
-Manager := Employee deriveWithIVars: #(teamSize)
+Manager := Employee derive: #(#teamSize)
 ```
 
 ## Method Definition Syntax (File Format)

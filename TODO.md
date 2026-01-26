@@ -35,7 +35,7 @@ This document tracks current work items, future directions, and known issues for
 
 ### 3. Language Features
 - [x] Instance variable type system and core implementation (types.nim, objects.nim)
-- [x] Instance variable declaration syntax (`deriveWithIVars: #(ivar1 ivar2)` - implemented as message)
+- [x] Instance variable declaration syntax (`derive: #(ivar1 ivar2)` - implemented as message)
 - [x] Instance variable access via automatic getters/setters
 - [ ] Method definition syntax (`>>`) for files (parser support pending)
 - [ ] `super` support for calling parent methods

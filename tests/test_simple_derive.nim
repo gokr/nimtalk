@@ -1,4 +1,4 @@
-# Quick test of deriveWithIVars: from Nimtalk
+# Quick test of derive: from Nimtalk
 
 import std/tables
 import ../src/nimtalk/core/types
@@ -10,7 +10,7 @@ var interp = newInterpreter()
 initGlobals(interp)
 
 # Test: Create class with instance variables from Nimtalk code
-let source = "Person := Object deriveWithIVars: #(name age)."
+let source = "Person := Object derive: #(name age)."
 let (result, err) = interp.doit(source)
 
 if err.len > 0:

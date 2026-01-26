@@ -24,7 +24,7 @@ Object at: 'derive' put: [
   ^ self perform: 'primitiveDerive'
 ].
 
-Object at: 'deriveWithIVars:' put: [
+Object at: 'derive:' put: [
   :ivarArray
   "Create a child with declared instance variables.
    ivarArray should be an array of symbols like #(name age address)."

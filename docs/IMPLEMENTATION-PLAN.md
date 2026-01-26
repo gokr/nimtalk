@@ -9,13 +9,13 @@ All phases of the object model have been successfully implemented!
 
 ### What Was Actually Built
 
-**Message-Based Approach**: Instead of special parser syntax, we implemented `deriveWithIVars:` as a regular message send:
+**Message-Based Approach**: Instead of special parser syntax, we implemented `derive:` as a regular message send:
 ```smalltalk
-Person := Object deriveWithIVars: #(name age)
+Person := Object derive: #(name age)
 ```
 
 **Key Implementation Details**:
-1. `deriveWithIVars:` is implemented as a message that calls native Nim code
+1. `derive:` is implemented as a message that calls native Nim code
 2. Direct slot storage in `seq[NodeValue]` for O(1) array access
 3. Automatic getter/setter generation as BlockNode AST
 4. Inheritance support combining parent and child instance variables
@@ -34,7 +34,7 @@ See `NIMTALK-NEW-OBJECT-MODEL.md` for the executive summary and `CLASSES-AND-INS
 
 ## Original Design Decisions (Final)
 
-✅ **Instance Variable Declaration**: `Proto := Object deriveWithIVars: #(ivar1 ivar2)` (implemented as message)
+✅ **Instance Variable Declaration**: `Proto := Object derive: #(ivar1 ivar2)` (implemented as message)
 ✅ **Method Definition Syntax**: `Proto>>method [ ... ]` (in files only)
 ✅ **Parsing**: Option B - Extended Parser (no preprocessing)
 ✅ **No Trailing Periods**: After method definitions
@@ -434,7 +434,7 @@ check result.hasMethod("greet")
 ## Success Criteria - ALL MET ✅
 
 ✅ All implementation complete (exceeded expectations!)
-✅ `deriveWithIVars:` works as native message (no parser changes needed)
+✅ `derive:` works as native message (no parser changes needed)
 ✅ Direct ivar access is **149x faster** than property bag (exceeded 10x goal!)
 ✅ All 22 new tests pass plus integration tests
 ✅ 100% code coverage for new functionality
