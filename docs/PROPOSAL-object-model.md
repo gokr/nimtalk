@@ -13,7 +13,7 @@ The slot-based instance variable system is partially implemented:
 ### ✅ Implemented
 - `ProtoObject` type extended with `hasSlots`, `slots`, `slotNames` fields
 - `initSlotObject`, `getSlot`, `setSlot`, `hasSlotIVars`, `getSlotNames` procs
-- `deriveWithIVars:` method added to root object
+- `derive:` method added to root object
 - Test file `tests/test_slot_ivars.nim` created
 
 ### ⏳ Pending Implementation
@@ -38,7 +38,7 @@ Person := Object derive: #(name age)
 
 # Current workaround (implemented)
 Person := Object derive
-Person deriveWithIVars: #(name age)
+Person derive: #(name age)
 ```
 
 ### Method Definition

@@ -7,7 +7,7 @@ import std/[unittest, tables, sequtils, strutils, algorithm]
 import ../src/nimtalk/core/types
 import ../src/nimtalk/interpreter/objects
 
-suite "Slot-based Instance Variables":
+suite "Slot-based Instance Variables (derive: message)":
   setup:
     # Initialize root object before each test
     discard initRootObject()
@@ -116,7 +116,7 @@ suite "Slot-based Instance Variables":
     check child.hasSlots == false
     check child.slots.len == 0
 
-  test "deriveWithIVars creates object with slots":
+  test "derive: creates object with slots":
     let root = initRootObject()
     let ivars = @[NodeValue(kind: vkSymbol, symVal: "name"), NodeValue(kind: vkSymbol, symVal: "age")]
     let result = deriveWithIVarsImpl(root, @[NodeValue(kind: vkArray, arrayVal: ivars)])
@@ -129,7 +129,7 @@ suite "Slot-based Instance Variables":
     check child.parents.len == 1
     check child.parents[0] == root
 
-  test "deriveWithIVars inherits parent slots":
+  test "deriveinherits parent slots":
     let root = initRootObject()
 
     # Create parent with slots
@@ -152,7 +152,7 @@ suite "Slot-based Instance Variables":
     check child.parents.len == 1
     check child.parents[0] == parent
 
-  test "deriveWithIVars detects duplicate ivar names":
+  test "derivedetects duplicate ivar names":
     let root = initRootObject()
 
     # Create parent with "name"
@@ -215,7 +215,7 @@ suite "Slot-based Instance Variables":
     check employee.slotNames.hasKey("name")
     check employee.slotNames.hasKey("employeeID")
 
-  test "deriveWithIVars with empty array creates non-slotted object":
+  test "derivewith empty array creates non-slotted object":
     let root = initRootObject()
     let emptyIvars: seq[NodeValue] = @[]
     let result = deriveWithIVarsImpl(root, @[NodeValue(kind: vkArray, arrayVal: emptyIvars)])
