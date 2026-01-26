@@ -7,8 +7,8 @@
 Calculator := Object derive
 
 # Add the two numbers as properties
-Calculator at: 'x' put: 3
-Calculator at: 'y' put: 4
+Calculator at: "x" put: 3
+Calculator at: "y" put: 4
 
 # Get the result
-Calculator at: 'x'
+Calculator at: "x"
