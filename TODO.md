@@ -14,7 +14,9 @@ This document tracks current work items, future directions, and known issues for
 - ✅ Prototype object system with property bags and prototype chains
 - ✅ AST interpreter core with message sending and block evaluation
 - ✅ REPL/Interpreter with file execution and interactive mode
-- ⏳ Slot-based instance variable system (types and core implementation complete, parser support pending)
+- ✅ Slot-based instance variable system (fully implemented, 149x performance improvement)
+- ✅ Native method dispatch from Nimtalk code
+- ✅ Base library with core objects and collections
 - ⏳ Compiler infrastructure (stub implementation)
 
 ## High Priority Tasks
@@ -33,9 +35,9 @@ This document tracks current work items, future directions, and known issues for
 
 ### 3. Language Features
 - [x] Instance variable type system and core implementation (types.nim, objects.nim)
-- [ ] Instance variable declaration syntax (`derive: #(ivar1 ivar2)` - parser support)
-- [ ] Instance variable access syntax (direct slot access)
-- [ ] Method definition syntax (`>>`) for files
+- [x] Instance variable declaration syntax (`deriveWithIVars: #(ivar1 ivar2)` - implemented as message)
+- [x] Instance variable access via automatic getters/setters
+- [ ] Method definition syntax (`>>`) for files (parser support pending)
 - [ ] `super` support for calling parent methods
 - [ ] Enhanced control flow (loops, conditionals)
 
@@ -107,8 +109,8 @@ This document tracks current work items, future directions, and known issues for
 
 ### Test Coverage
 - [ ] Expand test suite for parser edge cases
-- [ ] Add integration tests for complete examples
-- [ ] Performance benchmarks
+- [x] Add integration tests for complete examples (test_derive_from_nimtalk.nim)
+- [x] Performance benchmarks (benchmark_slots.nim - 149x speedup)
 - [ ] Cross-platform testing
 
 ### Code Quality
