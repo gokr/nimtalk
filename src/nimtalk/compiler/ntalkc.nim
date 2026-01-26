@@ -8,6 +8,7 @@ import std/[os, strutils, parseopt, strformat]
 import ../parser/parser
 import ../parser/lexer
 import ../codegen/module
+import ../compiler/context
 import ../core/types
 
 const
