@@ -50,12 +50,31 @@ proc initRootObject*(): RootObject =
     rootObject.isNimProxy = false
     rootObject.nimValue = nil
     rootObject.nimType = ""
+    rootObject.hasSlots = false
+    rootObject.slots = @[]
+    rootObject.slotNames = initTable[string, int]()
 
     # Install core methods
-    addMethod(rootObject, "clone", createCoreMethod("clone"))
-    addMethod(rootObject, "derive", createCoreMethod("derive"))
-    addMethod(rootObject, "at:", createCoreMethod("at:"))
-    addMethod(rootObject, "at:put:", createCoreMethod("at:put:"))
+    let cloneMethod = createCoreMethod("clone")
+    cloneMethod.nativeImpl = cast[pointer](cloneImpl)
+    addMethod(rootObject, "clone", cloneMethod)
+
+    let deriveMethod = createCoreMethod("derive")
+    deriveMethod.nativeImpl = cast[pointer](deriveImpl)
+    addMethod(rootObject, "derive", deriveMethod)
+
+    let deriveWithIVarsMethod = createCoreMethod("deriveWithIVars:")
+    deriveWithIVarsMethod.nativeImpl = cast[pointer](deriveWithIVarsImpl)
+    addMethod(rootObject, "deriveWithIVars:", deriveWithIVarsMethod)
+
+    let atMethod = createCoreMethod("at:")
+    atMethod.nativeImpl = cast[pointer](atImpl)
+    addMethod(rootObject, "at:", atMethod)
+
+    let atPutMethod = createCoreMethod("at:put:")
+    atPutMethod.nativeImpl = cast[pointer](atPutImpl)
+    addMethod(rootObject, "at:put:", atPutMethod)
+
     addMethod(rootObject, "printString", createCoreMethod("printString"))
     addMethod(rootObject, "doesNotUnderstand:", createCoreMethod("doesNotUnderstand:"))
 
@@ -74,6 +93,9 @@ proc clone*(self: ProtoObject): NodeValue =
   objClone.isNimProxy = self.isNimProxy
   objClone.nimValue = self.nimValue
   objClone.nimType = self.nimType
+  objClone.hasSlots = self.hasSlots
+  objClone.slots = self.slots  # Copy slots by value (seq is value type)
+  objClone.slotNames = self.slotNames
   result = NodeValue(kind: vkObject, objVal: objClone)
 
 # Nim-level clone function for RootObject - returns NodeValue wrapper
@@ -114,6 +136,59 @@ proc deriveImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   child.isNimProxy = false
   child.nimValue = nil
   child.nimType = ""
+  child.hasSlots = false
+  child.slots = @[]
+  child.slotNames = initTable[string, int]()
+  return NodeValue(kind: vkObject, objVal: child)
+
+proc deriveWithIVarsImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+  ## Create child with self as parent and declared instance variables
+  if args.len < 1:
+    raise newException(ValueError, "deriveWithIVars: requires array of ivar names")
+  if args[0].kind != vkArray:
+    raise newException(ValueError, "deriveWithIVars: first argument must be array of strings")
+
+  # Extract ivar names from array
+  let ivarArray = args[0].arrayVal
+  var childIvars: seq[string] = @[]
+  for ivarVal in ivarArray:
+    if ivarVal.kind != vkSymbol:
+      raise newException(ValueError, "deriveWithIVars: all ivar names must be symbols")
+    childIvars.add(ivarVal.symVal)
+
+  # If parent has slots, inherit them first
+  var allIvars: seq[string] = @[]
+  if self.hasSlots:
+    # Inherit parent's ivars
+    allIvars = self.getSlotNames()
+
+  # Add child's new ivars (checking for duplicates)
+  for ivar in childIvars:
+    if ivar in allIvars:
+      raise newException(ValueError, "Instance variable conflict: " & ivar & " already defined in parent")
+    allIvars.add(ivar)
+
+  # Create object with combined slots
+  var child: ProtoObject
+  if allIvars.len > 0:
+    child = initSlotObject(allIvars)
+  else:
+    # Fallback to empty object if no ivars
+    child = ProtoObject()
+    child.properties = initTable[string, NodeValue]()
+    child.methods = initTable[string, BlockNode]()
+    child.parents = @[]
+    child.tags = @[]
+    child.isNimProxy = false
+    child.nimValue = nil
+    child.nimType = ""
+    child.hasSlots = false
+    child.slots = @[]
+    child.slotNames = initTable[string, int]()
+
+  child.parents = @[self]
+  child.tags = self.tags & @["derived", "slotted"]
+
   return NodeValue(kind: vkObject, objVal: child)
 
 proc atImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue =
