@@ -168,8 +168,8 @@ proc lookupMethod(interp: Interpreter, receiver: ProtoObject, selector: string):
   ## Look up currentMethod in receiver and prototype chain
   var current = receiver
   while current != nil:
-    let currentMethod = lookupMethod(current, selector)
-    if currentMethod != nil:
+    if selector in current.methods:
+      let currentMethod = current.methods[selector]
       return MethodResult(currentMethod: currentMethod, receiver: current, found: true)
 
     # Search parent chain
@@ -185,6 +185,18 @@ proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
                   receiver: ProtoObject, arguments: seq[Node]): NodeValue =
   ## Execute a currentMethod with given receiver and arguments
   interp.checkStackDepth()
+
+  # Check for native implementation first
+  if currentMethod.nativeImpl != nil:
+    # Evaluate arguments to get NodeValues
+    var argValues = newSeq[NodeValue]()
+    for argNode in arguments:
+      argValues.add(interp.eval(argNode))
+
+    # Cast and call native implementation
+    type NativeProc = proc(self: ProtoObject, args: seq[NodeValue]): NodeValue {.nimcall.}
+    let nativeProc = cast[NativeProc](currentMethod.nativeImpl)
+    return nativeProc(receiver, argValues)
 
   # Create new activation
   let activation = newActivation(currentMethod, receiver, interp.currentActivation)
@@ -238,8 +250,14 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
 
   case node.kind
   of nkLiteral:
-    # Literal value
-    return node.LiteralNode.value
+    # Literal value - check if it's a symbol that should be looked up as a variable
+    let val = node.LiteralNode.value
+    if val.kind == vkSymbol:
+      # Look up symbol as variable
+      let varVal = lookupVariable(interp, val.symVal)
+      if varVal.kind != vkNil:
+        return varVal
+    return val
 
   of nkMessage:
     # Message send
@@ -307,6 +325,15 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
       obj.addProperty(prop.name, valueVal)
     return toValue(obj)
 
+  of nkPrimitive:
+    # Primitive declaration - ignore Nim code, evaluate fallback Smalltalk
+    let prim = node.PrimitiveNode
+    var result = nilValue()
+    # Evaluate fallback statements sequentially
+    for stmt in prim.fallback:
+      result = interp.eval(stmt)
+    return result
+
   else:
     raise newException(EvalError, "Unknown node type: " & $node.kind)
 
@@ -320,10 +347,16 @@ proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue =
                     else:
                       interp.currentReceiver.toValue()
 
-  if receiverVal.kind != vkObject:
+  # Wrap non-object receivers (like integers) in Nim proxy objects
+  let wrappedReceiver = if receiverVal.kind == vkInt:
+                          wrapIntAsObject(receiverVal.intVal)
+                        else:
+                          receiverVal
+
+  if wrappedReceiver.kind != vkObject:
     raise newException(EvalError, "Message send to non-object: " & receiverVal.toString())
 
-  let receiver = receiverVal.toObject()
+  let receiver = wrappedReceiver.toObject()
 
   # Evaluate arguments
   var arguments = newSeq[NodeValue]()
@@ -371,9 +404,20 @@ proc sendMessage*(interp: var Interpreter, receiver: ProtoObject,
     let node: Node = LiteralNode(value: argVal)
     argNodes.add(node)
 
-  let currentMethod = lookupMethod(receiver, selector)
-  if currentMethod != nil:
-    return interp.executeMethod(currentMethod, receiver, argNodes)
+  # Look up method in receiver
+  var current = receiver
+  var foundMethod: BlockNode = nil
+  while current != nil:
+    if selector in current.methods:
+      foundMethod = current.methods[selector]
+      break
+    if current.parents.len > 0:
+      current = current.parents[0]
+    else:
+      break
+
+  if foundMethod != nil:
+    return interp.executeMethod(foundMethod, receiver, argNodes)
   else:
     raise newException(EvalError,
       "Message not understood: " & selector)
@@ -432,6 +476,29 @@ proc initGlobals*(interp: var Interpreter) =
   # Add some useful constants
   interp.globals["Object"] = interp.rootObject.toValue()
   interp.globals["root"] = interp.rootObject.toValue()
+
+  # Create and register Stdout object
+  let stdoutObj = ProtoObject()
+  stdoutObj.properties = initTable[string, NodeValue]()
+  stdoutObj.methods = initTable[string, BlockNode]()
+  stdoutObj.parents = @[interp.rootObject.ProtoObject]
+  stdoutObj.tags = @["Stdio", "Stdout"]
+  stdoutObj.isNimProxy = false
+  stdoutObj.nimValue = nil
+  stdoutObj.nimType = ""
+  stdoutObj.hasSlots = false
+  stdoutObj.slotNames = initTable[string, int]()
+
+  let writeMethod = createCoreMethod("write:")
+  writeMethod.nativeImpl = cast[pointer](writeImpl)
+  addMethod(stdoutObj, "write:", writeMethod)
+
+  let writelineMethod = createCoreMethod("writeline:")
+  writelineMethod.nativeImpl = cast[pointer](writelineImpl)
+  addMethod(stdoutObj, "writeline:", writelineMethod)
+
+  interp.globals["Stdout"] = stdoutObj.toValue()
+  interp.globals["stdout"] = stdoutObj.toValue()
 
 # Simple test function (incomplete - commented out)
 ## proc testBasicArithmetic*(): bool =
