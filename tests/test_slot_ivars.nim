@@ -3,7 +3,7 @@
 # Tests for the new object model with declared instance variables
 #
 
-import std/[unittest, tables, sequtils, strutils]
+import std/[unittest, tables, sequtils, strutils, algorithm]
 import ../src/nimtalk/core/types
 import ../src/nimtalk/interpreter/objects
 
@@ -45,6 +45,48 @@ suite "Slot-based Instance Variables":
     check person.getSlot("name").strVal == "Alice"
     check person.getSlot("age").kind == vkInt
     check person.getSlot("age").intVal == 30
+
+  test "symbol canonicalization works":
+    # Clear symbol table first
+    clearSymbolTable()
+
+    # Create two symbols with same name
+    let sym1 = getSymbol("name")
+    let sym2 = getSymbol("name")
+
+    # Should be identical (same object)
+    check symbolEquals(sym1, sym2)
+    check sym1.symVal == sym2.symVal
+
+    # Different symbols should not be equal
+    let sym3 = getSymbol("age")
+    check not symbolEquals(sym1, sym3)
+
+  test "symbol canonicalization across different calls":
+    clearSymbolTable()
+
+    # Simulate what parser would do
+    let sym1 = getSymbol("initialize")
+    let sameSym = getSymbol("initialize")
+    let diffSym = getSymbol("derive")
+
+    check symbolEquals(sym1, sameSym)
+    check not symbolEquals(sym1, diffSym)
+
+  test "symbol table maintains uniqueness":
+    clearSymbolTable()
+
+    # Create multiple symbols
+    discard getSymbol("name")
+    discard getSymbol("age")
+    discard getSymbol("address")
+    discard getSymbol("name")  # Duplicate
+
+    # Should only have 3 unique symbols
+    check symbolTable.len == 3
+    check symbolTable.hasKey("name")
+    check symbolTable.hasKey("age")
+    check symbolTable.hasKey("address")
 
   test "getSlot returns nil for non-existent slots":
     let person = initSlotObject(@["name", "age"])
@@ -141,7 +183,7 @@ suite "Slot-based Instance Variables":
     var person = initSlotObject(@["name"])
     person.setSlot("name", NodeValue(kind: vkString, strVal: "Alice"))
 
-    let cloned = clone(person).objVal
+    var cloned = clone(person).objVal
     cloned.setSlot("name", NodeValue(kind: vkString, strVal: "Bob"))
 
     # Original should be unchanged

@@ -104,12 +104,12 @@ proc parsePrimary(parser: var Parser): Node =
 
   of tkSymbol:
     discard parser.next()
-    return LiteralNode(value: NodeValue(kind: vkSymbol, symVal: token.value))
+    return LiteralNode(value: getSymbol(token.value))
 
   of tkIdent:
     discard parser.next()
     # Identifiers can be variables or message receivers
-    return LiteralNode(value: NodeValue(kind: vkSymbol, symVal: token.value))
+    return LiteralNode(value: getSymbol(token.value))
 
   of tkLParen:
     # Parenthesized expression

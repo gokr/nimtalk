@@ -7,6 +7,13 @@ import ../parser/parser
 # Prototype-based objects with delegation
 # ============================================================================
 
+# Forward declarations for core method implementations
+proc cloneImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc deriveImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc deriveWithIVarsImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc atImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc atPutImpl(self: var ProtoObject, args: seq[NodeValue]): NodeValue
+
 # Global root object (singleton)
 var rootObject*: RootObject = nil
 
@@ -42,6 +49,9 @@ proc addProperty*(obj: ProtoObject, name: string, value: NodeValue) =
 proc initRootObject*(): RootObject =
   ## Initialize the global root object with core methods
   if rootObject == nil:
+    # Initialize symbol table first
+    initSymbolTable()
+
     rootObject = RootObject()
     rootObject.properties = initTable[string, NodeValue]()
     rootObject.methods = initTable[string, BlockNode]()

@@ -1,4 +1,4 @@
-import std/tables
+import std/[tables, algorithm, hashes]
 
 # ============================================================================
 # Core Types for Nimtalk
@@ -107,6 +107,51 @@ type
       compiled*: CompiledMethod
 
 # ============================================================================
+# Node kind helper
+# ============================================================================
+proc kind*(node: Node): NodeKind =
+  ## Get the node kind for pattern matching
+  if node of LiteralNode: nkLiteral
+  elif node of MessageNode: nkMessage
+  elif node of BlockNode: nkBlock
+  elif node of AssignNode: nkAssign
+  elif node of ReturnNode: nkReturn
+  elif node of ArrayNode: nkArray
+  elif node of TableNode: nkTable
+  elif node of ObjectLiteralNode: nkObjectLiteral
+  else: raise newException(ValueError, "Unknown node type")
+
+# Value conversion utilities
+proc toString*(val: NodeValue): string =
+  ## Convert NodeValue to string for display
+  case val.kind
+  of vkInt: $val.intVal
+  of vkFloat: $val.floatVal
+  of vkString: val.strVal
+  of vkSymbol: val.symVal
+  of vkBool: $val.boolVal
+  of vkNil: "nil"
+  of vkObject: "<object>"
+  of vkBlock: "<block>"
+  of vkArray: "#(" & $val.arrayVal.len & ")"
+  of vkTable: "#{" & $val.tableVal.len & "}"
+
+proc toValue*(i: int): NodeValue =
+  NodeValue(kind: vkInt, intVal: i)
+
+proc toValue*(f: float): NodeValue =
+  NodeValue(kind: vkFloat, floatVal: f)
+
+proc toValue*(s: string): NodeValue =
+  NodeValue(kind: vkString, strVal: s)
+
+proc toValue*(b: bool): NodeValue =
+  NodeValue(kind: vkBool, boolVal: b)
+
+proc nilValue*(): NodeValue =
+  NodeValue(kind: vkNil)
+
+# ============================================================================
 # Procs and utilities for slot-based instance variables
 # ============================================================================
 
@@ -151,60 +196,16 @@ proc getSlotNames*(obj: ProtoObject): seq[string] =
   ## Get all instance variable names
   if not obj.hasSlots:
     return @[]
-  result = @[]
+  # Create temp array of (index, name) pairs
+  var pairs: seq[tuple[idx: int, name: string]] = @[]
   for name, idx in obj.slotNames:
-    result.add(name)
-  # Sort by index to maintain order
-  result.sort(proc(a, b: string): int =
-    let idxA = obj.slotNames[a]
-    let idxB = obj.slotNames[b]
-    result = idxA - idxB
-  )
-
-# ============================================================================
-# Node kind helper
-# ============================================================================
-proc kind*(node: Node): NodeKind =
-  ## Get the node kind for pattern matching
-  if node of LiteralNode: nkLiteral
-  elif node of MessageNode: nkMessage
-  elif node of BlockNode: nkBlock
-  elif node of AssignNode: nkAssign
-  elif node of ReturnNode: nkReturn
-  elif node of ArrayNode: nkArray
-  elif node of TableNode: nkTable
-  elif node of ObjectLiteralNode: nkObjectLiteral
-  else: raise newException(ValueError, "Unknown node type")
-
-# Value conversion utilities
-proc toString*(val: NodeValue): string =
-  ## Convert NodeValue to string for display
-  case val.kind
-  of vkInt: $val.intVal
-  of vkFloat: $val.floatVal
-  of vkString: val.strVal
-  of vkSymbol: val.symVal
-  of vkBool: $val.boolVal
-  of vkNil: "nil"
-  of vkObject: "<object>"
-  of vkBlock: "<block>"
-  of vkArray: "#(" & $val.arrayVal.len & ")"
-  of vkTable: "#{" & $val.tableVal.len & "}"
-
-proc toValue*(i: int): NodeValue =
-  NodeValue(kind: vkInt, intVal: i)
-
-proc toValue*(f: float): NodeValue =
-  NodeValue(kind: vkFloat, floatVal: f)
-
-proc toValue*(s: string): NodeValue =
-  NodeValue(kind: vkString, strVal: s)
-
-proc toValue*(b: bool): NodeValue =
-  NodeValue(kind: vkBool, boolVal: b)
-
-proc nilValue*(): NodeValue =
-  NodeValue(kind: vkNil)
+    pairs.add((idx, name))
+  # Sort by index
+  pairs.sort(proc(a, b: tuple[idx: int, name: string]): int = a.idx - b.idx)
+  # Extract just the names in order
+  result = @[]
+  for pair in pairs:
+    result.add(pair.name)
 
 proc toValue*(arr: seq[NodeValue]): NodeValue =
   NodeValue(kind: vkArray, arrayVal: arr)
@@ -253,3 +254,34 @@ proc lookupMethod*(obj: ProtoObject, selector: string): BlockNode =
   ## Look up method in object or prototype chain
   ## NOTE: This is a stub - actual implementation in objects.nim
   nil
+
+
+# ============================================================================
+# Symbol Table for Canonicalization
+# ============================================================================
+
+var symbolTable*: Table[string, NodeValue]
+
+proc initSymbolTable*() =
+  ## Initialize symbol table if not already
+  if symbolTable.len == 0:
+    symbolTable = initTable[string, NodeValue]()
+
+proc getSymbol*(name: string): NodeValue =
+  ## Get or create a canonical symbol
+  if symbolTable.hasKey(name):
+    return symbolTable[name]
+  else:
+    let sym = NodeValue(kind: vkSymbol, symVal: name)
+    symbolTable[name] = sym
+    return sym
+
+proc symbolEquals*(a, b: NodeValue): bool =
+  ## Check if two symbols are identical (object identity for canonical symbols)
+  if a.kind != vkSymbol or b.kind != vkSymbol:
+    return false
+  return a.symVal == b.symVal
+
+proc clearSymbolTable*() =
+  ## Clear all symbols (useful for testing)
+  symbolTable.clear()
