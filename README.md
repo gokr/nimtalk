@@ -55,17 +55,17 @@ cd nimtalk
 # Build using Nimble (binaries in nimtalk/repl/ and nimtalk/compiler/)
 nimble build  # Builds both ntalk (REPL/interpreter) and ntalkc (compiler)
 
-# Build using build script with binaries copied to root directory
-nim e build.nims repl  # Builds and copies ntalk, ntalkc to current directory
+# Build and copy binaries to root directory for convenience
+nimble repl  # Builds and copies ntalk, ntalkc to current directory
 
 # Run tests
-nim e build.nims test  # or nimble test
+nimble test  # or nim e build.nims test
 
 # Clean build artifacts
-nim e build.nims clean
+nimble clean  # or nim e build.nims clean
 
 # Install binary to ~/.local/bin/ (Unix/Linux/macOS)
-nim e build.nims install
+nimble install  # or nim e build.nims install
 ```
 
 ### Quick Example
@@ -74,12 +74,25 @@ Create a file `hello.nt`:
 ```smalltalk
 #!/usr/bin/env ntalk
 
-# Create a calculator object
-calculator := Object derive
+# Create a calculator object with instance variables
+calculator := Object derive: #(x y).
+
+# Use automatic accessor methods
+calculator x: 3.
+calculator y: 4.
+
+# Get the result
+calculator x
+```
+
+Or using the traditional property bag approach:
+```smalltalk
+# Create a calculator object (without declared ivars)
+calculator := Object derive.
 
 # Add the two numbers as properties
-calculator at: "x" put: 3
-calculator at: "y" put: 4
+calculator at: "x" put: 3.
+calculator at: "y" put: 4.
 
 # Get the result
 calculator at: "x"
@@ -139,6 +152,29 @@ graph LR
     F --> H[Nim Code]
     H --> I[Nim Compiler]
     I --> J[Native Binary]
+```
+
+### Debugging and Development Tools
+
+Nimtalk includes comprehensive debugging support:
+
+- **AST Inspection**: Use `--ast` flag to see parsed syntax tree
+- **Execution Tracing**: Use `--loglevel DEBUG` for detailed execution logs
+- **Interactive REPL**: Test expressions and explore objects interactively
+- **Build Automation**: `build.nims` script for common tasks
+
+See [docs/TOOLS_AND_DEBUGGING.md](docs/TOOLS_AND_DEBUGGING.md) for comprehensive documentation on debugging tools and techniques.
+
+**Quick Debug Example:**
+```bash
+# See how code is parsed
+ntalk --ast -e "3 + 4"
+
+# Trace execution details
+ntalk --loglevel DEBUG script.nt
+
+# Combine both for maximum visibility
+ntalk --ast --loglevel DEBUG script.nt
 ```
 
 ## Language Syntax

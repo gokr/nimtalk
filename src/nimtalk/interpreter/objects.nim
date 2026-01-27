@@ -1,6 +1,5 @@
 import std/[tables, strutils, sequtils]
 import ../core/types
-import ../parser/parser
 
 # ============================================================================
 # Object System for Nimtalk
@@ -12,19 +11,19 @@ proc cloneImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc deriveImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc deriveWithIVarsImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc atImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc atPutImpl*(self: var ProtoObject, args: seq[NodeValue]): NodeValue
+proc atPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc plusImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc printStringImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc writeImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc writelineImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc getSlotImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc setSlotValueImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 
 # Global root object (singleton)
 var rootObject*: RootObject = nil
 
 # Create a core method
-type CoreMethodProc = proc(self: ProtoObject, args: seq[NodeValue]): NodeValue {.nimcall.}
 
-type CoreMutMethodProc = proc(self: var ProtoObject, args: seq[NodeValue]): NodeValue {.nimcall.}
 
 proc createCoreMethod*(name: string): BlockNode =
   ## Create a method stub
@@ -133,6 +132,14 @@ proc initRootObject*(): RootObject =
     let atPutMethod = createCoreMethod("at:put:")
     atPutMethod.nativeImpl = cast[pointer](atPutImpl)
     addMethod(rootObject, "at:put:", atPutMethod)
+
+    let getSlotMethod = createCoreMethod("getSlot:")
+    getSlotMethod.nativeImpl = cast[pointer](getSlotImpl)
+    addMethod(rootObject, "getSlot:", getSlotMethod)
+
+    let setSlotValueMethod = createCoreMethod("setSlot:value:")
+    setSlotValueMethod.nativeImpl = cast[pointer](setSlotValueImpl)
+    addMethod(rootObject, "setSlot:value:", setSlotValueMethod)
 
     let printStringMethod = createCoreMethod("printString")
     printStringMethod.nativeImpl = cast[pointer](printStringImpl)
@@ -312,22 +319,39 @@ proc atImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   ## Get property value: obj at: 'key'
   if args.len < 1:
     return nilValue()
-  if args[0].kind != vkSymbol:
+  let keyVal = args[0]
+  var key: string
+  case keyVal.kind
+  of vkSymbol:
+    key = keyVal.symVal
+  of vkString:
+    key = keyVal.strVal
+  else:
     return nilValue()
 
-  let key = args[0].symVal
   return getProperty(self, key)
 
-proc atPutImpl*(self: var ProtoObject, args: seq[NodeValue]): NodeValue =
+proc atPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   ## Set property value: obj at: 'key' put: value
+  echo "atPutImpl called with ", args.len, " args, self tags: ", $self.tags
   if args.len < 2:
+    echo "atPutImpl: insufficient args"
     return nilValue()
-  if args[0].kind != vkSymbol:
+  let keyVal = args[0]
+  var key: string
+  case keyVal.kind
+  of vkSymbol:
+    key = keyVal.symVal
+  of vkString:
+    key = keyVal.strVal
+  else:
+    echo "atPutImpl: first arg not symbol or string: ", keyVal.kind
     return nilValue()
 
-  let key = args[0].symVal
   let value = args[1]
+  echo "Setting property: ", key, " = ", value.toString(), " on self with tags: ", $self.tags
   setProperty(self, key, value)
+  echo "Property set done, now properties count: ", self.properties.len
   return value
 
 proc plusImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
@@ -385,6 +409,38 @@ proc writelineImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     else:
       echo value.toString()
   return nilValue()
+
+proc getSlotImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+  ## Get slot value: obj getSlot: 'key'
+  if args.len < 1:
+    return nilValue()
+  let keyVal = args[0]
+  var key: string
+  case keyVal.kind
+  of vkSymbol:
+    key = keyVal.symVal
+  of vkString:
+    key = keyVal.strVal
+  else:
+    return nilValue()
+  return getSlot(self, key)
+
+proc setSlotValueImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+  ## Set slot value: obj setSlot: 'key' value: value
+  if args.len < 2:
+    return nilValue()
+  let keyVal = args[0]
+  var key: string
+  case keyVal.kind
+  of vkSymbol:
+    key = keyVal.symVal
+  of vkString:
+    key = keyVal.strVal
+  else:
+    return nilValue()
+  let value = args[1]
+  setSlot(self, key, value)
+  return value
 
 proc doesNotUnderstandImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   ## Default handler for unknown messages
@@ -456,28 +512,28 @@ proc inheritsFrom*(obj: ProtoObject, parent: ProtoObject): bool =
 proc printObject*(obj: ProtoObject, indent: int = 0): string =
   ## Pretty print object structure
   let spaces = repeat(' ', indent * 2)
-  var result = spaces & "Object"
+  var output = spaces & "Object"
 
   if obj.tags.len > 0:
-    result.add(" [" & obj.tags.join(", ") & "]")
-  result.add("\n")
+    output.add(" [" & obj.tags.join(", ") & "]")
+  output.add("\n")
 
   if obj.properties.len > 0:
-    result.add(spaces & "  properties:\n")
+    output.add(spaces & "  properties:\n")
     for key, val in obj.properties:
-      result.add(spaces & "    " & key & ": " & val.toString() & "\n")
+      output.add(spaces & "    " & key & ": " & val.toString() & "\n")
 
   if obj.methods.len > 0:
-    result.add(spaces & "  methods:\n")
+    output.add(spaces & "  methods:\n")
     for selector in obj.methods.keys:
-      result.add(spaces & "    " & selector & "\n")
+      output.add(spaces & "    " & selector & "\n")
 
   if obj.parents.len > 0:
-    result.add(spaces & "  parents:\n")
+    output.add(spaces & "  parents:\n")
     for parent in obj.parents:
-      result.add(printObject(parent, indent + 2))
+      output.add(printObject(parent, indent + 2))
 
-  return result
+  return output
 
 # String interpolation and formatting
 proc formatString*(tmpl: string, args: Table[string, NodeValue]): string =

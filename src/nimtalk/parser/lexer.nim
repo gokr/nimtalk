@@ -260,20 +260,6 @@ proc parseNimCode(lexer: var Lexer): Token =
 
   return Token(kind: tkNimCode, value: value, line: startLine, col: startCol)
 
-# Skip comment
-proc skipComment(lexer: var Lexer) =
-  # Smalltalk style: "comment"
-  if lexer.peek() == '"':
-    discard lexer.next()
-    while lexer.pos < lexer.input.len:
-      if lexer.peek() == '"':
-        discard lexer.next()
-        if lexer.peek() != '"':  # Not escaped quote
-          break
-        else:
-          discard lexer.next()  # Skip escaped quote
-      else:
-        discard lexer.next()
 # Main tokenization function
 proc nextToken*(lexer: var Lexer): Token =
   ## Get the next token from the input

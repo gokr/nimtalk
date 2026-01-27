@@ -193,7 +193,7 @@ proc getSlot*(obj: ProtoObject, name: string): NodeValue =
   let idx = obj.slotNames[name]
   return obj.slots[idx]
 
-proc setSlot*(obj: var ProtoObject, name: string, value: NodeValue) =
+proc setSlot*(obj: ProtoObject, name: string, value: NodeValue) =
   ## Set slot value by name (does nothing if slot doesn't exist)
   if not obj.hasSlots or not obj.slotNames.hasKey(name):
     return
@@ -254,13 +254,20 @@ proc toTable*(val: NodeValue): Table[string, NodeValue] =
 # Property and method helpers (will be fully implemented in objects.nim)
 proc getProperty*(obj: ProtoObject, name: string): NodeValue =
   ## Get property value from object or its prototype chain
-  ## NOTE: This is a stub - actual implementation in objects.nim
+  if obj.properties.hasKey(name):
+    return obj.properties[name]
+  # Search prototype chain
+  for parent in obj.parents:
+    let val = parent.getProperty(name)
+    if val.kind != vkNil:
+      return val
+  # Not found in properties or slots
   nilValue()
 
-proc setProperty*(obj: var ProtoObject, name: string, value: NodeValue) =
+proc setProperty*(obj: ProtoObject, name: string, value: NodeValue) =
   ## Set property on object (not in prototypes)
-  ## NOTE: This is a stub - actual implementation in objects.nim
-  discard
+  echo "setProperty for object: ", obj.tags, " name: ", name, " = ", value.toString()
+  obj.properties[name] = value
 
 proc lookupMethod*(obj: ProtoObject, selector: string): BlockNode =
   ## Look up method in object or prototype chain

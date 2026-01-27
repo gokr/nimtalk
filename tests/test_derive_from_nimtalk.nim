@@ -19,7 +19,8 @@ suite "derive: from Nimtalk code":
     let source = """
 Person := Object derive: #(name age).
 """
-    let (result, err) = interp.doit(source)
+    let (results, err) = interp.evalStatements(source)
+    let result = if results.len > 0: results[^1] else: nilValue()
 
     if err.len > 0:
       echo "Error: ", err
@@ -44,7 +45,8 @@ person := Person derive.
 person name: "Alice".
 person age: 30.
 """
-    let (result, err) = interp.doit(source)
+    let (results, err) = interp.evalStatements(source)
+    let result = if results.len > 0: results[^1] else: nilValue()
 
     if err.len > 0:
       echo "Error: ", err
@@ -77,7 +79,8 @@ dog := Dog derive.
 dog species: "Canine".
 dog breed: "Golden Retriever".
 """
-    let (result, err) = interp.doit(source)
+    let (results, err) = interp.evalStatements(source)
+    let result = if results.len > 0: results[^1] else: nilValue()
 
     if err.len > 0:
       echo "Error: ", err
@@ -114,7 +117,8 @@ dog breed: "Golden Retriever".
 Animal := Object derive: #(species).
 Dog := Animal derive: #(species breed).
 """
-    let (result, err) = interp.doit(source)
+    let (results, err) = interp.evalStatements(source)
+    let result = if results.len > 0: results[^1] else: nilValue()
 
     check err.len > 0
     let conflictFound = err.find("Instance variable conflict") >= 0
@@ -126,7 +130,8 @@ Dog := Animal derive: #(species breed).
 Simple := Object derive: #().
 simple := Simple derive.
 """
-    let (result, err) = interp.doit(source)
+    let (results, err) = interp.evalStatements(source)
+    let result = if results.len > 0: results[^1] else: nilValue()
 
     if err.len > 0:
       echo "Error: ", err

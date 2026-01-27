@@ -1,4 +1,4 @@
-import std/[tables, strutils, sequtils, times, math, strformat, logging]
+import std/[tables, strutils, math, strformat, logging]
 import ../core/types
 import ../parser/lexer
 import ../parser/parser
@@ -158,16 +158,19 @@ proc printCallStack*(interp: Interpreter): string =
 # Variable lookup
 proc lookupVariable(interp: Interpreter, name: string): NodeValue =
   ## Look up variable in activation chain and globals
+  echo "lookupVariable: ", name
   debug("Looking up variable: ", name)
   var activation = interp.currentActivation
   while activation != nil:
     if name in activation.locals:
+      echo "Found variable in activation: ", name
       debug("Found variable in activation: ", name)
       return activation.locals[name]
     activation = activation.sender
 
   # Check globals
   if name in interp.globals:
+    echo "Found variable in globals: ", name, " = ", interp.globals[name].toString()
     debug("Found variable in globals: ", name)
     let val = interp.globals[name]
     return val
@@ -176,15 +179,18 @@ proc lookupVariable(interp: Interpreter, name: string): NodeValue =
   if interp.currentReceiver != nil:
     let prop = getProperty(interp.currentReceiver, name)
     if prop.kind != vkNil:
+      echo "Found property on self: ", name
       debug("Found property on self: ", name)
       return prop
 
+  echo "Variable not found: ", name
   debug("Variable not found: ", name)
   return nilValue()
 
 # Variable assignment
 proc setVariable(interp: var Interpreter, name: string, value: NodeValue) =
   ## Set variable in current activation or create global
+  echo "setVariable: ", name, " = ", value.toString(), " (activation: ", interp.currentActivation != nil, ")"
   debug("Setting variable: ", name, " = ", value.toString())
   if interp.currentActivation != nil:
     # If it exists in current activation, update it
@@ -196,6 +202,7 @@ proc setVariable(interp: var Interpreter, name: string, value: NodeValue) =
   else:
     # Set as global
     interp.globals[name] = value
+    echo "Global set: ", name, " now globals count: ", interp.globals.len
 
 # Method lookup and dispatch
 type
@@ -205,12 +212,29 @@ type
     found*: bool
 
 proc lookupMethod(interp: Interpreter, receiver: ProtoObject, selector: string): MethodResult =
-  ## Look up currentMethod in receiver and prototype chain
+  ## Look up method in receiver and prototype chain
+  echo "Looking up method: ", selector, " in receiver: ", $receiver.tags
+  echo "Receiver properties count: ", receiver.properties.len
   var current = receiver
-  while current != nil:
+  var depth = 0
+  while current != nil and depth < 100:
+    inc depth
+    echo "Current properties count: ", current.properties.len, " depth: ", depth
     if selector in current.methods:
-      let currentMethod = current.methods[selector]
-      return MethodResult(currentMethod: currentMethod, receiver: current, found: true)
+      echo "Found method in methods table"
+      let meth = current.methods[selector]
+      return MethodResult(currentMethod: meth, receiver: current, found: true)
+
+    # Check properties for block values
+    if selector in current.properties:
+      echo "Found property with selector: ", selector
+      let prop = current.properties[selector]
+      echo "Property kind: ", prop.kind
+      if prop.kind == vkBlock:
+        let blockNode = prop.blockVal
+        echo "Property is a block, returning as method"
+        # Return the block as a method
+        return MethodResult(currentMethod: blockNode, receiver: current, found: true)
 
     # Search parent chain
     if current.parents.len > 0:
@@ -218,6 +242,9 @@ proc lookupMethod(interp: Interpreter, receiver: ProtoObject, selector: string):
     else:
       break
 
+  if depth >= 100:
+    echo "ERROR: Lookup depth exceeded 100 for selector: ", selector, " receiver tags: ", $receiver.tags
+  echo "Method not found: ", selector
   return MethodResult(currentMethod: nil, receiver: nil, found: false)
 
 # Execute a currentMethod
@@ -229,6 +256,7 @@ proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
   debug("Executing method with ", arguments.len, " arguments")
 
   # Check for native implementation first
+  echo "Native impl found: ", currentMethod.nativeImpl != nil
   if currentMethod.nativeImpl != nil:
     # Evaluate arguments to get NodeValues
     var argValues = newSeq[NodeValue]()
@@ -239,14 +267,17 @@ proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
     if currentMethod.hasInterpreterParam:
       type NativeProcWithInterp = proc(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue {.nimcall.}
       let nativeProc = cast[NativeProcWithInterp](currentMethod.nativeImpl)
+      echo "Calling native proc (with interp)"
       return nativeProc(interp, receiver, argValues)
     else:
       # Standard native method without interpreter
       type NativeProc = proc(self: ProtoObject, args: seq[NodeValue]): NodeValue {.nimcall.}
       let nativeProc = cast[NativeProc](currentMethod.nativeImpl)
+      echo "Calling native proc (no interp)"
       return nativeProc(receiver, argValues)
 
   # Create new activation
+  echo "Interpreted method execution, param count: ", currentMethod.parameters.len
   let activation = newActivation(currentMethod, receiver, interp.currentActivation)
 
   # Bind parameters
@@ -258,6 +289,7 @@ proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
   for i in 0..<currentMethod.parameters.len:
     let paramName = currentMethod.parameters[i]
     let argValue = interp.eval(arguments[i])
+    echo "Binding parameter: ", paramName, " = ", argValue.toString()
     activation.locals[paramName] = argValue
 
   # Push activation
@@ -267,11 +299,11 @@ proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
   interp.currentReceiver = receiver
 
   # Execute currentMethod body
-  var result = nilValue()
+  var retVal = nilValue()
 
   try:
     for stmt in currentMethod.body:
-      result = interp.eval(stmt)
+      retVal = interp.eval(stmt)
       if activation.hasReturned:
         break
   finally:
@@ -289,8 +321,8 @@ proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
     debug("Returning from method (non-local)")
     return activation.returnValue
   else:
-    debug("Returning from method: ", result.toString())
-    return result
+    debug("Returning from method: ", retVal.toString())
+    return retVal
 
 # Evaluation functions
 proc eval*(interp: var Interpreter, node: Node): NodeValue =
@@ -308,13 +340,16 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
     let val = node.LiteralNode.value
     if val.kind == vkSymbol:
       # Look up symbol as variable
+      echo "Literal symbol lookup: ", val.symVal
       let varVal = lookupVariable(interp, val.symVal)
       if varVal.kind != vkNil:
+        echo "Returning variable value: ", varVal.toString()
         return varVal
     return val
 
   of nkMessage:
     # Message send
+    echo "EVAL MESSAGE: selector=", node.MessageNode.selector, " receiver nil? ", node.MessageNode.receiver == nil
     debug("Message send: ", node.MessageNode.selector)
     return interp.evalMessage(node.MessageNode)
 
@@ -325,6 +360,7 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
   of nkAssign:
     # Variable assignment
     let assign = node.AssignNode
+    echo "EVAL ASSIGN: variable=", assign.variable
     debug("Variable assignment: ", assign.variable)
     let value = interp.eval(assign.expression)
     setVariable(interp, assign.variable, value)
@@ -342,8 +378,14 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
 
     # Find the target activation for non-local return
     var activation = interp.currentActivation
+    var loopCount = 0
     while activation != nil and not activation.currentMethod.isMethod:
+      echo "Return: looking for method activation, current isMethod: ", activation.currentMethod.isMethod, " loopCount: ", loopCount
       activation = activation.sender
+      inc loopCount
+      if loopCount > 100:
+        echo "ERROR: Infinite loop in return node"
+        break
 
     if activation != nil:
       activation.returnValue = value
@@ -353,10 +395,24 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
 
   of nkArray:
     # Array literal - evaluate each element
+    echo "EVAL ARRAY with ", arr.elements.len, " elements"
     let arr = node.ArrayNode
     var elements: seq[NodeValue] = @[]
-    for elem in arr.elements:
+    for i, elem in arr.elements:
+      echo "  element ", i, ": kind = ", elem.kind
+      # Special handling for symbol literals inside arrays
+      # They should be treated as literal symbols, not variable lookups
+      if elem of LiteralNode:
+        let lit = elem.LiteralNode
+        echo "    literal node, value kind = ", lit.value.kind
+        if lit.value.kind == vkSymbol:
+          # Use symbol value directly, don't evaluate as variable
+          echo "    symbol literal: ", lit.value.symVal
+          elements.add(lit.value)
+          continue
+      # Normal evaluation for other elements
       elements.add(interp.eval(elem))
+    echo "ARRAY result: ", elements.len, " elements"
     return toValue(elements)
 
   of nkTable:
@@ -385,29 +441,29 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
   of nkPrimitive:
     # Primitive declaration - ignore Nim code, evaluate fallback Smalltalk
     let prim = node.PrimitiveNode
-    var result = nilValue()
+    var fallbackResult = nilValue()
     # Evaluate fallback statements sequentially
     for stmt in prim.fallback:
-      result = interp.eval(stmt)
-    return result
+      fallbackResult = interp.eval(stmt)
+    return fallbackResult
 
   of nkCascade:
     # Cascade message - send multiple messages to same receiver
     return interp.evalCascade(node.CascadeNode)
 
-  else:
-    raise newException(EvalError, "Unknown node type: " & $node.kind)
 
 # Evaluate a message send
 proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue =
   ## Evaluate a message send
 
   # Evaluate receiver
+  echo "evalMessage: receiver nil? ", msgNode.receiver == nil
   let receiverVal = if msgNode.receiver != nil:
                       interp.eval(msgNode.receiver)
                     else:
                       interp.currentReceiver.toValue()
 
+  echo "evalMessage: receiverVal = ", receiverVal.toString()
   debug("Message receiver: ", receiverVal.toString())
 
   # Wrap non-object receivers (like integers and booleans) in Nim proxy objects
@@ -472,7 +528,7 @@ proc evalCascade(interp: var Interpreter, cascadeNode: CascadeNode): NodeValue =
 
   # Evaluate receiver once
   let receiverVal = interp.eval(cascadeNode.receiver)
-  var result = receiverVal
+  var cascadeResult = receiverVal
 
   # Send each message to the receiver
   for msgNode in cascadeNode.messages:
@@ -498,13 +554,13 @@ proc evalCascade(interp: var Interpreter, cascadeNode: CascadeNode): NodeValue =
       arguments: msgNode.arguments,
       isCascade: false
     )
-    result = interp.evalMessage(msgWithNilReceiver)
+    cascadeResult = interp.evalMessage(msgWithNilReceiver)
 
     # Restore previous receiver
     interp.currentReceiver = savedReceiver
 
   # Return result of last message
-  return result
+  return cascadeResult
 
 # Special form for sending messages directly without AST
 proc sendMessage*(interp: var Interpreter, receiver: ProtoObject,
@@ -562,9 +618,11 @@ proc doit*(interp: var Interpreter, source: string, dumpAst = false): (NodeValue
 # Batch evaluation of multiple statements
 proc evalStatements*(interp: var Interpreter, source: string): (seq[NodeValue], string) =
   ## Parse and evaluate multiple statements
+  echo "evalStatements called with source length: ", source.len
   let tokens = lex(source)
   var parser = initParser(tokens)
   let nodes = parser.parseStatements()
+  echo "Parsed nodes: ", nodes.len
 
   if parser.hasError:
     return (@[], "Parse error: " & parser.errorMsg)
@@ -572,9 +630,13 @@ proc evalStatements*(interp: var Interpreter, source: string): (seq[NodeValue], 
   var results = newSeq[NodeValue]()
 
   try:
+    var nodeIndex = 0
     for node in nodes:
-      let result = interp.eval(node)
-      results.add(result)
+      echo "evalStatements evaluating node ", nodeIndex, " kind: ", node.kind
+      let evalResult = interp.eval(node)
+      echo "evalStatements node ", nodeIndex, " result: ", evalResult.toString()
+      results.add(evalResult)
+      inc nodeIndex
 
     return (results, "")
   except EvalError as e:
@@ -598,12 +660,12 @@ proc evalBlock(interp: var Interpreter, receiver: ProtoObject, blockNode: BlockN
   interp.currentReceiver = receiver
 
   # Execute each statement in the block body
-  var result = nilValue()
+  var blockResult = nilValue()
   try:
     for stmt in blockNode.body:
-      result = interp.eval(stmt)
+      blockResult = interp.eval(stmt)
       if activation.hasReturned:
-        result = activation.returnValue
+        blockResult = activation.returnValue
         break
   finally:
     # Pop the activation
@@ -611,7 +673,7 @@ proc evalBlock(interp: var Interpreter, receiver: ProtoObject, blockNode: BlockN
     interp.currentActivation = savedActivation
     interp.currentReceiver = savedReceiver
 
-  return result
+  return blockResult
 
 # Conditional method implementations (need to be defined before initGlobals)
 proc ifTrueImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
@@ -728,8 +790,8 @@ proc initGlobals*(interp: var Interpreter) =
 # Execute code and capture output
 proc execWithOutput*(interp: var Interpreter, source: string): (string, string) =
   ## Execute code and capture stdout/stderr separately
-  let (result, err) = interp.doit(source)
+  let (value, err) = interp.doit(source)
   if err.len > 0:
     return ("", err)
   else:
-    return (result.toString(), "")
+    return (value.toString(), "")

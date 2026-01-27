@@ -1,4 +1,4 @@
-import std/[tables, strutils, times]
+import std/[tables, strutils]
 import ../core/types
 import ../interpreter/objects
 import ../parser/[lexer, parser]
@@ -22,9 +22,8 @@ proc newActivation*(blk: BlockNode,
     hasReturned: false
   )
 
-  # Initialize 'self' if this is a method (not a block)
-  if blk.isMethod:
-    result.locals["self"] = receiver.toValue()
+  # Initialize 'self' for all activations (blocks invoked as methods need self)
+  result.locals["self"] = receiver.toValue()
 
   # Initialize parameters (bound by caller)
   # parameters will be bound when method is invoked
@@ -48,13 +47,13 @@ proc parseAndActivate*(source: string, receiver: ProtoObject = nil): Activation 
 proc printActivation*(activation: Activation, indent: int = 0): string =
   ## Pretty print activation record
   let spaces = repeat(' ', indent * 2)
-  var result = spaces & "Activation\n"
-  result.add(spaces & "  method: " & activation.currentMethod.parameters.join(", ") & "\n")
-  result.add(spaces & "  locals:\n")
+  var output = spaces & "Activation\n"
+  output.add(spaces & "  method: " & activation.currentMethod.parameters.join(", ") & "\n")
+  output.add(spaces & "  locals:\n")
   for key, val in activation.locals:
-    result.add(spaces & "    " & key & " = " & val.toString() & "\n")
+    output.add(spaces & "    " & key & " = " & val.toString() & "\n")
   if activation.sender != nil:
-    result.add(spaces & "  sender: <activation>\n")
-  return result
+    output.add(spaces & "  sender: <activation>\n")
+  return output
 
 # Note: Context switching and interpreter integration procs have been moved to evaluator.nim

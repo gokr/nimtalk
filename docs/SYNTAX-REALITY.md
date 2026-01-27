@@ -147,24 +147,6 @@ Array at: 'inject:into:' put: [
 ].
 ```
 
-### Planned Syntax (Not Yet Implemented)
-
-The `>>` syntax described in proposal documents is **planned but not yet implemented**:
-
-```smalltalk
-# This syntax does NOT work yet
-Person>>greet [ ^ "Hello" ]
-
-Person>>name: aName [ name := aName ]
-
-Person>>moveX: x y: y [
-  positionX := x.
-  positionY := y
-]
-```
-
-**TODO**: Parser extension needed to recognize `>>` and convert it to `at:put:` calls. See `TODO.md` line 38.
-
 ## Assignment
 
 Use `:=` for assignment:
@@ -214,10 +196,27 @@ obj at: "key" put: value
 array inject: 0 into: [ :sum :each | sum + each ]
 ```
 
+## Cascading
+
+Nimtalk implements the Smalltalk cascade syntax using `;` to send multiple messages to the same receiver:
+
+```smalltalk
+# Send multiple messages to the same object
+obj at: "x" put: 0; at: "y" put: 0; at: "z" put: 0.
+
+# Use with any message type
+person name: "Alice"; age: 30; address: "123 Main St".
+
+# The receiver is evaluated only once
+counter increment; increment; increment; value
+```
+
+The receiver is evaluated once, then each message in the cascade is sent to that receiver in sequence.
+
 ## Differences from Smalltalk
 
-1. **No cascading**: The `;` operator is not implemented
-2. **No binary operators**: `+`, `-`, etc. are not special syntax (yet)
+1. **Cascading**: Implemented using `;` operator for sending multiple messages to same receiver
+2. **No binary operators**: `+`, `-`, etc. are not special syntax (they're regular messages)
 3. **No metaclasses**: Class methods are defined on the class object itself
 4. **Nim integration**: Can embed Nim code using `<primitive>` tags
 

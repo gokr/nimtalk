@@ -1,10 +1,7 @@
 import unittest
 import ../src/nimtalk/core/types
-import ../src/nimtalk/parser/lexer
 import ../src/nimtalk/parser/parser
 import ../src/nimtalk/interpreter/evaluator
-import ../src/nimtalk/interpreter/objects
-import ../src/nimtalk/interpreter/activation
 
 suite "Cascade Tests":
   setup:

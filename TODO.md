@@ -9,15 +9,17 @@ This document tracks current work items, future directions, and known issues for
 - Binary names: `ntalk` (interpreter/REPL), `ntalkc` (compiler)
 - Build system updated with `build.nims` automation
 
-**Core Language**: ⚡ In Progress
+**Core Language**: ✅ **Mostly Complete!**
 - ✅ Lexer and parser with data structure literal syntax
 - ✅ Prototype object system with property bags and prototype chains
 - ✅ AST interpreter core with message sending and block evaluation
 - ✅ REPL/Interpreter with file execution and interactive mode
-- ✅ Slot-based instance variable system (fully implemented, 149x performance improvement)
+- ✅ Slot-based instance variable system (**fully implemented, 149x performance improvement**)
 - ✅ Native method dispatch from Nimtalk code
 - ✅ Base library with core objects and collections
-- ⏳ Compiler infrastructure (stub implementation)
+- ✅ Lexical closures with comprehensive test coverage
+- ✅ Cascade syntax (`;` operator) for multiple messages to same receiver
+- ⏳ Compiler infrastructure (stub implementation - next major priority)
 
 ## High Priority Tasks
 
@@ -35,8 +37,10 @@ This document tracks current work items, future directions, and known issues for
 
 ### 3. Language Features
 - [x] Instance variable type system and core implementation (types.nim, objects.nim)
-- [x] Instance variable declaration syntax (`derive: #(ivar1 ivar2)` - implemented as message)
-- [x] Instance variable access via automatic getters/setters
+- [x] Instance variable declaration syntax (`derive: #(#ivar1 #ivar2)` - implemented as message)
+- [x] Instance variable access via automatic getters/setters (automatically generated)
+- [x] Lexical closures with variable capture and non-local returns
+- [x] Cascade syntax (`;` operator) for multiple messages to same receiver
 - [ ] Method definition syntax (`>>`) for files (parser support pending)
 - [ ] `super` support for calling parent methods
 - [ ] Enhanced control flow (loops, conditionals)
@@ -57,7 +61,9 @@ This document tracks current work items, future directions, and known issues for
 
 ### 6. Tooling Enhancement
 - [ ] Enhanced REPL with history and completion
-- [ ] Better error messages and debugging support
+- [x] Better error messages and debugging support
+- [x] AST inspection with `--ast` flag
+- [x] Execution tracing with `--loglevel DEBUG`
 - [ ] Syntax highlighting definitions for editors
 - [ ] Build system improvements
 
@@ -94,9 +100,11 @@ This document tracks current work items, future directions, and known issues for
 ### User Documentation
 - [x] README.md with getting started guide and examples (updated)
 - [x] Design documents for slot-based instance variable system (docs/)
+- [x] Debugging and tools documentation (docs/TOOLS_AND_DEBUGGING.md)
 - [ ] Complete language specification (SPECIFICATION.md missing)
 - [ ] Tutorials and comprehensive examples
 - [ ] API reference for built-in objects
+- [ ] Help text improvements (ntalk and ntalkc)
 
 ### Developer Documentation
 - [x] Architecture and design documents (docs/IMPLEMENTATION-PLAN.md, docs/NIMTALK-NEW-OBJECT-MODEL.md)
@@ -108,10 +116,11 @@ This document tracks current work items, future directions, and known issues for
 ## Testing & Quality
 
 ### Test Coverage
-- [ ] Expand test suite for parser edge cases
+- [x] Expand test suite for parser edge cases
 - [x] Add integration tests for complete examples (test_derive_from_nimtalk.nim)
+- [x] Add comprehensive evaluator tests (test_evaluator.nim - 23KB test suite)
 - [x] Performance benchmarks (benchmark_slots.nim - 149x speedup)
-- [ ] Cross-platform testing
+- [x] Cross-platform testing (basic Nim portability tests)
 
 ### Code Quality
 - [ ] Remove unused imports and variables (current warnings)
