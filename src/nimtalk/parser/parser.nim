@@ -78,14 +78,6 @@ proc expect(parser: var Parser, kind: TokenKind): bool =
   else:
     return false
 
-# Require a token or produce error
-proc require(parser: var Parser, kind: TokenKind, msg: string): bool =
-  if parser.peek().kind == kind:
-    discard parser.next()
-    return true
-  else:
-    parser.parseError(msg)
-    return false
 
 # Parse primary expressions
 proc parsePrimary(parser: var Parser): Node =
@@ -300,8 +292,8 @@ proc checkForCascade(parser: var Parser, primary: Node, firstMsg: MessageNode): 
   if messages.len > 1:
     return CascadeNode(receiver: cascadeReceiver, messages: messages)
   else:
-    # Single message, return as-is
-    return firstMsg
+    # Single message (no cascade), return nil to use original expression
+    return nil
 
 # Parse block literal
 proc parseBlock*(parser: var Parser): BlockNode =
@@ -475,11 +467,11 @@ proc parseStatement(parser: var Parser; parseMessages = true): Node =
 
   # Check for return statement
   if parser.expect(tkReturn):
-    let expr = parser.parseExpression(parseMessages = true)
+    let expr = parser.parseExpression(parseMessages = parseMessages)
     return ReturnNode(expression: expr)
 
   # Parse expression
-  let expr = parser.parseExpression(parseMessages = true)
+  let expr = parser.parseExpression(parseMessages = parseMessages)
   if expr == nil:
     return nil
 
