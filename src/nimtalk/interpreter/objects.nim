@@ -194,7 +194,7 @@ proc cloneImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   ## Shallow clone of object
   let clone = ProtoObject()
   clone.properties = self.properties
-  clone.methods = initTable[string, BlockNode]()
+  clone.methods = self.methods  # Copy methods table, don't create empty one
   clone.parents = self.parents
   clone.tags = self.tags
   clone.isNimProxy = false
