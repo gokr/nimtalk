@@ -11,10 +11,10 @@
 **Status**: Migration in progress - documentation updated to use double quotes
 
 ### 2. Instance Variable Access Syntax
-**Current State**: Only `at:put:` and `at:` methods for property access
+**Current State**: ✅ Automatic getter/setter generation for declared ivars
 **Proposal**: Add direct slot access syntax like Smalltalk (just use ivar name)
 **Decision Needed**: What syntax for slot access? `person name` vs `person@name` vs keep `person at: "name"`
-**Status**: Core types implemented, syntax design pending
+**Status**: ✅ Core types implemented with direct slot access, syntax design complete (automatic accessors)
 
 ### 3. Method Definition Syntax (`>>`)
 **Current State**: Methods stored as properties via `at:put:`
@@ -48,8 +48,8 @@
 
 ### ✅ Slot-based Instance Variables
 **Decision**: Implement hybrid model supporting both property bags and slots
-**Rationale**: Backwards compatibility + performance benefits
-**Status**: Core types implemented, parser support pending
+**Rationale**: Backwards compatibility + performance benefits (149x improvement!)
+**Status**: ✅ COMPLETE - Core types implemented, parser supports `derive: #()` syntax, automatic accessor generation
 
 ## Decision Process
 
@@ -66,4 +66,4 @@
 3. Submit proposals or feedback
 4. Help implement decided features
 
-*Last updated: 2026-01-26*
+*Last updated: 2026-01-28 (Slot system complete, decisions updated)*

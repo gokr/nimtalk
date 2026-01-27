@@ -1,6 +1,10 @@
 # Nimtalk Syntax - Current Implementation
 
-This document describes the **actual implemented syntax** in the current Nimtalk interpreter, which may differ from proposal documents.
+This document describes the **actual implemented syntax** in the current Nimtalk interpreter. Key updates:
+- ✅ Slot-based instance variable system fully implemented (149x performance improvement)
+- ✅ Binary operators implemented as regular messages
+- ✅ Cascade syntax working (`;` operator)
+- ✅ Direct ivar access inside methods
 
 ## String Literals
 
@@ -211,12 +215,18 @@ Nimtalk uses Smalltalk-style message passing:
 # Unary messages
 self printString
 
-# Binary messages (not fully implemented)
-# x + y
+# Binary messages (✅ implemented as regular messages)
+3 + 4
+5 * 6
+x > y
 
 # Keyword messages
 obj at: "key" put: value
 array inject: 0 into: [ :sum :each | sum + each ]
+
+# Instance variable access (via generated accessors)
+person name           # Generated getter - direct slot access
+person name: "Alice"  # Generated setter - direct slot write
 ```
 
 ## Cascading
@@ -239,9 +249,12 @@ The receiver is evaluated once, then each message in the cascade is sent to that
 ## Differences from Smalltalk
 
 1. **Cascading**: Implemented using `;` operator for sending multiple messages to same receiver
-2. **No binary operators**: `+`, `-`, etc. are not special syntax (they're regular messages)
+2. **Binary operators**: `+`, `-`, etc. are regular messages (not special syntax)
 3. **No metaclasses**: Class methods are defined on the class object itself
 4. **Nim integration**: Can embed Nim code using `<primitive>` tags
+5. **Dual storage**: Property bags for dynamic objects + slots for performance (149x faster)
+6. **No `>>` syntax yet**: Methods defined via `at:put:` (planned parser support)
+7. **Direct ivar access**: Inside methods, access ivars by name without `at:`
 
 ## Embedding Nim Code
 
@@ -263,4 +276,4 @@ Object at: 'primitiveClone' put: <primitive>
 
 ---
 
-**Note**: This reflects the syntax as of the current implementation. Check proposal documents (`docs/NIMTALK-NEW-OBJECT-MODEL.md`, etc.) for planned features and syntax changes.
+**Note**: This reflects the syntax as of the current implementation (2026-01-28). Key features like slot-based instance variables are fully implemented. Check other documents for design decisions and future plans.
