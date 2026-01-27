@@ -213,15 +213,15 @@ type
 
 proc lookupMethod(interp: Interpreter, receiver: ProtoObject, selector: string): MethodResult =
   ## Look up method in receiver and prototype chain
-  echo "Looking up method: ", selector, " in receiver: ", $receiver.tags
-  echo "Receiver properties count: ", receiver.properties.len
+  echo "Looking up method: '", selector, "' in receiver with tags: ", $receiver.tags
+  echo "  methods count: ", receiver.methods.len, " properties count: ", receiver.properties.len
   var current = receiver
   var depth = 0
   while current != nil and depth < 100:
     inc depth
-    echo "Current properties count: ", current.properties.len, " depth: ", depth
+    echo "  checking depth ", depth, " tags: ", $current.tags
     if selector in current.methods:
-      echo "Found method in methods table"
+      echo "  FOUND in methods table"
       let meth = current.methods[selector]
       return MethodResult(currentMethod: meth, receiver: current, found: true)
 
@@ -233,6 +233,8 @@ proc lookupMethod(interp: Interpreter, receiver: ProtoObject, selector: string):
       if prop.kind == vkBlock:
         let blockNode = prop.blockVal
         echo "Property is a block, returning as method, isMethod: ", blockNode.isMethod
+        # Mark block as method for non-local returns
+        blockNode.isMethod = true
         # Return the block as a method
         return MethodResult(currentMethod: blockNode, receiver: current, found: true)
 
@@ -380,6 +382,10 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
     # Find the target activation for non-local return
     var activation = interp.currentActivation
     var loopCount = 0
+    if activation != nil:
+      echo "Return: activation present, isMethod=", activation.currentMethod.isMethod
+    else:
+      echo "Return: activation nil"
     while activation != nil and not activation.currentMethod.isMethod:
       echo "Return: looking for method activation, current isMethod: ", activation.currentMethod.isMethod, " loopCount: ", loopCount
       activation = activation.sender
