@@ -23,6 +23,8 @@ Nimtalk is a prototype-based Smalltalk dialect designed for the modern era. It c
 - **Block closures** with lexical scoping and supporting early returns
 - **Simple, consistent syntax** inspired by Smalltalk
 - **Dynamic typing** with optional type annotations via Nim integration
+- **Comment support**: Both Smalltalk-style `"comments"` and Nim-style `# comments`
+- **Shebang support**: Scripts can start with `#!/usr/bin/env ntalk`
 
 ### Execution Models
 - **AST Interpreter**: Full Smalltalk semantics with dynamic evaluation

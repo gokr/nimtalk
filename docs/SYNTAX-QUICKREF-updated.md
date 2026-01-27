@@ -315,6 +315,7 @@ collection do: [ :each | block ].
 #=== Comments ================================
 # This is a comment (line, to end)
 "Inline comment" someCode                   # String as comment
+#!/usr/bin/env ntalk                         # Shebang at start of file
 
 #=== Strings =================================
 "double quoted"                             # String literal

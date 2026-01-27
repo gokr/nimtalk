@@ -15,24 +15,47 @@ The lexer (`src/nimtalk/parser/lexer.nim`) accepts both `'` and `"` as valid str
 
 ## Comments
 
-Nimtalk uses **Smalltalk-style double-quoted comments**:
+Nimtalk supports **two comment styles**:
 
+### 1. Smalltalk-style (double-quoted)
 ```smalltalk
 "This is a comment"
 
-Object at: 'clone' put: [
-  "Create a shallow copy of this object"
-  ^ self perform: 'primitiveClone'
-].
+"Create a shallow copy of this object"
+^ self perform: 'primitiveClone'
 ```
 
-**Not hash-comments**: The `#` character has special meanings in Nimtalk:
-- `#(1 2 3)` - Array literal
-- `#{key: value}` - Table literal
-- `#symbol` - Symbol literal
-- `# comment` - Only works when `#` is followed by whitespace
+### 2. Nim-style (hash)
+```smalltalk
+# This is a Nim-style comment (to end of line)
+# They work anywhere, including at the start of files
+
+# Array literal - the # is followed by (, not whitespace
+#(1 2 3)
+
+# Table literal - the # is followed by {, not whitespace
+#{key: value}
+
+# Symbol - the # is followed by a letter
+#symbol
+```
 
 **Important**: The comment syntax `"comment"` (with double quotes) is distinct from string literals `"string"` by context. In practice, comments appear where statements would be, while strings appear as values.
+
+## Shebang Support
+
+Nimtalk scripts can include shebang lines at the beginning:
+
+```smalltalk
+#!/usr/bin/env ntalk
+# This script can be made executable and run directly
+
+calculator := Object derive.
+calculator value: 3 + 4.
+calculator value
+```
+
+When the kernel executes the script, the shebang line is automatically skipped by the lexer.
 
 ## Block Syntax
 
