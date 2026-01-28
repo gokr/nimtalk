@@ -1,452 +1,167 @@
 # Nimtalk
 
-A modern Smalltalk dialect that plays nice with modern tooling, integrates seamlessly with the Nim ecosystem, and supports both AST interpretation and compilation to Nim code.
+Smalltalk semantics, Nim performance, modern tooling.
 
-## Overview
+Nimtalk is a prototype-based Smalltalk dialect that compiles to Nim. It preserves Smalltalk's message-passing syntax and live programming feel while adding native compilation, Nim ecosystem access, and familiar Unix tooling.
 
-Nimtalk is a prototype-based Smalltalk dialect designed for the modern era. It combines the elegance and simplicity of Smalltalk's object model with the performance and tooling of Nim. Nimtalk can be both interpreted for rapid development and compiled to efficient Nim code for production deployment.
+## Quick Example
 
-## Goals
-
-1. **Modern Smalltalk**: Bring Smalltalk's clean, message-passing object model to modern development workflows
-2. **Nim Ecosystem Integration**: Leverage Nim's performance, metaprogramming, and extensive library ecosystem
-3. **Dual Execution Model**: Support both AST interpretation (for REPL and rapid prototyping) and compilation to Nim (for production)
-4. **Modern Tooling**: Work seamlessly with version control, editors, build systems, and other modern development tools
-5. **Practical Persistence**: Integrate with BitBarrel for first-class persistent objects (inspired by Gemstone and original OODBs)
-6. **The Smalltalk IDE experience**: Long term goal is to replicate some of the visual superb Smalltalk tooling like Browser, Explorer/Inspectors and Debugger.
-
-## Features
-
-### Language
-- **Prototype-based object system** with dynamic inheritance
-- **Message-passing semantics** with unary, binary, and keyword messages
-- **Block closures** with lexical scoping and supporting early returns
-- **Simple, consistent syntax** inspired by Smalltalk
-- **Dynamic typing** with optional type annotations via Nim integration
-- **Comment support**: Both Smalltalk-style `"comments"` and Nim-style `# comments`
-- **Shebang support**: Scripts can start with `#!/usr/bin/env ntalk`
-
-### Execution Models
-- **AST Interpreter**: Full Smalltalk semantics with dynamic evaluation
-- **Nim Compiler**: Compile Nimtalk code to efficient Nim code
-- **REPL**: Interactive development with immediate feedback, IDE a long term goal though
-
-### Nim Integration
-- **FFI Support**: Call Nim code directly from Nimtalk
-- **Type Mapping**: Important work horse types like seq or Table from Nim adopted as core data structure types in Ntalk 
-- **Type Marshaling**: Seamless conversion between Nimtalk objects and Nim types
-- **Module System**: Import and use Nim modules as libraries
-- **Performance**: Leverage Nim's native compilation for deployment
-
-### Tooling
-- **Command-line REPL/Interpreter** (`ntalk`) for interactive development and script execution
-- **Compiler** (`ntalkc`) for compiling Nimtalk to Nim code (stub implementation)
-- **Build System**: Integration with Nimble and nims build scripts
-- **Editor Support**: Syntax highlighting and tooling for modern editors
-- **Testing Framework**: Integrated test runner with Nim's unittest
-
-## Getting Started
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/nimtalk.git
-cd nimtalk
-
-# Build using Nimble (binaries in nimtalk/repl/ and nimtalk/compiler/)
-nimble build  # Builds both ntalk (REPL/interpreter) and ntalkc (compiler)
-
-# Build and copy binaries to root directory for convenience
-nimble repl  # Builds and copies ntalk, ntalkc to current directory
-
-# Run tests
-nimble test  # or nim e build.nims test
-
-# Clean build artifacts
-nimble clean  # or nim e build.nims clean
-
-# Install binary to ~/.local/bin/ (Unix/Linux/macOS)
-nimble install  # or nim e build.nims install
-```
-
-### Quick Example
-
-Create a file `hello.nt`:
 ```smalltalk
 #!/usr/bin/env ntalk
 
-# Create a calculator object with instance variables
-calculator := Object derive: #(x y).
+"Create a prototype with instance variables"
+Point := Object derive: #(x y).
 
-# Use automatic accessor methods
-calculator x: 3.
-calculator y: 4.
+"Add a method"
+Point at: "moveBy:and:" put: [ :dx :dy |
+    x := x + dx.
+    y := y + dy.
+    self
+].
 
-# Get the result
-calculator x
+"Create an instance and use it"
+p := Point derive.
+p x: 100 y: 200.
+p moveBy: 10 and: 20.
+p x  "Returns 110"
 ```
 
-Or using the traditional property bag approach:
+## For Smalltalkers
+
+**What feels familiar:**
+
+- Message syntax is identical: unary `obj size`, binary `3 + 4`, keyword `dict at: key put: value`
+- Blocks work as expected: `[:x | x * 2]` with proper lexical scoping and non-local returns
+- Everything is an object, everything happens via message sends
+- Live evaluation in the REPL: `ntalk` gives you an interactive prompt
+- Familiar collection messages: `do:`, `select:`, `collect:`, etc
+
+**What's different:**
+
+| Smalltalk | Nimtalk |
+|-----------|---------|
+| Classes define structure | Prototypes derive from other objects: `Object derive` or `Object derive: #(ivars)` |
+| Instance variables declared in class | Declare per prototype with `derive: #(x y)` or use property bags |
+| Methods compiled to method dictionary | Methods stored as properties: `Proto at: "selector" put: [ ... ]` |
+| Image-based persistence | Source files, git, normal Unix workflow |
+| VM execution | Compiles to Nim, then to native code |
+| FFI via C bindings | Direct Nim interop: call Nim functions, use Nim types |
+
+**The prototype system:**
+
+Instead of classes, you create prototypes and derive instances from them:
+
 ```smalltalk
-# Create a calculator object (without declared ivars)
-calculator := Object derive.
+"Create a prototype with automatic accessors for x and y"
+Point := Object derive: #(x y).
 
-# Add the two numbers as properties
-calculator at: "x" put: 3.
-calculator at: "y" put: 4.
+"Add methods by storing blocks"
+Point at: "printString" put: [
+    '(' + (x asString) + ', ' + (y asString) + ')'
+].
 
-# Get the result
-calculator at: "x"
+"Derive an instance"
+p := Point derive.
+p x: 42.
+p y: 99.
+p printString  "Returns '(42, 99)'"
 ```
 
-Run it:
-```bash
-# Run with interpreter (REPL mode)
-ntalk hello.nt
+Instance variables declared with `derive:` are stored in slots (fast array access). Undeclared properties use a dictionary. The `derive:` syntax creates both the prototype and generates accessor methods `x`, `x:`, `y`, `y:`.
 
-# Run expression directly
-ntalk -e "3 + 4"
-
-# Start interactive REPL
-ntalk
-
-# Compile (compiler stub - not yet implemented)
-ntalkc hello.nt
-```
-
-### REPL Usage
+## Installation
 
 ```bash
-$ ntalk
-Nimtalk v0.1.0
-> obj := Object derive
-> obj at: 'value' put: 42
-> obj at: 'value'
-42
+git clone https://github.com/gokr/nimtalk.git
+cd nimtalk
+nimble build
+nimble setup   # Copies binaries to current directory
 ```
+
+Binaries: `ntalk` (REPL/interpreter), `ntalkc` (compiler stub)
+
+## Usage
+
+```bash
+ntalk                    # Interactive REPL
+ntalk script.nt          # Run a file
+ntalk -e "3 + 4"         # Evaluate expression
+ntalk --ast script.nt    # Show AST, then execute
+ntalk --loglevel DEBUG   # Verbose execution trace
+
+ntalkc compile file.nt   # Compile to Nim (stub)
+```
+
+## Language Basics
+
+**Literals:**
+```smalltalk
+42 "integer"
+3.14 "float"
+'hello' "string"
+#(1 2 3) "array (seq)"
+#{'key' -> 'value'} "table (dictionary)"
+{| x: 1 y: 2 |} "object literal"
+```
+
+**Assignment and messages:**
+```smalltalk
+x := 42.
+obj := Object derive.
+obj at: 'foo' put: 'bar'.
+obj at: 'foo'.
+```
+
+**Blocks and control flow:**
+```smalltalk
+[:param | param + 1] "block with parameter"
+
+(x > 0) ifTrue: ['positive'] ifFalse: ['negative'].
+numbers do: [:each | each print].
+```
+
+## Current Status
+
+Working:
+- Lexer, parser, AST interpreter
+- Prototype object system with property bags and slot-based instance variables
+- REPL with file execution
+- Block closures with lexical scoping
+- Data structure literals (arrays, tables, object literals)
+- Base library (collections, core objects)
+
+In progress:
+- Compiler to Nim (basic infrastructure in place)
+- FFI to Nim
+- Standard library expansion
 
 ## Architecture
 
-### AST Interpreter
-The interpreter provides full dynamic evaluation:
-- **Lexer**: Tokenizes Nimtalk source code
-- **Parser**: Builds AST from tokens
-- **Evaluator**: Executes AST with prototype object system
-- **Object Model**: Dynamic objects with property bags and prototype chains
+Nimtalk uses a dual execution model:
 
-### Nim Compiler
-The compiler transforms Nimtalk to Nim code:
-- **Method Compilation**: Convert Smalltalk methods to Nim procedures
-- **FFI Bridge**: Generate marshaling code for Nim type integration
-- **Optimization**: Leverage Nim's optimizer for performance-critical code
-- **Current Status**: Stub implementation (`ntalkc`) - basic infrastructure in place
+1. **Interpreter**: AST evaluation for REPL and rapid prototyping
+2. **Compiler**: Translates Nimtalk to Nim source, then compiles to native binaries
 
-### Dual-Mode Execution
-```mermaid
-graph LR
-    A[Nimtalk Source] --> B[Lexer/Parser]
-    B --> C[AST]
-    C --> D{Execution Mode}
-    D --> E[Interpreter]
-    D --> F[Compiler]
-    E --> G[Runtime Evaluation]
-    F --> H[Nim Code]
-    H --> I[Nim Compiler]
-    I --> J[Native Binary]
-```
-
-### Debugging and Development Tools
-
-Nimtalk includes comprehensive debugging support:
-
-- **AST Inspection**: Use `--ast` flag to see parsed syntax tree
-- **Execution Tracing**: Use `--loglevel DEBUG` for detailed execution logs
-- **Interactive REPL**: Test expressions and explore objects interactively
-- **Build Automation**: `build.nims` script for common tasks
-
-See [docs/TOOLS_AND_DEBUGGING.md](docs/TOOLS_AND_DEBUGGING.md) for comprehensive documentation on debugging tools and techniques.
-
-**Quick Debug Example:**
-```bash
-# See how code is parsed
-ntalk --ast -e "3 + 4"
-
-# Trace execution details
-ntalk --loglevel DEBUG script.nt
-
-# Combine both for maximum visibility
-ntalk --ast --loglevel DEBUG script.nt
-```
-
-## Language Syntax
-
-### Basic Expressions
-```smalltalk
-# Literals
-42
-"hello world"
-true
-false
-
-# Assignment
-x := 42
-obj := Object derive
-
-# Message sends
-Object clone
-obj at: "key"
-obj at: "key" put: "value"
-3 + 4
-```
-
-### Data Structure Literals
-
-```smalltalk
-# Array literals (ordered collections)
-#(1 2 3)
-#("apple" "banana" "cherry")
-
-# Table literals (key-value dictionaries)
-#{"key" -> "value"}
-#{"name" -> "Alice" "age" -> 30}
-
-# Object literals (property bags)
-{| name: "Alice" age: 30 |}
-{| x: 3 y: 4 |}
-```
-
-*Arrays map to Nim `seq[NodeValue]`, tables to `Table[string, NodeValue]`, and object literals create new `ProtoObject` instances.*
-
-### Objects and Prototypes
-```smalltalk
-# Create prototype
-Person := Object derive
-Person at: "name" put: "Anonymous"
-Person at: "greet" put: [ "Hello, " + self at: "name" ]
-
-# Create instance
-alice := Person derive
-alice at: "name" put: "Alice"
-
-# Send message
-alice greet  # Returns "Hello, Alice"
-```
-
-### Blocks and Control Flow
-```smalltalk
-# Block with parameter
-[ :x | x * 2 ]
-
-# Conditional
-(x > 0) ifTrue: [ 'positive' ] ifElse: [ 'negative' ]
-
-# Iteration
-numbers do: [ :each | each print ]
-```
+The interpreter provides full Smalltalk semantics. The compiler (in development) will enable deployment as native single binary executables with better performance.
 
 ## Differences from Standard Smalltalk
 
-While Nimtalk draws inspiration from Smalltalk, there are several important differences:
+**Syntax additions:**
+- `#( )` array literals (like Smalltalk, but maps to Nim `seq`)
+- `#{ }` table literals (key-value dictionaries, maps to Nim `table`)
+- `{| |}` object literals (property bags)
+- `# comment` (Nim-style comments, in addition to `"comments"`)
 
-### Literal Syntax Additions
+**Collections:**
+Uses Nim's data structures directly: `seq` instead of `OrderedCollection`, `Table` instead of `Dictionary`. The literal syntax is familiar but the underlying types are Nim's high-performance implementations.
 
-Nimtalk extends Smalltalk's syntax with new literal forms for common data structures:
-
-```smalltalk
-# Arrays (equivalent to OrderedCollection)
-#(1 2 3 4 5)
-
-# Tables (equivalent to Dictionary)
-#{"key" -> "value" "name" -> "Alice"}
-
-# Object literals (property bags, runtime-defined)
-{| x: 3 y: 4 color: "red" |}
-```
-
-### Standard Library Differences
-
-Instead of traditional Smalltalk collections, Nimtalk uses Nim's data structures directly:
-
-| Smalltalk | Nimtalk/Nim Equivalent |
-|-----------|------------------------|
-| `Array` | Not directly available (use `#()` array literals) |
-| `OrderedCollection` | `seq` via `#()` literal syntax |
-| `Dictionary` | `Table` via `#{}` literal syntax |
-| `Set` | Uses Nim's `HashSet` |
-| `Bag` | Not currently implemented |
-
-This provides better performance and seamless integration with Nim code while maintaining familiar syntax.
-
-### Prototype-Based vs Class-Based
-
-**Standard Smalltalk** uses a class-based object system where objects are instances of classes that define their structure and behavior.
-
-**Nimtalk** uses a prototype-based system:
-- Objects are created by cloning existing objects
-- No formal class definitions - prototypes serve as "live" classes
-- Behavior is shared through the prototype chain (delegation)
-- Objects can be extended at runtime by adding new properties
-
-```smalltalk
-# No class definition - just prototype-based derivation
-Person := Object derive                      # Create a prototype
-Person at: "greet" put: [ "Hello, " + self at: "name" ]
-
-alice := Person derive                       # Create an instance
-alice at: "name" put: "Alice"
-alice greet                                  # => "Hello, Alice"
-```
-
-### Instance Variables and Property Access
-
-**Current State**: Nimtalk supports both dynamic property bags and declared instance variables (slots):
-- **Property bag model**: Objects behave like JavaScript objects - you can add any property at any time via `at:put:`.
-- **Slot-based instance variables**: Objects can declare instance variables explicitly for better performance and encapsulation.
-
-**Slot-based instance variables (fully implemented)**:
-- Objects declare instance variables using `derive: #(ivar1 ivar2)` syntax which is a message send, not special parser syntax
-- Instance variable access is optimized via direct slot access (149x faster than property bags)
-- Automatic getter/setter methods are generated for all declared instance variables
-- Inheritance combines parent and child instance variables automatically
-- The system detects duplicate ivar names across inheritance chain
-- Instance variables are stored in `seq[NodeValue]` with direct array indexing
-- Custom accessors can override default behavior when needed
-
-The property bag model offers flexibility during prototyping, while slot-based instance variables provide clarity and safety for production code as in traditional Smalltalk.
-
-### Method Syntax
-
-Method definitions in Nimtalk follow Smalltalk conventions but are stored differently due to the prototype system:
-
-```smalltalk
-# Smalltalk: Methods are defined in class categories
-# Nimtalk: Methods are stored as properties on prototypes
-Person at: "greet:" put: [ :name | "Hello, " + name ]
-```
-
-### Compilation Model
-
-While standard Smalltalk implementations are typically purely interpreted (with optional JIT), Nimtalk offers:
-- AST interpretation for development and REPL
-- Compilation to Nim code for production deployment
-- Direct access to Nim's optimizer and native compilation pipeline
-
-See the documentation in the `docs/` directory for detailed language specification and design documents.
-
-## Nim Integration
-
-### Calling Nim Code
-```smalltalk
-# Import Nim module
-nimMath := Nim import: "math"
-
-# Call Nim function
-result := nimMath sqrt: 25.0
-```
-
-### Type Conversion
-```smalltalk
-# Nimtalk to Nim
-nimInt := 42 asNim: int
-nimString := "hello" asNim: string
-
-# Nim to Nimtalk
-talkObj := fromNim: nimObject
-```
-
-## Future Directions
-
-### BitBarrel Integration
-Planning to integrate [BitBarrel](../bitbarrel/) as a core persistence layer:
-- **First-class barrels** as language objects
-- **Transparent persistence** for Nimtalk objects
-- **High-performance storage** with O(1) reads
-- **Crash recovery** and background compaction
-
-This would provide a powerful built-in persistence model similar to Gemstone and original OODBs.
-
-### Language Features
-- **Modules and namespaces**
-- **Optional static type checking**
-- **Concurrency model** (using Nim's threading)
-- **Standard library** of collections and utilities
-
-### Tooling
-- **Language server** for IDE integration
-- **Debugger** with Smalltalk-style inspectors
-- **Package manager** for Nimtalk libraries
-- **Web interface** for remote development
-
-## Why Nimtalk?
-
-### For Smalltalk Developers
-- Familiar semantics with modern tooling
-- Access to Nim's performance and ecosystem
-- Production-ready compilation targets
-- Integration with existing C/C++ libraries via Nim
-
-### For Nim Developers
-- Dynamic, interactive development experience
-- Prototype-based object model
-- REPL for exploration and debugging
-- Gradual typing: start dynamic, add types as needed
-
-### For Everyone
-- **Simple**: Clean, consistent syntax
-- **Practical**: Works with existing tools and workflows
-- **Fast**: Native compilation via Nim backend
-- **Integrable**: Bridges dynamic and static worlds
-
-## Development Status
-
-**Current**: Early prototype with basic interpreter and compiler skeleton
-- ✅ Lexer and parser with data structure literal syntax support
-- ✅ Prototype object system with property bags and prototype chains
-- ✅ AST interpreter core with message sending and block evaluation
-- ✅ REPL/Interpreter (`ntalk`) with file execution and interactive mode
-- ✅ Compiler infrastructure with stub implementation (`ntalkc`)
-- ✅ Test suite with comprehensive coverage
-- ✅ Project follows Nim standard layout (source under `src/`)
-- ✅ Slot-based instance variable system (fully implemented, 149x performance improvement)
-- ✅ Native method dispatch from Nimtalk code
-- ✅ Base library with core objects and collections
-- ✅ Symbol canonicalization for identity checks
-- ✅ Globals table for class management
-
-**In Progress**:
-- FFI integration with Nim
-- Complete method compilation
-- Enhanced standard library
-
-**Planned**:
-- BitBarrel persistence integration
-- Performance optimization
-- Enhanced tooling
-
-## Contributing
-
-Nimtalk is an Open Source project welcoming contributions. Areas of particular interest:
-- Language design and semantics
-- Nim integration features
-- Performance optimization
-- Tooling and editor support
-- Documentation and examples
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+**No images:**
+Nimtalk uses source files and compiles to native binaries. You use git, your regular editor, and standard build tools. The REPL provides live evaluation during development, but persistence is through source code.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-Inspired by:
-- Smalltalk and its many implementations
-- Nim's pragmatic meta-programming
-- Gemstone's persistent object model
-- Modern scripting languages and their tooling
+MIT
 
 ---
 
-*Nimtalk: Smalltalk feeling, Nim performance, modern tooling.*
+*Smalltalk's semantics, without the image.*
