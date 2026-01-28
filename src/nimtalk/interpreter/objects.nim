@@ -294,9 +294,19 @@ proc deriveImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     child.isNimProxy = false
     child.nimValue = nil
     child.nimType = ""
-    child.hasSlots = false
-    child.slots = @[]
-    child.slotNames = initTable[string, int]()
+
+    # Inherit slots if parent has them
+    if self.hasSlots:
+      child.hasSlots = true
+      child.slots = newSeq[NodeValue](self.slots.len)
+      child.slotNames = self.slotNames  # Share slot names (they don't change)
+      for i in 0..<self.slots.len:
+        child.slots[i] = nilValue()  # Initialize with nil
+    else:
+      child.hasSlots = false
+      child.slots = @[]
+      child.slotNames = initTable[string, int]()
+
     return NodeValue(kind: vkObject, objVal: child.ProtoObject)
 
   # Regular ProtoObject derivation

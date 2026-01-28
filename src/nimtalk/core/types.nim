@@ -214,22 +214,15 @@ proc initDictionaryObject*(): DictionaryObj =
 
 proc getSlot*(obj: ProtoObject, name: string): NodeValue =
   ## Get slot value by name (returns nil if not found)
-  when defined(release):
-    discard
-  else:
-    import std/logging
+  when not defined(release):
     debug "getSlot: looking up '", name, "'"
     debug "  hasSlots: ", obj.hasSlots
     debug "  slotNames: ", obj.slotNames
   if not obj.hasSlots or not obj.slotNames.hasKey(name):
-    when defined(release):
-      discard
-    else:
+    when not defined(release):
       debug "  not found, returning nil"
     return nilValue()
-  when defined(release):
-    discard
-  else:
+  when not defined(release):
     debug "  found at index ", obj.slotNames[name]
   let idx = obj.slotNames[name]
   return obj.slots[idx]
