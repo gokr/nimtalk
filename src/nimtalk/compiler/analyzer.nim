@@ -1,6 +1,5 @@
-import std/[strutils, tables, sequtils, re]
+import std/[strutils, tables]
 import ../core/types
-import ../parser/parser
 import ./context
 import ./types
 

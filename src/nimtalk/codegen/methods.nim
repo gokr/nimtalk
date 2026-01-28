@@ -1,9 +1,7 @@
-import std/[strutils, sequtils, strformat]
+import std/strutils
 import ../core/types
-import ../parser/parser
 import ../compiler/context
 import ../compiler/symbols
-import ../compiler/types
 
 # ============================================================================
 # Method Body Code Generation
@@ -41,7 +39,7 @@ proc genSlotFastAccess*(proto: PrototypeInfo, slotName: string): string =
 
   if idx < 0:
     return "  # Dynamic fallback: slot '" & slotName & "' not found in prototype\n" &
-           "  return sendMessage(currentRuntime, self, \"at:\", @[NodeValue(kind: vkSymbol, symVal: \"" &
+           "  return sendMessage(currentRuntime[], self, \"at:\", @[NodeValue(kind: vkSymbol, symVal: \"" &
            slotName & "\")])\n"
 
   var output = "\n  var slotValue = NodeValue(kind: vkNil)\n"
@@ -62,7 +60,10 @@ proc genBinaryOpFastPath*(op: string): string =
 
   var output = "\n  # Fast path: both operands are integers\n"
   output.add("  if a.kind == vkInt and b.kind == vkInt:\n")
-  output.add("    return NodeValue(kind: vkInt, intVal: a.intVal " & nimOp & " b.intVal)\n")
+  if op == "/":
+    output.add("    return NodeValue(kind: vkInt, intVal: a.intVal div b.intVal)\n")
+  else:
+    output.add("    return NodeValue(kind: vkInt, intVal: a.intVal " & nimOp & " b.intVal)\n")
   output.add("  # Fast path: both operands are floats\n")
   output.add("  if a.kind == vkFloat and b.kind == vkFloat:\n")
   output.add("    return NodeValue(kind: vkFloat, floatVal: a.floatVal " & nimOp & " b.floatVal)\n")
@@ -107,11 +108,11 @@ proc genMethodBody*(proto: PrototypeInfo, meth: BlockNode,
   case selector
   of "+", "-", "*", "/":
     return "\n  # Arithmetic operator not yet implemented with type specialization\n" &
-           "  return sendMessage(currentRuntime, self, \"" & selector & "\", @[a])\n"
+           "  return sendMessage(currentRuntime[], self, \"" & selector & "\", @[a])\n"
 
   of "<", "<=", ">", ">=", "=":
     return "\n  # Comparison operator not yet implemented with type specialization\n" &
-           "  return sendMessage(currentRuntime, self, \"" & selector & "\", @[a, b])\n"
+           "  return sendMessage(currentRuntime[], self, \"" & selector & "\", @[a, b])\n"
 
   of "at:":
     if meth.parameters.len > 0:
@@ -124,9 +125,9 @@ proc genMethodBody*(proto: PrototypeInfo, meth: BlockNode,
                "    if slotName == \"self\":\n" &
                "      return self.toValue()\n" &
                "    # Dynamic dispatch for unknown slots\n" &
-               "    return sendMessage(currentRuntime, self, \"at:\", @[param])\n" &
+               "    return sendMessage(currentRuntime[], self, \"at:\", @[param])\n" &
                "  return NodeValue(kind: vkNil)\n"
-    return "\n  return sendMessage(currentRuntime, self, \"at:\", @[param])\n"
+    return "\n  return sendMessage(currentRuntime[], self, \"at:\", @[param])\n"
 
   of "at:put:":
     return "\n  if key.kind == vkSymbol:\n" &
@@ -134,7 +135,7 @@ proc genMethodBody*(proto: PrototypeInfo, meth: BlockNode,
            "    if slotName == \"self\":\n" &
            "      return value\n" &
            "    # Dynamic dispatch for at:put:\n" &
-           "    return sendMessage(currentRuntime, self, \"at:put:\", @[key, value])\n" &
+           "    return sendMessage(currentRuntime[], self, \"at:put:\", @[key, value])\n" &
            "  return value\n"
 
   else:
@@ -144,7 +145,7 @@ proc genMethodBody*(proto: PrototypeInfo, meth: BlockNode,
 
     let args = meth.parameters.join(", ")
     return "\n  # Method not yet compiled - using dynamic dispatch\n" &
-           "  return sendMessage(currentRuntime, self, \"" & selector &
+           "  return sendMessage(currentRuntime[], self, \"" & selector &
            "\", @[" & args & "])\n"
 
 proc genMethod*(proto: PrototypeInfo, meth: BlockNode,
@@ -165,7 +166,7 @@ proc genBinaryOpMethod*(selector: string): string =
   output.add("  ##\n")
   output.add(genBinaryOpFastPath(selector))
   output.add("\n  # Slow path: dynamic dispatch\n")
-  output.add("  return sendMessage(currentRuntime, a, \"" & selector & "\", @[b])\n\n")
+  output.add("  return sendMessage(currentRuntime[], a, \"" & selector & "\", @[b])\n\n")
   return output
 
 proc genComparisonMethod*(selector: string): string =
@@ -178,7 +179,7 @@ proc genComparisonMethod*(selector: string): string =
   output.add("  ##\n")
   output.add(genComparisonFastPath(selector))
   output.add("\n  # Slow path: dynamic dispatch\n")
-  output.add("  return sendMessage(currentRuntime, a, \"" & selector & "\", @[b])\n\n")
+  output.add("  return sendMessage(currentRuntime[], a, \"" & selector & "\", @[b])\n\n")
   return output
 
 proc genRuntimeHelperMethods*(): string =

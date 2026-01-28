@@ -1,4 +1,4 @@
-import std/[tables, sequtils]
+import std/[tables, sequtils, strformat]
 import ../core/types
 import ../interpreter/[objects, activation]
 

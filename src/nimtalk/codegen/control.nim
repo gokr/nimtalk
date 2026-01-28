@@ -1,7 +1,5 @@
-import std/[strutils, strformat]
+import std/strformat
 import ../core/types
-import ../parser/parser
-import ../compiler/context
 import ../compiler/symbols
 
 # ============================================================================
@@ -19,14 +17,14 @@ proc {nimName}*(self: ProtoObject, condition: BlockNode, body: BlockNode = nil):
   ## Repeatedly evaluate condition and body while condition is true
   ##
   while true:
-    let condResult = evalBlock(condition)
+    let condResult = currentRuntime[].evalBlock(condition)
     if condResult.kind != vkBool or not condResult.boolVal:
       break
 
     if body != nil:
-      discard evalBlock(body)
+      discard currentRuntime[].evalBlock(body)
 
-  return self.toValue()
+  return self.toNodeValue()
 
 """)
 
@@ -40,14 +38,14 @@ proc {nimName}*(self: ProtoObject, condition: BlockNode, body: BlockNode = nil):
   ## Repeatedly evaluate condition and body while condition is false
   ##
   while true:
-    let condResult = evalBlock(condition)
+    let condResult = currentRuntime[].evalBlock(condition)
     if condResult.kind == vkBool and condResult.boolVal:
       break
 
     if body != nil:
-      discard evalBlock(body)
+      discard currentRuntime[].evalBlock(body)
 
-  return self.toValue()
+  return self.toNodeValue()
 
 """)
 
@@ -62,9 +60,9 @@ proc {nimName}*(self: NodeValue, trueBlock: BlockNode, falseBlock: BlockNode): N
   ##
   if self.kind == vkBool:
     if self.boolVal:
-      return evalBlock(trueBlock)
+      return currentRuntime[].evalBlock(trueBlock)
     else:
-      return evalBlock(falseBlock)
+      return currentRuntime[].evalBlock(falseBlock)
 
   # Not a boolean - raise error
   return NodeValue(kind: vkNil)
@@ -81,7 +79,7 @@ proc {nimName}*(self: NodeValue, count: int, body: BlockNode): NodeValue {{.cdec
   ## Evaluates block exactly count times
   ##
   for _ in 0..<count:
-    discard evalBlock(body)
+    discard currentRuntime[].evalBlock(body)
 
   return self
 
@@ -101,7 +99,7 @@ proc {nimName}*(self: NodeValue, body: BlockNode): NodeValue {{.cdecl, exportc.}
 
   let count = self.intVal
   for _ in 0..<count:
-    discard evalBlock(body)
+    discard currentRuntime[].evalBlock(body)
 
   return self
 
@@ -125,11 +123,11 @@ proc {nimName}*(self: NodeValue, endVal: NodeValue, stepVal: NodeValue, body: Bl
 
   if step > 0:
     while current <= endNum:
-      discard evalBlock(body, @[NodeValue(kind: vkInt, intVal: current)])
+      discard currentRuntime[].evalBlock(body, @[NodeValue(kind: vkInt, intVal: current)])
       current += step
   else:
     while current >= endNum:
-      discard evalBlock(body, @[NodeValue(kind: vkInt, intVal: current)])
+      discard currentRuntime[].evalBlock(body, @[NodeValue(kind: vkInt, intVal: current)])
       current += step
 
   return self

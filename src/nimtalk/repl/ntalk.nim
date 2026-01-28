@@ -3,9 +3,8 @@
 # Nimtalk REPL - Main entry point
 #
 
-import std/[os, strutils, terminal, logging]
+import std/[os, strutils, logging]
 import ../repl/doit
-import ../interpreter/evaluator
 import ../core/types
 
 # ============================================================================

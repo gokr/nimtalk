@@ -1,6 +1,5 @@
-import std/[strutils]
+import std/strutils
 import ../core/types
-import ../parser/parser
 import ../compiler/context
 import ../compiler/symbols
 

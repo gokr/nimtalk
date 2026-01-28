@@ -1,7 +1,7 @@
-import std/[strutils, os, terminal, rdstdin, parseutils, tables]
+import std/[strutils, os, terminal, rdstdin, tables]
 import ../core/types
 import ../parser/[lexer, parser]
-import ../interpreter/[evaluator, objects, activation]
+import ../interpreter/evaluator
 
 # ============================================================================
 # Nimtalk REPL and Interactive Evaluation

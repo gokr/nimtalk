@@ -9,7 +9,6 @@ import ../parser/parser
 import ../parser/lexer
 import ../codegen/module
 import ../compiler/context
-import ../core/types
 
 const VERSION* = block:
   const nimblePath = currentSourcePath().parentDir().parentDir().parentDir().parentDir() / "nimtalk.nimble"

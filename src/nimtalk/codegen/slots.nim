@@ -1,8 +1,7 @@
-import std/[strutils, sequtils, strformat]
-import ../core/types
+import std/strformat
 import ../compiler/context
 import ../compiler/symbols
-import ../compiler/types
+import ../compiler/types as compTypes
 
 # ============================================================================
 # Slot Access Code Generation
@@ -25,7 +24,7 @@ proc genSlotGetter*(proto: PrototypeInfo, slot: SlotDef): string =
   ## Generate optimized slot getter procedure
   let protoName = manglePrototype(proto.name)
   let slotName = mangleSlot(slot.name)
-  let nimType = slot.constraint.toNimType()
+  let nimType = compTypes.toNimType(slot.constraint)
 
   var output = ""
   output.add(fmt("proc nt_{protoName}_{slotName}*(self: ref ProtoObject): NodeValue {{.cdecl, exportc, inline.}} =\n"))

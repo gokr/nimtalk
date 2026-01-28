@@ -1,8 +1,6 @@
 import std/[strutils, sequtils, strformat]
 import ../core/types
-import ../parser/parser
 import ../compiler/context
-import ../compiler/types
 import ../compiler/symbols
 
 # ============================================================================
@@ -183,36 +181,36 @@ proc genExpression*(ctx: GenContext, node: Node): string =
 
 proc genBlockBody*(ctx: GenContext, blkNode: BlockNode): string =
   ## Generate code for block body (sequence of statements)
-  var result = ""
+  var output = ""
 
   for stmt in blkNode.body:
     let stmtCode = genExpression(ctx, stmt)
     if stmt.kind == nkReturn:
-      result.add("  " & stmtCode & "\n")
+      output.add("  " & stmtCode & "\n")
     elif stmt.kind == nkAssign:
-      result.add("  " & stmtCode & "\n")
+      output.add("  " & stmtCode & "\n")
     else:
-      result.add("  result = " & stmtCode & "\n")
+      output.add("  result = " & stmtCode & "\n")
 
-  return result
+  return output
 
 proc genTemporaries*(tmp: seq[string]): string =
   ## Generate temporary variable declarations
   if tmp.len == 0:
     return ""
 
-  var result = "  # Temporaries\n"
+  var output = "  # Temporaries\n"
   for t in tmp:
-    result.add(fmt("  var {t} = NodeValue(kind: vkNil)\n"))
-  result.add("\n")
-  return result
+    output.add(fmt("  var {t} = NodeValue(kind: vkNil)\n"))
+  output.add("\n")
+  return output
 
 proc genParameters*(params: seq[string]): string =
   ## Generate parameter declarations for method signature
   if params.len == 0:
     return ""
 
-  var result: seq[string] = @[]
+  var parts: seq[string] = @[]
   for p in params:
-    result.add(fmt("{p}: NodeValue"))
-  return result.join(", ")
+    parts.add(fmt("{p}: NodeValue"))
+  return parts.join(", ")

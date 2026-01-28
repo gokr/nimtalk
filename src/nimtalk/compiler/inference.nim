@@ -1,6 +1,5 @@
 import std/[tables]
 import ../core/types
-import ../parser/parser
 import ./context
 import ./types
 
