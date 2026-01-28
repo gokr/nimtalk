@@ -47,8 +47,9 @@ proc createCoreMethod*(name: string): BlockNode =
 
 # Method installation
 proc addMethod*(obj: ProtoObject, selector: string, blk: BlockNode) =
-  ## Add a method to an object's method dictionary
-  obj.methods[selector] = blk
+  ## Add a method to an object's method dictionary using canonical symbol
+  let sym = getSymbol(selector)
+  obj.methods[sym.symVal] = blk
 
 proc addDictionaryProperty*(dict: DictionaryObj, name: string, value: NodeValue) =
   ## Add a property to a Dictionary's property bag

@@ -103,6 +103,7 @@ type
     sender*: Activation       # calling context
     receiver*: ProtoObject    # 'self'
     currentMethod*: BlockNode # current method
+    definingObject*: ProtoObject  # object where method was found (for super)
     pc*: int                  # program counter
     locals*: Table[string, NodeValue]  # local variables
     returnValue*: NodeValue   # return value

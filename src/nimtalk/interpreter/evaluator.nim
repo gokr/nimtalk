@@ -228,19 +228,22 @@ type
   MethodResult* = object
     currentMethod*: BlockNode
     receiver*: ProtoObject
+    definingObject*: ProtoObject  # where method was found (for super)
     found*: bool
 
 proc lookupMethod(interp: Interpreter, receiver: ProtoObject, selector: string): MethodResult =
-  ## Look up method in receiver and prototype chain
-  debug("Looking up method: '", selector, "' in receiver with tags: ", $receiver.tags)
+  ## Look up method in receiver and prototype chain using canonical symbol
+  let sym = getSymbol(selector)
+  let selectorKey = sym.symVal
+  debug("Looking up method: '", selectorKey, "' in receiver with tags: ", $receiver.tags)
   var current = receiver
   var depth = 0
   while current != nil and depth < 100:
     inc depth
-    if selector in current.methods:
-      debug("Found method ", selector, " in methods table")
-      let meth = current.methods[selector]
-      return MethodResult(currentMethod: meth, receiver: current, found: true)
+    if selectorKey in current.methods:
+      debug("Found method ", selectorKey, " in methods table")
+      let meth = current.methods[selectorKey]
+      return MethodResult(currentMethod: meth, receiver: receiver, definingObject: current, found: true)
 
     # Check Dictionary properties for block values (only for Dictionary objects)
     if current of DictionaryObj:
@@ -254,7 +257,7 @@ proc lookupMethod(interp: Interpreter, receiver: ProtoObject, selector: string):
           # Mark block as method for non-local returns
           blockNode.isMethod = true
           # Return the block as a method
-          return MethodResult(currentMethod: blockNode, receiver: current, found: true)
+          return MethodResult(currentMethod: blockNode, receiver: receiver, definingObject: current, found: true)
 
     # Search parent chain
     if current.parents.len > 0:
@@ -265,12 +268,14 @@ proc lookupMethod(interp: Interpreter, receiver: ProtoObject, selector: string):
   if depth >= 100:
     warn("Lookup depth exceeded 100 for selector: ", selector)
   debug("Method not found: ", selector)
-  return MethodResult(currentMethod: nil, receiver: nil, found: false)
+  return MethodResult(currentMethod: nil, receiver: nil, definingObject: nil, found: false)
 
 # Execute a currentMethod
 proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
-                  receiver: ProtoObject, arguments: seq[Node]): NodeValue =
+                  receiver: ProtoObject, arguments: seq[Node],
+                  definingObject: ProtoObject = nil): NodeValue =
   ## Execute a currentMethod with given receiver and arguments
+  ## definingObject is where the method was found (for super sends)
   interp.checkStackDepth()
 
   debug("Executing method with ", arguments.len, " arguments")
@@ -294,9 +299,9 @@ proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
       let nativeProc = cast[NativeProc](currentMethod.nativeImpl)
       return nativeProc(receiver, argValues)
 
-  # Create new activation
+  # Create new activation with definingObject for super sends
   debug("Executing interpreted method with ", currentMethod.parameters.len, " parameters")
-  let activation = newActivation(currentMethod, receiver, interp.currentActivation)
+  let activation = newActivation(currentMethod, receiver, interp.currentActivation, definingObject)
 
   # Bind parameters
   if currentMethod.parameters.len != arguments.len:
@@ -518,7 +523,7 @@ proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue =
     for argVal in arguments:
       argNodes.add(LiteralNode(value: argVal))
 
-    return interp.executeMethod(currentMethodNode, receiver, argNodes)
+    return interp.executeMethod(currentMethodNode, receiver, argNodes, lookup.definingObject)
   else:
     # Method not found - send doesNotUnderstand:
     debug("Method not found, sending doesNotUnderstand:")
@@ -534,7 +539,7 @@ proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue =
       for argVal in dnuArgs:
         let node: Node = LiteralNode(value: argVal)
         dnuArgNodes.add(node)
-      return interp.executeMethod(dnuLookup.currentMethod, receiver, dnuArgNodes)
+      return interp.executeMethod(dnuLookup.currentMethod, receiver, dnuArgNodes, dnuLookup.definingObject)
     else:
       raise newException(EvalError,
         "Message not understood: " & msgNode.selector & " on " & $receiver.tags)
@@ -777,6 +782,10 @@ proc initGlobals*(interp: var Interpreter) =
   # Add some useful constants
   interp.globals["Object"] = interp.rootObject.toValue()
   interp.globals["root"] = interp.rootObject.toValue()
+
+  # Add Dictionary to globals
+  if dictionaryPrototype != nil:
+    interp.globals["Dictionary"] = dictionaryPrototype.ProtoObject.toValue()
 
   # Create and register Stdout object
   let stdoutObj = ProtoObject()

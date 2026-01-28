@@ -10,12 +10,14 @@ import ../parser/[lexer, parser]
 
 proc newActivation*(blk: BlockNode,
                    receiver: ProtoObject,
-                   sender: Activation): Activation =
+                   sender: Activation,
+                   definingObject: ProtoObject = nil): Activation =
   ## Create a new activation record
   result = Activation(
     sender: sender,
     receiver: receiver,
     currentMethod: blk,
+    definingObject: definingObject,
     pc: 0,
     locals: initTable[string, NodeValue](),
     returnValue: nilValue(),
@@ -24,6 +26,14 @@ proc newActivation*(blk: BlockNode,
 
   # Initialize 'self' for all activations (blocks invoked as methods need self)
   result.locals["self"] = receiver.toValue()
+
+  # Initialize 'super' in locals for super sends
+  if definingObject != nil and definingObject.parents.len > 0:
+    result.locals["super"] = definingObject.parents[0].toValue()
+  elif receiver != nil:
+    # Super starts from receiver's first parent if no defining object
+    if receiver.parents.len > 0:
+      result.locals["super"] = receiver.parents[0].toValue()
 
   # Initialize parameters (bound by caller)
   # parameters will be bound when method is invoked
