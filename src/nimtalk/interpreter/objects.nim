@@ -1,4 +1,4 @@
-import std/[tables, strutils, sequtils]
+import std/[tables, strutils, sequtils, logging]
 import ../core/types
 
 # ============================================================================
@@ -18,9 +18,15 @@ proc writeImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc writelineImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc getSlotImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc setSlotValueImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc concatImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc atCollectionImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
+# doCollectionImpl is defined in evaluator.nim as it needs interpreter context
 
 # Global root object (singleton)
 var rootObject*: RootObject = nil
+
+# Global Dictionary prototype (singleton)
+var dictionaryPrototype*: DictionaryPrototype = nil
 
 # Create a core method
 
@@ -44,9 +50,9 @@ proc addMethod*(obj: ProtoObject, selector: string, blk: BlockNode) =
   ## Add a method to an object's method dictionary
   obj.methods[selector] = blk
 
-proc addProperty*(obj: ProtoObject, name: string, value: NodeValue) =
-  ## Add a property to an object's property dictionary
-  obj.properties[name] = value
+proc addDictionaryProperty*(dict: DictionaryObj, name: string, value: NodeValue) =
+  ## Add a property to a Dictionary's property bag
+  dict.properties[name] = value
 
 # Global namespace for storing "classes" and constants
 var globals*: Table[string, NodeValue]
@@ -98,7 +104,6 @@ proc initRootObject*(): RootObject =
     initGlobals()
 
     rootObject = RootObject()
-    rootObject.properties = initTable[string, NodeValue]()
     rootObject.methods = initTable[string, BlockNode]()
     rootObject.parents = @[]
     rootObject.tags = @["Object", "Proto"]
@@ -112,7 +117,7 @@ proc initRootObject*(): RootObject =
     # Add Object to globals immediately
     addGlobal("Object", NodeValue(kind: vkObject, objVal: rootObject))
 
-    # Install core methods
+    # Install core Object methods
     let cloneMethod = createCoreMethod("clone")
     cloneMethod.nativeImpl = cast[pointer](cloneImpl)
     addMethod(rootObject, "clone", cloneMethod)
@@ -124,14 +129,6 @@ proc initRootObject*(): RootObject =
     let deriveWithIVarsMethod = createCoreMethod("derive:")
     deriveWithIVarsMethod.nativeImpl = cast[pointer](deriveWithIVarsImpl)
     addMethod(rootObject, "derive:", deriveWithIVarsMethod)
-
-    let atMethod = createCoreMethod("at:")
-    atMethod.nativeImpl = cast[pointer](atImpl)
-    addMethod(rootObject, "at:", atMethod)
-
-    let atPutMethod = createCoreMethod("at:put:")
-    atPutMethod.nativeImpl = cast[pointer](atPutImpl)
-    addMethod(rootObject, "at:put:", atPutMethod)
 
     let getSlotMethod = createCoreMethod("getSlot:")
     getSlotMethod.nativeImpl = cast[pointer](getSlotImpl)
@@ -154,13 +151,47 @@ proc initRootObject*(): RootObject =
     plusMethod.nativeImpl = cast[pointer](plusImpl)
     addMethod(rootObject, "+", plusMethod)
 
+    # Add string concatenation operator (comma in Smalltalk, stored as #)
+    let concatMethod = createCoreMethod("#")
+    concatMethod.nativeImpl = cast[pointer](concatImpl)
+    addMethod(rootObject, "#", concatMethod)
+
+    # Add collection access method
+    let atCollectionMethod = createCoreMethod("at:")
+    atCollectionMethod.nativeImpl = cast[pointer](atCollectionImpl)
+    addMethod(rootObject, "at:", atCollectionMethod)
+
+    # Initialize Dictionary prototype
+    dictionaryPrototype = DictionaryPrototype()
+    dictionaryPrototype.methods = initTable[string, BlockNode]()
+    dictionaryPrototype.parents = @[rootObject.ProtoObject]
+    dictionaryPrototype.tags = @["Dictionary", "Proto"]
+    dictionaryPrototype.isNimProxy = false
+    dictionaryPrototype.nimValue = nil
+    dictionaryPrototype.nimType = ""
+    dictionaryPrototype.hasSlots = false
+    dictionaryPrototype.slots = @[]
+    dictionaryPrototype.slotNames = initTable[string, int]()
+    dictionaryPrototype.properties = initTable[string, NodeValue]()
+
+    # Add Dictionary to globals
+    addGlobal("Dictionary", NodeValue(kind: vkObject, objVal: dictionaryPrototype.ProtoObject))
+
+    # Install Dictionary-specific methods (at: and at:put:)
+    let dictAtMethod = createCoreMethod("at:")
+    dictAtMethod.nativeImpl = cast[pointer](atImpl)
+    addMethod(dictionaryPrototype.ProtoObject, "at:", dictAtMethod)
+
+    let dictAtPutMethod = createCoreMethod("at:put:")
+    dictAtPutMethod.nativeImpl = cast[pointer](atPutImpl)
+    addMethod(dictionaryPrototype.ProtoObject, "at:put:", dictAtPutMethod)
+
   return rootObject
 
 # Nim-level clone function for ProtoObject - returns NodeValue wrapper
 proc clone*(self: ProtoObject): NodeValue =
   ## Shallow clone of ProtoObject (Nim-level clone) wrapped in NodeValue
   let objClone = ProtoObject()
-  objClone.properties = self.properties
   objClone.methods = initTable[string, BlockNode]()
   for key, value in self.methods:
     objClone.methods[key] = value
@@ -178,7 +209,6 @@ proc clone*(self: ProtoObject): NodeValue =
 proc clone*(self: RootObject): NodeValue =
   ## Shallow clone of RootObject (Nim-level clone) wrapped in NodeValue
   let objClone = RootObject()
-  objClone.properties = self.properties
   objClone.methods = initTable[string, BlockNode]()
   for key, value in self.methods:
     objClone.methods[key] = value
@@ -189,23 +219,75 @@ proc clone*(self: RootObject): NodeValue =
   objClone.nimType = self.nimType
   result = NodeValue(kind: vkObject, objVal: objClone)
 
+# Nim-level clone function for DictionaryObj - returns NodeValue wrapper
+proc clone*(self: DictionaryObj): NodeValue =
+  ## Shallow clone of DictionaryObj (Nim-level clone) wrapped in NodeValue
+  let objClone = DictionaryObj()
+  objClone.methods = initTable[string, BlockNode]()
+  for key, value in self.methods:
+    objClone.methods[key] = value
+  objClone.parents = self.parents
+  objClone.tags = self.tags
+  objClone.isNimProxy = self.isNimProxy
+  objClone.nimValue = self.nimValue
+  objClone.nimType = self.nimType
+  objClone.hasSlots = self.hasSlots
+  objClone.slots = self.slots
+  objClone.slotNames = self.slotNames
+  objClone.properties = self.properties  # Copy properties for Dictionary
+  result = NodeValue(kind: vkObject, objVal: objClone.ProtoObject)
+
 # Core method implementations
 proc cloneImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   ## Shallow clone of object
+  # For Dictionary objects, use Dictionary-specific clone
+  if self of DictionaryObj:
+    let selfDict = cast[DictionaryObj](self)
+    let clone = DictionaryObj()
+    clone.properties = selfDict.properties
+    clone.methods = selfDict.methods
+    clone.parents = selfDict.parents
+    clone.tags = selfDict.tags
+    clone.isNimProxy = false
+    clone.nimValue = nil
+    clone.nimType = ""
+    clone.hasSlots = selfDict.hasSlots
+    clone.slots = selfDict.slots
+    clone.slotNames = selfDict.slotNames
+    return NodeValue(kind: vkObject, objVal: clone.ProtoObject)
+
+  # Regular ProtoObject clone
   let clone = ProtoObject()
-  clone.properties = self.properties
   clone.methods = self.methods  # Copy methods table, don't create empty one
   clone.parents = self.parents
   clone.tags = self.tags
   clone.isNimProxy = false
   clone.nimValue = nil
   clone.nimType = ""
+  clone.hasSlots = self.hasSlots
+  clone.slots = self.slots
+  clone.slotNames = self.slotNames
   return NodeValue(kind: vkObject, objVal: clone)
 
 proc deriveImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   ## Create child with self as parent (prototype delegation)
+  # If deriving from Dictionary, create a Dictionary child
+  if self of DictionaryObj:
+    let child = DictionaryObj()
+    child.properties = initTable[string, NodeValue]()
+    child.methods = initTable[string, BlockNode]()
+    child.parents = @[self]
+    child.tags = self.tags & @["derived"]
+    child.isNimProxy = false
+    child.nimValue = nil
+    child.nimType = ""
+    child.hasSlots = false
+    child.slots = @[]
+    child.slotNames = initTable[string, int]()
+    return NodeValue(kind: vkObject, objVal: child.ProtoObject)
+
+  # Regular ProtoObject derivation
   let child = ProtoObject()
-  child.properties = initTable[string, NodeValue]()
   child.methods = initTable[string, BlockNode]()
   child.parents = @[self]
   child.tags = self.tags & @["derived"]
@@ -233,11 +315,27 @@ proc deriveWithIVarsImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   ## Also generates accessor methods for all instance variables
   if args.len < 1:
     raise newException(ValueError, "derive:: requires array of ivar names")
-  if args[0].kind != vkArray:
-    raise newException(ValueError, "derive:: first argument must be array of strings")
 
-  # Extract ivar names from array
-  let ivarArray = args[0].arrayVal
+  # Extract ivar names from array (handle both raw arrays and wrapped array objects)
+  var ivarArray: seq[NodeValue]
+  if args[0].kind == vkArray:
+    ivarArray = args[0].arrayVal
+  elif args[0].kind == vkObject and args[0].objVal.isNimProxy and args[0].objVal.nimType == "array":
+    # Unwrap proxy array - extract elements from properties
+    if args[0].objVal of DictionaryObj:
+      let dict = cast[DictionaryObj](args[0].objVal)
+      # Get elements from properties (stored with numeric keys)
+      var i = 0
+      while true:
+        let key = $i
+        if not dict.properties.hasKey(key):
+          break
+        ivarArray.add(dict.properties[key])
+        inc i
+    else:
+      raise newException(ValueError, "derive:: first argument must be array of strings")
+  else:
+    raise newException(ValueError, "derive:: first argument must be array of strings, got: " & $args[0].kind)
   var childIvars: seq[string] = @[]
   for ivarVal in ivarArray:
     if ivarVal.kind != vkSymbol:
@@ -256,25 +354,52 @@ proc deriveWithIVarsImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
       raise newException(ValueError, "Instance variable conflict: " & ivar & " already defined in parent")
     allIvars.add(ivar)
 
+  # Determine if parent is a Dictionary
+  let parentIsDictionary = self of DictionaryObj
+
   # Create object with combined slots
   var child: ProtoObject
-  if allIvars.len > 0:
-    child = initSlotObject(allIvars)
-  else:
-    # Fallback to empty object if no ivars
-    child = ProtoObject()
-    child.properties = initTable[string, NodeValue]()
-    child.methods = initTable[string, BlockNode]()
-    child.parents = @[]
-    child.tags = @[]
-    child.isNimProxy = false
-    child.nimValue = nil
-    child.nimType = ""
-    child.hasSlots = false
-    child.slots = @[]
-    child.slotNames = initTable[string, int]()
+  if parentIsDictionary:
+    # Create Dictionary-derived object with slots
+    let dictChild = DictionaryObj()
+    dictChild.methods = initTable[string, BlockNode]()
+    dictChild.parents = @[self]
+    dictChild.tags = self.tags & @["derived"]
+    dictChild.isNimProxy = false
+    dictChild.nimValue = nil
+    dictChild.nimType = ""
+    dictChild.properties = initTable[string, NodeValue]()
 
-  child.parents = @[self]
+    if allIvars.len > 0:
+      dictChild.hasSlots = true
+      dictChild.slots = newSeq[NodeValue](allIvars.len)
+      dictChild.slotNames = initTable[string, int]()
+      for i in 0..<allIvars.len:
+        dictChild.slots[i] = nilValue()
+        dictChild.slotNames[allIvars[i]] = i
+    else:
+      dictChild.hasSlots = false
+      dictChild.slots = @[]
+      dictChild.slotNames = initTable[string, int]()
+
+    child = dictChild.ProtoObject
+  else:
+    if allIvars.len > 0:
+      child = initSlotObject(allIvars)
+    else:
+      # Fallback to empty object if no ivars
+      child = ProtoObject()
+      child.methods = initTable[string, BlockNode]()
+      child.parents = @[]
+      child.tags = @[]
+      child.isNimProxy = false
+      child.nimValue = nil
+      child.nimType = ""
+      child.hasSlots = false
+      child.slots = @[]
+      child.slotNames = initTable[string, int]()
+
+    child.parents = @[self]
   child.tags = self.tags & @["derived", "slotted"]
 
   # Generate accessor methods for all instance variables
@@ -327,9 +452,12 @@ proc deriveWithIVarsImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   return NodeValue(kind: vkObject, objVal: child)
 
 proc atImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
-  ## Get property value: obj at: 'key'
+  ## Get property value from Dictionary: dict at: 'key'
   if args.len < 1:
     return nilValue()
+  if not (self of DictionaryObj):
+    return nilValue()  # at: only works on Dictionary objects
+
   let keyVal = args[0]
   var key: string
   case keyVal.kind
@@ -340,14 +468,16 @@ proc atImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   else:
     return nilValue()
 
-  return getProperty(self, key)
+  let dict = cast[DictionaryObj](self)
+  return getProperty(dict, key)
 
 proc atPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
-  ## Set property value: obj at: 'key' put: value
-  echo "atPutImpl called with ", args.len, " args, self tags: ", $self.tags
+  ## Set property value on Dictionary: dict at: 'key' put: value
   if args.len < 2:
-    echo "atPutImpl: insufficient args"
     return nilValue()
+  if not (self of DictionaryObj):
+    return nilValue()  # at:put: only works on Dictionary objects
+
   let keyVal = args[0]
   var key: string
   case keyVal.kind
@@ -356,13 +486,12 @@ proc atPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   of vkString:
     key = keyVal.strVal
   else:
-    echo "atPutImpl: first arg not symbol or string: ", keyVal.kind
     return nilValue()
 
   let value = args[1]
-  echo "Setting property: ", key, " = ", value.toString(), " on self with tags: ", $self.tags
-  setProperty(self, key, value)
-  echo "Property set done, now properties count: ", self.properties.len
+  debug("Setting property: ", key, " = ", value.toString())
+  let dict = cast[DictionaryObj](self)
+  setProperty(dict, key, value)
   return value
 
 proc plusImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
@@ -376,11 +505,6 @@ proc plusImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     let a = cast[ptr int](self.nimValue)[]
     let b = other.intVal
     return NodeValue(kind: vkInt, intVal: a + b)
-  elif other.kind == vkInt:
-    # Try to get self as integer from properties
-    let selfVal = getProperty(self, "value")
-    if selfVal.kind == vkInt:
-      return NodeValue(kind: vkInt, intVal: selfVal.intVal + other.intVal)
 
   return nilValue()
 
@@ -461,10 +585,64 @@ proc doesNotUnderstandImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue 
   let selector = args[0].symVal
   raise newException(ValueError, "Message not understood: " & selector)
 
+proc concatImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+  ## Concatenate strings: a # b (Smalltalk style using , operator)
+  if args.len < 1:
+    return nilValue()
+
+  let other = args[0]
+
+  # Handle string concatenation
+  if self.isNimProxy and self.nimType == "string":
+    let selfStr = cast[ptr string](self.nimValue)[]
+    if other.kind == vkString:
+      return NodeValue(kind: vkString, strVal: selfStr & other.strVal)
+    elif other.kind == vkObject and other.objVal.isNimProxy and other.objVal.nimType == "string":
+      let otherStr = cast[ptr string](other.objVal.nimValue)[]
+      return NodeValue(kind: vkString, strVal: selfStr & otherStr)
+
+  return nilValue()
+
+proc atCollectionImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+  ## Get element from array or table: arr at: index OR table at: key
+  if args.len < 1:
+    return nilValue()
+
+  let key = args[0]
+
+  # Handle array access (1-based indexing like Smalltalk)
+  # Arrays are stored as DictionaryObj with numeric keys
+  if self.isNimProxy and self.nimType == "array":
+    if key.kind == vkInt:
+      let idx = key.intVal - 1  # Convert to 0-based
+      if self of DictionaryObj:
+        let dict = cast[DictionaryObj](self)
+        let keyStr = $idx
+        if dict.properties.hasKey(keyStr):
+          return dict.properties[keyStr]
+    return nilValue()
+
+  # Handle table access
+  # Tables are stored as DictionaryObj with string keys
+  if self.isNimProxy and self.nimType == "table":
+    var keyStr: string
+    if key.kind == vkString:
+      keyStr = key.strVal
+    elif key.kind == vkSymbol:
+      keyStr = key.symVal
+    else:
+      return nilValue()
+    if self of DictionaryObj:
+      let dict = cast[DictionaryObj](self)
+      if dict.properties.hasKey(keyStr):
+        return dict.properties[keyStr]
+    return nilValue()
+
+  return nilValue()
+
 proc wrapIntAsObject*(value: int): NodeValue =
   ## Wrap an integer as a Nim proxy object that can receive messages
   let obj = ProtoObject()
-  obj.properties = initTable[string, NodeValue]()
   obj.methods = initTable[string, BlockNode]()
   obj.parents = @[rootObject.ProtoObject]
   obj.tags = @["Integer", "Number"]
@@ -473,13 +651,13 @@ proc wrapIntAsObject*(value: int): NodeValue =
   cast[ptr int](obj.nimValue)[] = value
   obj.nimType = "int"
   obj.hasSlots = false
+  obj.slots = @[]
   obj.slotNames = initTable[string, int]()
   return NodeValue(kind: vkObject, objVal: obj)
 
 proc wrapBoolAsObject*(value: bool): NodeValue =
   ## Wrap a boolean as a Nim proxy object that can receive messages
   let obj = ProtoObject()
-  obj.properties = initTable[string, NodeValue]()
   obj.methods = initTable[string, BlockNode]()
   obj.parents = @[rootObject.ProtoObject]
   obj.tags = @["Boolean"]
@@ -488,19 +666,37 @@ proc wrapBoolAsObject*(value: bool): NodeValue =
   cast[ptr bool](obj.nimValue)[] = value
   obj.nimType = "bool"
   obj.hasSlots = false
+  obj.slots = @[]
   obj.slotNames = initTable[string, int]()
   return NodeValue(kind: vkObject, objVal: obj)
 
-proc newObject*(properties = initTable[string, NodeValue]()): ProtoObject =
-  ## Create a new object with optional properties
+proc newObject*(): ProtoObject =
+  ## Create a new lightweight object (no property bag)
   let obj = ProtoObject()
-  obj.properties = properties
   obj.methods = initTable[string, BlockNode]()
-  obj.parents = @[initRootObject().ProtoObject]  # Convert to base type
+  obj.parents = @[initRootObject().ProtoObject]
   obj.tags = @["derived"]
   obj.isNimProxy = false
   obj.nimValue = nil
   obj.nimType = ""
+  obj.hasSlots = false
+  obj.slots = @[]
+  obj.slotNames = initTable[string, int]()
+  return obj
+
+proc newDictionary*(properties = initTable[string, NodeValue]()): DictionaryObj =
+  ## Create a new Dictionary object with property bag
+  let obj = DictionaryObj()
+  obj.methods = initTable[string, BlockNode]()
+  obj.parents = @[initRootObject().ProtoObject]
+  obj.tags = @["Dictionary", "derived"]
+  obj.isNimProxy = false
+  obj.nimValue = nil
+  obj.nimType = ""
+  obj.hasSlots = false
+  obj.slots = @[]
+  obj.slotNames = initTable[string, int]()
+  obj.properties = properties
   return obj
 
 # Object comparison
@@ -529,10 +725,12 @@ proc printObject*(obj: ProtoObject, indent: int = 0): string =
     output.add(" [" & obj.tags.join(", ") & "]")
   output.add("\n")
 
-  if obj.properties.len > 0:
-    output.add(spaces & "  properties:\n")
-    for key, val in obj.properties:
-      output.add(spaces & "    " & key & ": " & val.toString() & "\n")
+  if obj of DictionaryObj:
+    let dictObj = cast[DictionaryObj](obj)
+    if dictObj.properties.len > 0:
+      output.add(spaces & "  properties:\n")
+      for key, val in dictObj.properties:
+        output.add(spaces & "    " & key & ": " & val.toString() & "\n")
 
   if obj.methods.len > 0:
     output.add(spaces & "  methods:\n")
