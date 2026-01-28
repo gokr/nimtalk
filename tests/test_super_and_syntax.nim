@@ -20,9 +20,9 @@ suite "Super Keyword Support":
   test "super calls parent method":
     let result = interp.evalStatements("""
     Parent := Dictionary derive.
-    Parent at: "greet" put: [ "Hello from parent" ].
+    Parent at: #greet put: [ "Hello from parent" ].
     Child := Parent derive.
-    Child at: "greet" put: [ super greet ].
+    Child at: #greet put: [ super greet ].
     c := Child derive.
     c greet
     """)
@@ -155,8 +155,8 @@ suite "Self Keyword Support":
   test "self can access instance variables":
     let result = interp.evalStatements("""
     Person := Dictionary derive.
-    Person>>setName: n [ self at: "name" put: n ].
-    Person>>getName [ self at: "name" ].
+    Person>>setName: n [ self at: #name put: n ].
+    Person>>getName [ self at: #name ].
     p := Person derive.
     p setName: "Alice".
     p getName
@@ -167,8 +167,8 @@ suite "Self Keyword Support":
   test "self can send messages to itself":
     let result = interp.evalStatements("""
     Builder := Dictionary derive.
-    Builder>>setPrefix: p [ self at: "prefix" put: p ].
-    Builder>>build [ self at: "prefix" ].
+    Builder>>setPrefix: p [ self at: #prefix put: p ].
+    Builder>>build [ self at: #prefix ].
     b := Builder derive.
     b setPrefix: "Hello".
     b build
@@ -179,8 +179,8 @@ suite "Self Keyword Support":
   test "self works with >> syntax":
     let result = interp.evalStatements("""
     Box := Dictionary derive.
-    Box>>store: x [ self at: "item" put: x ].
-    Box>>retrieve [ self at: "item" ].
+    Box>>store: x [ self at: #item put: x ].
+    Box>>retrieve [ self at: #item ].
     b := Box derive.
     b store: "test".
     b retrieve
