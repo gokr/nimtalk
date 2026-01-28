@@ -1,4 +1,4 @@
-import std/[tables, algorithm, hashes]
+import std/[tables, algorithm, hashes, logging]
 
 # ============================================================================
 # Core Types for Nimtalk
@@ -10,7 +10,6 @@ type
     line*, col*: int
 
   ProtoObject* = ref object of RootObj
-    properties*: Table[string, NodeValue]  # property bag for dynamic objects
     methods*: Table[string, BlockNode]     # method dictionary
     parents*: seq[ProtoObject]             # prototype chain
     tags*: seq[string]                     # type tags
@@ -20,6 +19,10 @@ type
     hasSlots*: bool                        # true if object has declared instance variables
     slots*: seq[NodeValue]                 # instance variables (faster than property bag)
     slotNames*: Table[string, int]         # maps ivar names to slot indices
+
+  DictionaryObj* = ref object of ProtoObject
+    ## Dictionary - prototype with property bag for dynamic key-value storage
+    properties*: Table[string, NodeValue]  # property bag for dynamic objects
 
   BlockNode* = ref object of Node
     parameters*: seq[string]   # method parameters
@@ -90,6 +93,10 @@ type
   # Root object (global singleton)
   RootObject* = ref object of ProtoObject
     ## Global root object - parent of all objects
+
+  # Dictionary prototype (singleton)
+  DictionaryPrototype* = ref object of DictionaryObj
+    ## Global Dictionary prototype - provides property bag functionality
 
   # Activation records for method execution
   Activation* = ref object of RootObj
@@ -170,7 +177,6 @@ proc nilValue*(): NodeValue =
 proc initSlotObject*(ivars: seq[string]): ProtoObject =
   ## Create object with declared instance variables (slots)
   result = ProtoObject()
-  result.properties = initTable[string, NodeValue]()
   result.methods = initTable[string, BlockNode]()
   result.parents = @[]
   result.tags = @["slotted"]
@@ -185,6 +191,20 @@ proc initSlotObject*(ivars: seq[string]): ProtoObject =
   for i in 0..<ivars.len:
     result.slots[i] = nilValue()
     result.slotNames[ivars[i]] = i
+
+proc initDictionaryObject*(): DictionaryObj =
+  ## Create a new Dictionary object with property bag
+  result = DictionaryObj()
+  result.methods = initTable[string, BlockNode]()
+  result.parents = @[]
+  result.tags = @["Dictionary"]
+  result.isNimProxy = false
+  result.nimValue = nil
+  result.nimType = ""
+  result.hasSlots = false
+  result.slots = @[]
+  result.slotNames = initTable[string, int]()
+  result.properties = initTable[string, NodeValue]()
 
 proc getSlot*(obj: ProtoObject, name: string): NodeValue =
   ## Get slot value by name (returns nil if not found)
@@ -251,23 +271,31 @@ proc toTable*(val: NodeValue): Table[string, NodeValue] =
     raise newException(ValueError, "Not a table: " & val.toString)
   val.tableVal
 
-# Property and method helpers (will be fully implemented in objects.nim)
-proc getProperty*(obj: ProtoObject, name: string): NodeValue =
-  ## Get property value from object or its prototype chain
-  if obj.properties.hasKey(name):
-    return obj.properties[name]
-  # Search prototype chain
-  for parent in obj.parents:
-    let val = parent.getProperty(name)
-    if val.kind != vkNil:
-      return val
-  # Not found in properties or slots
+# Dictionary property helpers
+proc getProperty*(dict: DictionaryObj, name: string): NodeValue =
+  ## Get property value from dictionary or its prototype chain
+  if dict.properties.hasKey(name):
+    return dict.properties[name]
+  # Search prototype chain for Dictionary prototypes
+  for parent in dict.parents:
+    if parent of DictionaryObj:
+      let val = cast[DictionaryObj](parent).getProperty(name)
+      if val.kind != vkNil:
+        return val
+  # Not found
   nilValue()
 
-proc setProperty*(obj: ProtoObject, name: string, value: NodeValue) =
-  ## Set property on object (not in prototypes)
-  echo "setProperty for object: ", obj.tags, " name: ", name, " = ", value.toString()
-  obj.properties[name] = value
+proc setProperty*(dict: DictionaryObj, name: string, value: NodeValue) =
+  ## Set property on dictionary (not in prototypes)
+  debug("setProperty for Dictionary: ", $dict.tags, " name: ", name, " = ", value.toString())
+  dict.properties[name] = value
+
+# Generic lookup that delegates to DictionaryObj if applicable
+proc getPropertyGeneric*(obj: ProtoObject, name: string): NodeValue =
+  ## Get property value - works for Dictionary objects, returns nil for others
+  if obj of DictionaryObj:
+    return cast[DictionaryObj](obj).getProperty(name)
+  return nilValue()
 
 proc lookupMethod*(obj: ProtoObject, selector: string): BlockNode =
   ## Look up method in object or prototype chain
@@ -304,3 +332,27 @@ proc symbolEquals*(a, b: NodeValue): bool =
 proc clearSymbolTable*() =
   ## Clear all symbols (useful for testing)
   symbolTable.clear()
+
+# ============================================================================
+# Global Logging Configuration
+# ============================================================================
+
+var globalLogLevel* = lvlError  ## Default log level for the application
+
+proc setLogLevel*(level: Level) =
+  ## Set the global log level programmatically (e.g., in tests)
+  globalLogLevel = level
+  # Update all existing handlers
+  for handler in getHandlers():
+    handler.levelThreshold = level
+
+proc configureLogging*(level: Level = lvlError) =
+  ## Configure logging with the specified level
+  globalLogLevel = level
+  if getHandlers().len == 0:
+    # No logger configured yet, add console logger
+    addHandler(logging.newConsoleLogger(levelThreshold = level, useStderr = true))
+  else:
+    # Update existing handlers
+    for handler in getHandlers():
+      handler.levelThreshold = level
