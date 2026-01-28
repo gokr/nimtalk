@@ -6,8 +6,8 @@
 ```smalltalk
 # For dynamic property storage, use Dictionary
 dict := Dictionary derive.
-dict at: "name" put: "Alice"    # Dictionary access
-result := dict at: "name"
+dict at: #name put: "Alice"    # Dictionary access
+result := dict at: #name
 ```
 
 ### Object (Declared Instance Variables)
@@ -41,7 +41,7 @@ Manager := Employee derive: #(#teamSize)
 ### Standard Syntax (REPL/Interactive)
 ```smalltalk
 # Normal executable code - works in REPL
-Person at: "greet" put: [ ^ "Hello, " + name ]
+Person at: #greet put: [ ^ "Hello, " + name ]
 ```
 
 ### Definition Syntax (Files Only - SPECIAL PARSING)
@@ -128,7 +128,7 @@ person name: "Alice"                      # Setter - direct write
 # Standard message sending (always available)
 person greet                              # Unary message
 3 + 4                                     # Binary message
-person at: "key" put: "value"           # Keyword (for collections)
+person at: #key put: "value"           # Keyword (for collections)
 ```
 
 ### Direct Ivar Access (Inside Methods)
@@ -306,8 +306,8 @@ obj ivar1: value                              # Accessor method (direct slot acc
 
 #=== Dictionary (Property Bag) ===============
 Dict := Dictionary derive.
-dict at: "key" put: value                     # Property bag access
-dict at: "key"                                # Property retrieval
+dict at: #key put: value                     # Property bag access
+dict at: #key                                # Property retrieval
 
 #=== Methods (in files) ======================
 Proto>>method [ ^ result ]                    # Define unary
@@ -315,8 +315,8 @@ Proto>>method: arg [ ^ result ]               # Define keyword
 Proto>>arg1: x arg2: y [ ^ x + y ]            # Multi-keyword
 
 #=== Methods (in REPL) =======================
-Proto at: "method" put: [ ^ result ]          # Standard way
-Proto perform: "method"                       # Call dynamically
+Proto at: #method put: [ ^ result ]          # Standard way
+Proto perform: #method                       # Call dynamically
 
 #=== Message Sending =========================
 obj method                                    # Unary
@@ -325,7 +325,7 @@ obj binaryOp: other                           # Binary
 
 #=== Inheritance =============================
 Child := Parent derive: #(#newIvar)            # Inherit + add
-Child>>method [ super perform: "method" ]   # Call parent
+Child>>method [ super perform: #method ]   # Call parent
 
 #=== Control Flow ============================
 expr ifTrue: [ block ] ifElse: [ block ].
@@ -349,7 +349,7 @@ collection do: [ :each | block ].
 ```smalltalk
 # This no longer works - Object derive doesn't have property bag
 person := Object derive.
-person at: "name" put: "Alice".   # ERROR: at:put: only on Dictionary
+person at: #name put: "Alice".   # ERROR: at:put: only on Dictionary
 ```
 
 ### New Code Options
@@ -358,9 +358,9 @@ person at: "name" put: "Alice".   # ERROR: at:put: only on Dictionary
 ```smalltalk
 # Use Dictionary when you need dynamic property storage
 dict := Dictionary derive.
-dict at: "name" put: "Alice".
-dict at: "age" put: 30.
-result := dict at: "name".
+dict at: #name put: "Alice".
+dict at: #age put: 30.
+result := dict at: #name.
 ```
 
 **Option 2: Declared Ivars with Object**
@@ -379,11 +379,11 @@ result := person name.
 ```smalltalk
 # Combine property bag with declared ivars
 Person := Dictionary derive: #(#name age).
-Person at: "greet" put: [ ^"Hello, " + name ].
+Person at: #greet put: [ ^"Hello, " + name ].
 
 person := Person derive.
 person name: "Alice".
-person at: "nickname" put: "Al".  # Dynamic property
+person at: #nickname put: "Al".  # Dynamic property
 result := person greet.             # "Hello, Alice"
 ```
 
@@ -419,7 +419,7 @@ Nimtalk supports Smalltalk's cascade syntax using `;` to send multiple messages 
 
 ```smalltalk
 # Send multiple messages to the same object
-obj at: "x" put: 0; at: "y" put: 0; at: "z" put: 0.
+obj at: #x put: 0; at: #y put: 0; at: #z put: 0.
 
 # Works with any message type
 calculator clear; add: 5; add: 10; result.
@@ -437,7 +437,7 @@ counter increment; increment; increment.
 Person>>greet: name [ ^"Hello " + name ].
 
 # Standard way (works in REPL and files)
-Person at: "greet:" put: [ :name | ^"Hello " + name ].
+Person at: #greet: put: [ :name | ^"Hello " + name ].
 ```
 
 The `>>` syntax is transformed by the parser into the standard `at:put:` message send, so both approaches are functionally equivalent.

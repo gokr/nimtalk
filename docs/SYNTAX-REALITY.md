@@ -111,13 +111,13 @@ The vertical bar `|` **only appears when you have block parameters or temporarie
 
 ```smalltalk
 # Nimtalk - valid and concise
-Object at: 'error:' put: [
+Object at: #error: put: [
   :message
   self error: 'Message not understood: ' + message asString
 ].
 
 # Traditional Smalltalk would require:
-# Object at: 'error:' put: [
+# Object at: #error: put: [
 #   :message |
 #   self error: 'Message not understood: ' + message asString
 # ].
@@ -185,12 +185,12 @@ Methods can also be defined using explicit message passing:
 
 ```smalltalk
 # Define a method on Object
-Object at: 'printString' put: [
+Object at: #printString put: [
   ^ '<' + (self className) + '>'
 ].
 
 # Keyword method
-Array at: 'inject:into:' put: [
+Array at: #inject:into: put: [
   :initialValue
   :block
   | result |
@@ -252,8 +252,8 @@ x > y
 "Hello" , " World"   # string concatenation (comma operator)
 
 # Keyword messages
-obj at: "key" put: value           # set property
-obj at: "key"                       # get property (also works on arrays/tables)
+obj at: #key put: value           # set property
+obj at: #key                       # get property (also works on arrays/tables)
 array inject: 0 into: [ :sum :each | sum + each ]
 
 # Instance variable access (via generated accessors)
@@ -265,7 +265,7 @@ arr := #(1 2 3).
 arr at: 2             # returns 2 (1-based indexing, Smalltalk-style)
 
 tab := #{"name" -> "Alice"}.
-tab at: "name"        # returns "Alice"
+tab at: #name        # returns "Alice"
 ```
 
 ## Cascading
@@ -274,7 +274,7 @@ Nimtalk implements the Smalltalk cascade syntax using `;` to send multiple messa
 
 ```smalltalk
 # Send multiple messages to the same object
-obj at: "x" put: 0; at: "y" put: 0; at: "z" put: 0.
+obj at: #x put: 0; at: #y put: 0; at: #z put: 0.
 
 # Use with any message type
 person name: "Alice"; age: 30; address: "123 Main St".
@@ -301,7 +301,7 @@ The receiver is evaluated once, then each message in the cascade is sent to that
 Use `<primitive>` tags for native Nim implementations:
 
 ```smalltalk
-Object at: 'primitiveClone' put: <primitive>
+Object at: #primitiveClone put: <primitive>
   ## Create a shallow copy in Nim
   result = clone(self)
 </primitive>.

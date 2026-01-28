@@ -15,9 +15,9 @@ A new prototype-based object model for Nimtalk that:
 ```smalltalk
 # For dynamic property storage, use Dictionary
 dict := Dictionary derive.
-dict at: "name" put: "Alice".    # Dictionary-like access
-dict at: "age" put: 30.
-result := dict at: "name".       # Hash lookup
+dict at: #name put: "Alice".    # Dictionary-like access
+dict at: #age put: 30.
+result := dict at: #name.       # Hash lookup
 ```
 
 ### Object with Declared Ivars (Current)
@@ -67,7 +67,7 @@ Person>>greet [
 ]
 
 # In REPL (standard message passing):
-Person at: "greet" put: [ ^ "Hello" ]
+Person at: #greet put: [ ^ "Hello" ]
 ```
 
 ### 4. Full Smalltalk Semantics
@@ -75,7 +75,7 @@ Person at: "greet" put: [ ^ "Hello" ]
 # Message passing (unary, binary, keyword)
 person greet                              # unary
 3 + 4                                     # binary
-obj at: "key" put: "value"              # keyword
+obj at: #key put: "value"              # keyword
 
 # Blocks (closures)
 [ 1 + 2 ]                                 # No parameters

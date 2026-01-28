@@ -80,7 +80,7 @@ x ~= y           # Inequality
 The `;` operator sends multiple messages to the same receiver:
 
 ```smalltalk
-obj at: "x" put: 0; at: "y" put: 0; at: "z" put: 0.
+obj at: #x put: 0; at: #y put: 0; at: #z put: 0.
 ```
 
 ### Return Operator
@@ -182,8 +182,8 @@ The `>>` syntax is parsed and transformed into standard `at:put:` message sends.
 ### Method Definition (Standard Syntax)
 
 ```smalltalk
-Person at: "greet" put: [ ^ "Hello, " + name ]
-Person at: "name:" put: [ :aName | name := aName ]
+Person at: #greet put: [ ^ "Hello, " + name ]
+Person at: #name: put: [ :aName | name := aName ]
 ```
 
 ### Method Dispatch
