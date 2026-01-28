@@ -137,11 +137,13 @@ Working:
 - Lexer, parser, AST interpreter
 - Prototype object system with property bags and slot-based instance variables
 - REPL with file execution
-- Block closures with lexical scoping
+- **Block closures with lexical scoping, environment capture, and non-local returns**
 - Data structure literals (arrays, tables, object literals)
 - Method definition syntax (`>>`) for cleaner method declarations
 - `self` and `super` support for method dispatch
 - Base library (collections, core objects)
+
+**New:** Full Smalltalk-style closures are now implemented! See [docs/closures.md](docs/closures.md) for details.
 
 In progress:
 - Compiler to Nim (basic infrastructure in place)

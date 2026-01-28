@@ -19,7 +19,7 @@ This document tracks current work items, future directions, and known issues for
 - ✅ Native method dispatch from Nimtalk code
 - ✅ Method tables using canonical Symbols for identity-based lookup
 - ✅ Base library with core objects and collections
-- ✅ Lexical closures with comprehensive test coverage
+- ✅ **Lexical closures with environment capture, MutableCell shared state, and non-local returns**
 - ✅ Cascade syntax (`;` operator) for multiple messages to same receiver
 - ✅ `>>` method definition syntax (parser support complete)
 - ✅ `self` and `super` keywords for method dispatch
@@ -43,11 +43,12 @@ This document tracks current work items, future directions, and known issues for
 - [x] Instance variable type system and core implementation (types.nim, objects.nim)
 - [x] Instance variable declaration syntax (`derive: #(#ivar1 #ivar2)` - implemented as message)
 - [x] Instance variable access via automatic getters/setters (automatically generated)
-- [x] Lexical closures with variable capture and non-local returns
+- [x] **Lexical closures with environment capture, MutableCell shared state, and non-local returns**
 - [x] Cascade syntax (`;` operator) for multiple messages to same receiver
 - [x] Method definition syntax (`>>`) for files and REPL (parser support completed)
 - [x] `super` support for calling parent methods
 - [x] `self` keyword for receiver reference and dynamic dispatch
+- [x] Block temporaries syntax `[ | temp1 temp2 | body ]`
 - [ ] Enhanced control flow (loops, conditionals)
 
 ## Medium Priority Tasks
@@ -108,6 +109,7 @@ This document tracks current work items, future directions, and known issues for
 - [x] README.md with getting started guide and examples (updated)
 - [x] Design documents for slot-based instance variable system (docs/)
 - [x] Debugging and tools documentation (docs/TOOLS_AND_DEBUGGING.md)
+- [x] Closure implementation documentation (docs/closures.md)
 - [ ] Complete language specification (SPECIFICATION.md missing)
 - [ ] Tutorials and comprehensive examples
 - [ ] API reference for built-in objects
@@ -189,5 +191,5 @@ ntalkc hello.nt
 
 ---
 
-*Last Updated: 2026-01-28 (super and self support complete, >> method definition syntax implemented, Object/Dictionary split, Symbol method keys, comprehensive tests)*
+*Last Updated: 2026-01-28 (closures fully implemented with environment capture, MutableCell shared state, and non-local returns; super and self support complete, >> method definition syntax implemented, Object/Dictionary split, Symbol method keys, comprehensive tests)*
 *Project follows Nim standard layout with `src/` directory structure.*
