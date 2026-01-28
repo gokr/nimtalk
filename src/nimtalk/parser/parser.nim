@@ -404,12 +404,14 @@ proc parseBlock*(parser: var Parser): BlockNode =
       parser.parseError("Block parsing exceeded 100 iterations - possible infinite loop")
       return nil
 
-    debug("parseBlock: loop ", loopCount, " current=", parser.peek().kind, " value=", parser.peek().value)
+    let currentTok = parser.peek()
+    debug("parseBlock: loop ", loopCount, " pos=", parser.pos, " current=", currentTok.kind, " value='", currentTok.value, "'")
 
     # Check for closing bracket first
     if parser.expect(tkRBracket):
-      debug("parseBlock: found closing ]")
+      debug("parseBlock: found and consumed closing ] at pos=", parser.pos)
       break
+    debug("parseBlock: no closing bracket found (pos still ", parser.pos, ")")
 
     # Check for EOF
     if parser.peek().kind == tkEOF:

@@ -1,0 +1,24 @@
+#!/usr/bin/env -S ./ntalk
+#
+# Recursive factorial calculation in Nimtalk
+#
+
+# Create a Math object to hold our factorial method
+Math := Dictionary derive.
+
+# Define recursive factorial method
+Math at: #factorial: put: [ :n |
+    (n = 0) ifTrue: [ ^1 ].
+    (n = 1) ifTrue: [ ^1 ].
+    ^n * (self factorial: (n - 1))
+].
+
+# Calculate factorial of 13
+result := Math factorial: 13.
+
+# Print the result
+Stdout write: 'Factorial 13 = '.
+Stdout writeline: result printString.
+
+# Return the result
+result

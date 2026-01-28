@@ -30,6 +30,9 @@ proc newDoitContext*(trace: bool = false): DoitContext =
   # Initialize interpreter
   initGlobals(result.interpreter)
 
+  # Load standard library
+  loadStdlib(result.interpreter)
+
   # Copy interpreter globals to REPL context
   result.globals = result.interpreter.globals
 

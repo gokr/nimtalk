@@ -1105,6 +1105,31 @@ proc initGlobals*(interp: var Interpreter) =
   # It would be better to have a Collection prototype, but for now we rely on
   # the atCollectionImpl method registered on rootObject for at: access
 
+# Load standard library files
+proc loadStdlib*(interp: var Interpreter, basePath: string = "") =
+  ## Load core library files from lib/core/
+  ## basePath allows specifying a different root (e.g., for tests or installed location)
+  let libPath = if basePath.len > 0: basePath / "lib" / "core" else: "lib" / "core"
+
+  let stdlibFiles = [
+    "Object.nt",
+    "Boolean.nt",
+    "Collections.nt"
+  ]
+
+  for filename in stdlibFiles:
+    let filepath = libPath / filename
+    if fileExists(filepath):
+      debug("Loading stdlib file: ", filepath)
+      let source = readFile(filepath)
+      let (_, err) = interp.evalStatements(source)
+      if err.len > 0:
+        warn("Failed to load ", filepath, ": ", err)
+      else:
+        debug("Successfully loaded: ", filepath)
+    else:
+      warn("Stdlib file not found: ", filepath)
+
 # Simple test function (incomplete - commented out)
 ## proc testBasicArithmetic*(): bool =
 ##   ## Test basic arithmetic: 3 + 4 = 7
