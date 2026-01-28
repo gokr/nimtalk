@@ -24,13 +24,33 @@ type
     ## Dictionary - prototype with property bag for dynamic key-value storage
     properties*: Table[string, NodeValue]  # property bag for dynamic objects
 
+  # Mutable cell for captured variables (shared between closures)
+  MutableCell* = ref object
+    value*: NodeValue          # the captured value
+
+  # Forward declarations to break circular dependency
+  Activation* = ref ActivationObj
+
   BlockNode* = ref object of Node
-    parameters*: seq[string]   # method parameters
-    temporaries*: seq[string]  # local variables
-    body*: seq[Node]           # AST statements
-    isMethod*: bool            # true if method definition
-    nativeImpl*: pointer       # compiled implementation
-    hasInterpreterParam*: bool # true if native method needs interpreter parameter
+    parameters*: seq[string]              # method parameters
+    temporaries*: seq[string]             # local variables
+    body*: seq[Node]                      # AST statements
+    isMethod*: bool                       # true if method definition
+    nativeImpl*: pointer                  # compiled implementation
+    hasInterpreterParam*: bool            # true if native method needs interpreter parameter
+    capturedEnv*: Table[string, MutableCell]  # captured variables from outer scope
+    homeActivation*: Activation           # for non-local returns: method that created this block
+
+  # Activation records for method execution (defined after BlockNode)
+  ActivationObj* = object of RootObj
+    sender*: Activation       # calling context
+    receiver*: ProtoObject    # 'self'
+    currentMethod*: BlockNode # current method
+    definingObject*: ProtoObject  # object where method was found (for super)
+    pc*: int                  # program counter
+    locals*: Table[string, NodeValue]  # local variables
+    returnValue*: NodeValue   # return value
+    hasReturned*: bool        # non-local return flag
 
   # Value types for AST nodes and runtime values
   ValueKind* = enum
@@ -101,17 +121,6 @@ type
   # Dictionary prototype (singleton)
   DictionaryPrototype* = ref object of DictionaryObj
     ## Global Dictionary prototype - provides property bag functionality
-
-  # Activation records for method execution
-  Activation* = ref object of RootObj
-    sender*: Activation       # calling context
-    receiver*: ProtoObject    # 'self'
-    currentMethod*: BlockNode # current method
-    definingObject*: ProtoObject  # object where method was found (for super)
-    pc*: int                  # program counter
-    locals*: Table[string, NodeValue]  # local variables
-    returnValue*: NodeValue   # return value
-    hasReturned*: bool        # non-local return flag
 
   # Compiled method representation
   CompiledMethod* = ref object of RootObj
@@ -229,9 +238,17 @@ proc getSlot*(obj: ProtoObject, name: string): NodeValue =
 
 proc setSlot*(obj: ProtoObject, name: string, value: NodeValue) =
   ## Set slot value by name (does nothing if slot doesn't exist)
+  when not defined(release):
+    debug "setSlot called: '", name, "' = ", value.toString()
+    debug "  hasSlots: ", obj.hasSlots
+    debug "  hasKey: ", obj.slotNames.hasKey(name)
   if not obj.hasSlots or not obj.slotNames.hasKey(name):
+    when not defined(release):
+      debug "  setSlot: returning early (no slots or key not found)"
     return
   let idx = obj.slotNames[name]
+  when not defined(release):
+    debug "  setting at index ", idx
   obj.slots[idx] = value
 
 proc hasSlotIVars*(obj: ProtoObject): bool =
