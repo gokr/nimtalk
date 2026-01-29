@@ -233,8 +233,9 @@ name := "Alice".
 # Arrays (use Nim's seq)
 #(1 2 3 "four")
 
-# Tables (use Nim's Table)
-#{key1: "value1" key2: 42}
+# Tables (use Nim's Table) - use -> for key-value pairs
+#{"key1" -> "value1" "key2" -> 42}
+#{#symbolKey -> "value"}     # Symbol keys also supported
 ```
 
 ## Message Passing
