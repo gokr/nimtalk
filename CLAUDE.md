@@ -554,8 +554,22 @@ nimtalk/
 ├── interpreter/    # Evaluation and activation
 ├── compiler/       # Nim code generation
 ├── repl/           # Read-Eval-Print Loop
-└── ffi/            # Foreign Function Interface
+├── ffi/            # Foreign Function Interface
+└── docs/           # Documentation
+    ├── research/   # Historical design docs and proposals
 ```
+
+### Documentation Organization
+
+The `docs/` directory contains project documentation:
+
+- **Root docs (`docs/*.md`)**: Current user guides, syntax references, and specifications
+- **`docs/research/`**: Historical design documents, implementation plans, and research notes. These are kept for historical context but may not reflect the current implementation. Key documents include:
+  - Object model design proposals and implementation plans
+  - Historical decision records
+  - Research notes on language features
+
+When working with documentation, prefer the root-level user guides over research documents for understanding current behavior.
 
 ## File Naming Conventions
 
