@@ -75,6 +75,37 @@ proc wrapTableAsObject*(tab: Table[string, NodeValue]): NodeValue =
   obj.properties = tab
   return NodeValue(kind: vkObject, objVal: obj.ProtoObject)
 
+# Implementation of wrapFloatAsObject for proxy floats
+proc wrapFloatAsObject*(value: float): NodeValue =
+  ## Wrap a float as a Nim proxy object that can receive messages
+  let obj = ProtoObject()
+  obj.methods = initTable[string, BlockNode]()
+  obj.parents = @[initRootObject().ProtoObject]
+  obj.tags = @["Float", "Number"]
+  obj.isNimProxy = true
+  obj.nimValue = cast[pointer](alloc(sizeof(float)))
+  cast[ptr float](obj.nimValue)[] = value
+  obj.nimType = "float"
+  obj.hasSlots = false
+  obj.slots = @[]
+  obj.slotNames = initTable[string, int]()
+  return NodeValue(kind: vkObject, objVal: obj)
+
+# Implementation of wrapBlockAsObject for blocks (needed for methods like whileTrue:)
+proc wrapBlockAsObject*(blockNode: BlockNode): NodeValue =
+  ## Wrap a block as a ProtoObject that can receive messages (like whileTrue:)
+  ## The BlockNode is stored so it can be executed later
+  let obj = DictionaryObj()
+  obj.methods = initTable[string, BlockNode]()
+  obj.parents = @[initRootObject().ProtoObject]
+  obj.tags = @["Block", "Closure"]
+  obj.isNimProxy = false
+  obj.nimType = "block"
+  # Store block node in properties so whileTrue:/whileFalse: can access it
+  obj.properties = initTable[string, NodeValue]()
+  obj.properties["__blockNode"] = NodeValue(kind: vkBlock, blockVal: blockNode)
+  return NodeValue(kind: vkObject, objVal: obj.ProtoObject)
+
 # ============================================================================
 # Evaluation engine for Nimtalk
 # Interprets AST nodes and executes currentMethods
@@ -717,7 +748,7 @@ proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue =
 
   debug("Message receiver: ", receiverVal.toString())
 
-  # Wrap non-object receivers (like integers, booleans, strings, arrays, tables) in Nim proxy objects
+  # Wrap non-object receivers (like integers, booleans, strings, arrays, tables, blocks) in Nim proxy objects
   let wrappedReceiver = case receiverVal.kind
                         of vkInt:
                           wrapIntAsObject(receiverVal.intVal)
@@ -729,6 +760,8 @@ proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue =
                           wrapArrayAsObject(receiverVal.arrayVal)
                         of vkTable:
                           wrapTableAsObject(receiverVal.tableVal)
+                        of vkBlock:
+                          wrapBlockAsObject(receiverVal.blockVal)
                         else:
                           receiverVal
 
@@ -1019,6 +1052,95 @@ proc ifFalseImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue
       return evalBlock(interp, interp.currentReceiver, blockNode)
   return nilValue()
 
+# Loop method implementations (interpreter-aware)
+proc whileTrueImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+  ## Execute bodyBlock while conditionBlock evaluates to true: [cond] whileTrue: [body]
+  ## self is the condition block (receiver), args[0] is the body block
+  if args.len < 1 or args[0].kind != vkBlock:
+    return nilValue()
+
+  # Extract condition block node from self (stored in properties by wrapBlockAsObject)
+  var conditionBlock: BlockNode = nil
+  if self of DictionaryObj:
+    let dict = cast[DictionaryObj](self)
+    if dict.properties.hasKey("__blockNode"):
+      let blockVal = dict.properties["__blockNode"]
+      if blockVal.kind == vkBlock:
+        conditionBlock = blockVal.blockVal
+
+  if conditionBlock == nil:
+    return nilValue()
+
+  let bodyBlock = args[0].blockVal
+  var lastResult = nilValue()
+
+  # Loop while condition is true
+  while true:
+    # Evaluate condition block
+    let conditionResult = evalBlock(interp, interp.currentReceiver, conditionBlock)
+
+    # Check if condition is true
+    var conditionIsTrue = false
+    if conditionResult.kind == vkBool:
+      conditionIsTrue = conditionResult.boolVal
+    elif conditionResult.kind == vkObject and conditionResult.objVal.isNimProxy and conditionResult.objVal.nimType == "bool":
+      conditionIsTrue = cast[ptr bool](conditionResult.objVal.nimValue)[]
+    else:
+      # Non-boolean condition - treat as false to exit loop
+      break
+
+    if not conditionIsTrue:
+      break
+
+    # Execute body block
+    lastResult = evalBlock(interp, interp.currentReceiver, bodyBlock)
+
+  return lastResult
+
+proc whileFalseImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+  ## Execute bodyBlock while conditionBlock evaluates to false: [cond] whileFalse: [body]
+  ## self is the condition block (receiver), args[0] is the body block
+  if args.len < 1 or args[0].kind != vkBlock:
+    return nilValue()
+
+  # Extract condition block node from self (stored in properties by wrapBlockAsObject)
+  var conditionBlock: BlockNode = nil
+  if self of DictionaryObj:
+    let dict = cast[DictionaryObj](self)
+    if dict.properties.hasKey("__blockNode"):
+      let blockVal = dict.properties["__blockNode"]
+      if blockVal.kind == vkBlock:
+        conditionBlock = blockVal.blockVal
+
+  if conditionBlock == nil:
+    return nilValue()
+
+  let bodyBlock = args[0].blockVal
+  var lastResult = nilValue()
+
+  # Loop while condition is false
+  while true:
+    # Evaluate condition block
+    let conditionResult = evalBlock(interp, interp.currentReceiver, conditionBlock)
+
+    # Check if condition is false
+    var conditionIsTrue = false
+    if conditionResult.kind == vkBool:
+      conditionIsTrue = conditionResult.boolVal
+    elif conditionResult.kind == vkObject and conditionResult.objVal.isNimProxy and conditionResult.objVal.nimType == "bool":
+      conditionIsTrue = cast[ptr bool](conditionResult.objVal.nimValue)[]
+    else:
+      # Non-boolean condition - treat as true to exit loop
+      break
+
+    if conditionIsTrue:
+      break
+
+    # Execute body block
+    lastResult = evalBlock(interp, interp.currentReceiver, bodyBlock)
+
+  return lastResult
+
 # Built-in globals
 proc initGlobals*(interp: var Interpreter) =
   ## Initialize built-in global variables
@@ -1030,6 +1152,134 @@ proc initGlobals*(interp: var Interpreter) =
   # Add Dictionary to globals
   if dictionaryPrototype != nil:
     interp.globals["Dictionary"] = dictionaryPrototype.ProtoObject.toValue()
+
+  # Create Float prototype
+  let floatProto = ProtoObject()
+  floatProto.methods = initTable[string, BlockNode]()
+  floatProto.parents = @[interp.rootObject.ProtoObject]
+  floatProto.tags = @["Float", "Number"]
+  floatProto.isNimProxy = false
+  floatProto.nimValue = nil
+  floatProto.nimType = ""
+  floatProto.hasSlots = false
+  floatProto.slots = @[]
+  floatProto.slotNames = initTable[string, int]()
+  interp.globals["Float"] = floatProto.toValue()
+
+  # Create Array prototype
+  let arrayProto = ProtoObject()
+  arrayProto.methods = initTable[string, BlockNode]()
+  arrayProto.parents = @[interp.rootObject.ProtoObject]
+  arrayProto.tags = @["Array", "Collection"]
+  arrayProto.isNimProxy = false
+  arrayProto.nimValue = nil
+  arrayProto.nimType = ""
+  arrayProto.hasSlots = false
+  arrayProto.slots = @[]
+  arrayProto.slotNames = initTable[string, int]()
+
+  # Add Array primitive methods
+  let arrayNewMethod = createCoreMethod("primitiveNew:")
+  arrayNewMethod.nativeImpl = cast[pointer](arrayNewImpl)
+  addMethod(arrayProto, "primitiveNew:", arrayNewMethod)
+
+  interp.globals["Array"] = arrayProto.toValue()
+
+  # Create Table prototype
+  let tableProto = ProtoObject()
+  tableProto.methods = initTable[string, BlockNode]()
+  tableProto.parents = @[interp.rootObject.ProtoObject]
+  tableProto.tags = @["Table", "Collection", "Dictionary"]
+  tableProto.isNimProxy = false
+  tableProto.nimValue = nil
+  tableProto.nimType = ""
+  tableProto.hasSlots = false
+  tableProto.slots = @[]
+  tableProto.slotNames = initTable[string, int]()
+
+  # Add Table primitive methods
+  let tableNewMethod = createCoreMethod("primitiveTableNew")
+  tableNewMethod.nativeImpl = cast[pointer](tableNewImpl)
+  addMethod(tableProto, "primitiveTableNew", tableNewMethod)
+
+  interp.globals["Table"] = tableProto.toValue()
+
+  # Create String prototype
+  let stringProto = ProtoObject()
+  stringProto.methods = initTable[string, BlockNode]()
+  stringProto.parents = @[interp.rootObject.ProtoObject]
+  stringProto.tags = @["String", "Text"]
+  stringProto.isNimProxy = false
+  stringProto.nimValue = nil
+  stringProto.nimType = ""
+  stringProto.hasSlots = false
+  stringProto.slots = @[]
+  stringProto.slotNames = initTable[string, int]()
+
+  # Add String primitive methods
+  let stringConcatMethod = createCoreMethod("primitiveConcat:")
+  stringConcatMethod.nativeImpl = cast[pointer](stringConcatImpl)
+  addMethod(stringProto, "primitiveConcat:", stringConcatMethod)
+
+  let stringSizeMethod = createCoreMethod("primitiveStringSize")
+  stringSizeMethod.nativeImpl = cast[pointer](stringSizeImpl)
+  addMethod(stringProto, "primitiveStringSize", stringSizeMethod)
+
+  let stringAtMethod = createCoreMethod("primitiveStringAt:")
+  stringAtMethod.nativeImpl = cast[pointer](stringAtImpl)
+  addMethod(stringProto, "primitiveStringAt:", stringAtMethod)
+
+  let stringFromToMethod = createCoreMethod("primitiveFromTo:")
+  stringFromToMethod.nativeImpl = cast[pointer](stringFromToImpl)
+  addMethod(stringProto, "primitiveFromTo:", stringFromToMethod)
+
+  let stringIndexOfMethod = createCoreMethod("primitiveIndexOf:")
+  stringIndexOfMethod.nativeImpl = cast[pointer](stringIndexOfImpl)
+  addMethod(stringProto, "primitiveIndexOf:", stringIndexOfMethod)
+
+  interp.globals["String"] = stringProto.toValue()
+
+  # Create FileStream prototype
+  let fileStreamProto = FileStreamObj()
+  fileStreamProto.methods = initTable[string, BlockNode]()
+  fileStreamProto.parents = @[interp.rootObject.ProtoObject]
+  fileStreamProto.tags = @["FileStream", "IO"]
+  fileStreamProto.isNimProxy = false
+  fileStreamProto.nimValue = nil
+  fileStreamProto.nimType = ""
+  fileStreamProto.hasSlots = false
+  fileStreamProto.slots = @[]
+  fileStreamProto.slotNames = initTable[string, int]()
+  fileStreamProto.file = nil
+  fileStreamProto.mode = ""
+  fileStreamProto.isOpen = false
+
+  # Add FileStream primitive methods
+  let fileOpenMethod = createCoreMethod("primitiveFileOpen:mode:")
+  fileOpenMethod.nativeImpl = cast[pointer](fileOpenImpl)
+  addMethod(fileStreamProto.ProtoObject, "primitiveFileOpen:mode:", fileOpenMethod)
+
+  let fileCloseMethod = createCoreMethod("primitiveFileClose")
+  fileCloseMethod.nativeImpl = cast[pointer](fileCloseImpl)
+  addMethod(fileStreamProto.ProtoObject, "primitiveFileClose", fileCloseMethod)
+
+  let fileReadLineMethod = createCoreMethod("primitiveFileReadLine")
+  fileReadLineMethod.nativeImpl = cast[pointer](fileReadLineImpl)
+  addMethod(fileStreamProto.ProtoObject, "primitiveFileReadLine", fileReadLineMethod)
+
+  let fileWriteMethod = createCoreMethod("primitiveFileWrite:")
+  fileWriteMethod.nativeImpl = cast[pointer](fileWriteImpl)
+  addMethod(fileStreamProto.ProtoObject, "primitiveFileWrite:", fileWriteMethod)
+
+  let fileAtEndMethod = createCoreMethod("primitiveFileAtEnd")
+  fileAtEndMethod.nativeImpl = cast[pointer](fileAtEndImpl)
+  addMethod(fileStreamProto.ProtoObject, "primitiveFileAtEnd", fileAtEndMethod)
+
+  let fileReadAllMethod = createCoreMethod("primitiveFileReadAll")
+  fileReadAllMethod.nativeImpl = cast[pointer](fileReadAllImpl)
+  addMethod(fileStreamProto.ProtoObject, "primitiveFileReadAll", fileReadAllMethod)
+
+  interp.globals["FileStream"] = fileStreamProto.ProtoObject.toValue()
 
   # Add Random to globals
   if randomPrototype != nil:
@@ -1056,6 +1306,63 @@ proc initGlobals*(interp: var Interpreter) =
 
   interp.globals["Stdout"] = stdoutObj.toValue()
   interp.globals["stdout"] = stdoutObj.toValue()
+
+  # Create Transcript object for logging/output
+  let transcriptObj = ProtoObject()
+  transcriptObj.methods = initTable[string, BlockNode]()
+  transcriptObj.parents = @[interp.rootObject.ProtoObject]
+  transcriptObj.tags = @["Transcript"]
+  transcriptObj.isNimProxy = false
+  transcriptObj.nimValue = nil
+  transcriptObj.nimType = ""
+  transcriptObj.hasSlots = false
+  transcriptObj.slotNames = initTable[string, int]()
+
+  let showMethod = createCoreMethod("show:")
+  showMethod.nativeImpl = cast[pointer](writeImpl)
+  addMethod(transcriptObj, "show:", showMethod)
+
+  let crMethod = createCoreMethod("cr")
+  crMethod.nativeImpl = cast[pointer](writelineImpl)
+  addMethod(transcriptObj, "cr", crMethod)
+
+  let showCrMethod = createCoreMethod("show:cr:")
+  showCrMethod.nativeImpl = cast[pointer](writelineImpl)
+  addMethod(transcriptObj, "show:cr:", showCrMethod)
+
+  interp.globals["Transcript"] = transcriptObj.toValue()
+
+  # Create Global namespace object (provides at: and at:put: for global access)
+  let globalNamespace = DictionaryObj()
+  globalNamespace.methods = initTable[string, BlockNode]()
+  globalNamespace.parents = @[interp.rootObject.ProtoObject]
+  globalNamespace.tags = @["Dictionary", "Global"]
+  globalNamespace.isNimProxy = false
+  globalNamespace.nimValue = nil
+  globalNamespace.nimType = ""
+  globalNamespace.hasSlots = false
+  globalNamespace.slots = @[]
+  globalNamespace.slotNames = initTable[string, int]()
+  globalNamespace.properties = initTable[string, NodeValue]()
+
+  # Add at: and at:put: methods to Global
+  let globalAtMethod = createCoreMethod("at:")
+  globalAtMethod.nativeImpl = cast[pointer](atImpl)
+  addMethod(globalNamespace.ProtoObject, "at:", globalAtMethod)
+
+  let globalAtPutMethod = createCoreMethod("at:put:")
+  globalAtPutMethod.nativeImpl = cast[pointer](atPutImpl)
+  addMethod(globalNamespace.ProtoObject, "at:put:", globalAtPutMethod)
+
+  let globalAtIfAbsentMethod = createCoreMethod("at:ifAbsent:")
+  globalAtIfAbsentMethod.nativeImpl = cast[pointer](atImpl)  # Same for now
+  addMethod(globalNamespace.ProtoObject, "at:ifAbsent:", globalAtIfAbsentMethod)
+
+  interp.globals["Global"] = globalNamespace.ProtoObject.toValue()
+
+  # Copy globals to Global namespace for Smalltalk-level access
+  for key, val in interp.globals:
+    globalNamespace.properties[key] = val
 
   # Create true and false as objects with ifTrue: and ifFalse: methods
   let trueObj = ProtoObject()
@@ -1093,6 +1400,30 @@ proc initGlobals*(interp: var Interpreter) =
   addMethod(trueObj, "ifFalse:", ifFalseMethod)
   addMethod(falseObj, "ifFalse:", ifFalseMethod)
 
+  # Create Block prototype with loop methods
+  let blockProto = ProtoObject()
+  blockProto.methods = initTable[string, BlockNode]()
+  blockProto.parents = @[interp.rootObject.ProtoObject]
+  blockProto.tags = @["Block", "Closure"]
+  blockProto.isNimProxy = false
+  blockProto.nimValue = nil
+  blockProto.nimType = ""
+  blockProto.hasSlots = false
+  blockProto.slots = @[]
+  blockProto.slotNames = initTable[string, int]()
+
+  let whileTrueMethod = createCoreMethod("whileTrue:")
+  whileTrueMethod.nativeImpl = cast[pointer](whileTrueImpl)
+  whileTrueMethod.hasInterpreterParam = true
+  addMethod(blockProto, "whileTrue:", whileTrueMethod)
+
+  let whileFalseMethod = createCoreMethod("whileFalse:")
+  whileFalseMethod.nativeImpl = cast[pointer](whileFalseImpl)
+  whileFalseMethod.hasInterpreterParam = true
+  addMethod(blockProto, "whileFalse:", whileFalseMethod)
+
+  interp.globals["Block"] = blockProto.toValue()
+
   interp.globals["true"] = trueObj.toValue()
   interp.globals["false"] = falseObj.toValue()
   interp.globals["nil"] = nilValue()
@@ -1114,7 +1445,11 @@ proc loadStdlib*(interp: var Interpreter, basePath: string = "") =
   let stdlibFiles = [
     "Object.nt",
     "Boolean.nt",
-    "Collections.nt"
+    "Block.nt",
+    "Number.nt",
+    "Collections.nt",
+    "String.nt",
+    "FileStream.nt"
   ]
 
   for filename in stdlibFiles:
