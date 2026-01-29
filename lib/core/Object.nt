@@ -128,3 +128,64 @@ Object>>initialize [
   "Initialize a new instance. Subclasses should override."
   ^ self
 ].
+
+#====================================================================
+# Utility methods
+#====================================================================
+
+Object>>isNil [
+  "Check if object is nil"
+  ^ self == nil
+].
+
+Object>>notNil [
+  "Check if object is not nil"
+  ^ self isNil not
+].
+
+Object>>class [
+  "Return the class/prototype of this object"
+  | tags |
+  tags := self at: 'tags'.
+  tags isNil ifTrue: [ ^ Object ].
+  ^ Global at: (tags first) ifAbsent: [ Object ]
+].
+
+Object>>isKindOf: aClass [
+  "Check if object is kind of aClass (in prototype chain)"
+  ^ self perform: 'primitiveIsKindOf:' with: aClass
+].
+
+Object>>asString [
+  "Return string representation"
+  ^ self printString
+].
+
+Object>>print [
+  "Print to stdout without newline"
+  Stdout write: self printString
+].
+
+Object>>println [
+  "Print to stdout with newline"
+  Stdout writeline: self printString
+].
+
+#====================================================================
+# Comparison
+#====================================================================
+
+Object>>~= other [
+  "Not equal - delegates to = and negates"
+  ^ (self = other) not
+].
+
+Object>>== other [
+  "Identity comparison - true if same object"
+  ^ self perform: 'primitiveIdentity:' with: other
+].
+
+Object>>~~ other [
+  "Not identity - true if different objects"
+  ^ (self == other) not
+].
