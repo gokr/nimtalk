@@ -1,0 +1,27 @@
+# Simple Array Benchmark for Nimtalk
+# Tests basic array access and modification
+
+# Create array and modify elements
+arr := #(1 2 3 4 5).
+arr at: 0 put: 10.
+arr at: 1 put: 20.
+
+# Sum the elements (using fixed positions)
+sum := arr at: 0.
+sum := sum + (arr at: 1).
+sum := sum + (arr at: 2).
+sum := sum + (arr at: 3).
+sum := sum + (arr at: 4).
+
+# Verify result (10 + 20 + 3 + 4 + 5 = 42)
+(sum = 42) ifTrue: [
+  Stdout writeline: 'Array: PASS (sum = '.
+  Stdout writeline: sum.
+  Stdout writeline: ')'
+] ifFalse: [
+  Stdout writeline: 'Array: FAIL (expected 42)'.
+  Stdout writeline: sum.
+  Stdout writeline: ')'
+].
+
+sum
