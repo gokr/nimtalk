@@ -1020,6 +1020,7 @@ proc doesNotUnderstandImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue 
   let selector = args[0].symVal
   raise newException(ValueError, "Message not understood: " & selector)
 
+
 proc concatImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   ## Concatenate strings: a , b (Smalltalk style using , operator)
   if args.len < 1:

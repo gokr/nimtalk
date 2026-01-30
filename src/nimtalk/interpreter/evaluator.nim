@@ -172,6 +172,7 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue
 proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue
 proc evalCascade(interp: var Interpreter, cascadeNode: CascadeNode): NodeValue
 proc evalSuperSend(interp: var Interpreter, superNode: SuperSendNode): NodeValue
+proc asSelfDoImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue
 
 # Initialize interpreter
 proc newInterpreter*(trace: bool = false): Interpreter =
@@ -192,6 +193,12 @@ proc newInterpreter*(trace: bool = false): Interpreter =
   # Initialize root object
   result.rootObject = initRootObject()
   result.currentReceiver = result.rootObject
+
+  # Add asSelfDo: method to root object (interpreter-aware)
+  let asSelfDoMethod = createCoreMethod("asSelfDo:")
+  asSelfDoMethod.nativeImpl = cast[pointer](asSelfDoImpl)
+  asSelfDoMethod.hasInterpreterParam = true
+  addMethod(result.rootObject.ProtoObject, "asSelfDo:", asSelfDoMethod)
 
 # Check stack depth to prevent infinite recursion
 proc checkStackDepth(interp: var Interpreter) =
@@ -1187,6 +1194,20 @@ proc evalBlockWithArg(interp: var Interpreter, receiver: ProtoObject, blockNode:
     interp.currentReceiver = savedReceiver
 
   return blockResult
+
+# asSelfDo: implementation (interpreter-aware)
+proc asSelfDoImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+  ## Evaluate a block with self temporarily bound to the receiver
+  ## Usage: someObject asSelfDo: [ ... self ... ]
+  ## Inside the block, 'self' refers to someObject
+  if args.len < 1 or args[0].kind != vkBlock:
+    return nilValue()
+
+  let blockNode = args[0].blockVal
+
+  # Evaluate the block with self (the receiver) as the receiver
+  # This makes 'self' inside the block refer to the receiver of asSelfDo:
+  return evalBlock(interp, self, blockNode)
 
 # Collection iteration method (interpreter-aware)
 proc doCollectionImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =

@@ -492,6 +492,10 @@ proc parseBlock*(parser: var Parser): BlockNode =
       return nil
     discard parser.next()
 
+  # Skip separators before checking for temporaries (important for newlines after [)
+  while parser.peek().kind == tkSeparator:
+    discard parser.next()
+
   # Check for temporaries: | temp1 temp2 | (Smalltalk-style)
   # OR just consume the | separator and parse body (Nimtalk-style)
   # In the test syntax, [| ...] means block with no params, just consume | and parse body
@@ -800,9 +804,22 @@ proc parseMethodDefinition(parser: var Parser, receiver: Node): Node =
       else:
         parser.parseError("Expected parameter name after keyword part: " & keywordPart)
         return nil
-  elif tok.kind == tkSpecial or tok.kind in BinaryOpTokens:
+  elif tok.kind in BinaryOpTokens:
     # Binary operator like '+', '-', etc.
     selector = parser.next().value
+    # Binary operators have one parameter
+    if parser.peek().kind == tkIdent:
+      params.add(parser.next().value)
+    else:
+      parser.parseError("Expected parameter name for binary operator: " & selector)
+      return nil
+  elif tok.kind == tkSpecial:
+    # Special character like '~', '!', '=' etc.
+    # Consume all repeated special chars for operators like '~~', '==', '~=' etc.
+    let firstChar = parser.next().value
+    selector = firstChar
+    while parser.peek().kind == tkSpecial and parser.peek().value == firstChar:
+      selector.add(parser.next().value)
     # Binary operators have one parameter
     if parser.peek().kind == tkIdent:
       params.add(parser.next().value)
