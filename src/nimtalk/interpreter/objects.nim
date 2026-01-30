@@ -12,6 +12,7 @@ proc deriveImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc deriveWithIVarsImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc atImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc atPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc selectorPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc plusImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc minusImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc starImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
@@ -217,7 +218,7 @@ proc initRootObject*(): RootObject =
     # In full class-based implementation, they would use the Class system
 
     let selectorPutMethod = createCoreMethod("selector:put:")
-    selectorPutMethod.nativeImpl = cast[pointer](atPutImpl)
+    selectorPutMethod.nativeImpl = cast[pointer](selectorPutImpl)
     addMethod(rootObject, "selector:put:", selectorPutMethod)
 
     let classSelectorPutMethod = createCoreMethod("classSelector:put:")
@@ -712,6 +713,33 @@ proc atPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   let dict = cast[DictionaryObj](self)
   setProperty(dict, key, value)
   return value
+
+proc selectorPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+  ## Store a method in the object's method dictionary: obj selector: 'sel' put: [block]
+  ## Works on any ProtoObject, not just Dictionary
+  if args.len < 2:
+    return nilValue()
+
+  # Get selector name
+  var selector: string
+  if args[0].kind == vkSymbol:
+    selector = args[0].symVal
+  elif args[0].kind == vkString:
+    selector = args[0].strVal
+  else:
+    return nilValue()
+
+  # Value must be a block
+  if args[1].kind != vkBlock:
+    return nilValue()
+
+  let blockNode = args[1].blockVal
+  blockNode.isMethod = true
+
+  # Store in methods table
+  self.methods[selector] = blockNode
+  debug("Added method: ", selector, " to object with tags: ", $self.tags)
+  return args[1]
 
 proc plusImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   ## Add two numbers: a + b
@@ -1252,35 +1280,42 @@ proc arraySizeImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   return NodeValue(kind: vkInt, intVal: 0)
 
 proc arrayAtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
-  ## Get element at index
+  ## Get element at index (1-based indexing for Smalltalk compatibility)
   if args.len < 1 or args[0].kind != vkInt:
     return nilValue()
   if not (self of DictionaryObj):
     return nilValue()
   let dict = cast[DictionaryObj](self)
-  let idx = args[0].intVal
+  # Convert from 1-based (Smalltalk) to 0-based (internal storage)
+  let idx = args[0].intVal - 1
+  if idx < 0:
+    return nilValue()
   let key = $idx
   if dict.properties.hasKey(key):
     return dict.properties[key]
   return nilValue()
 
 proc arrayAtPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
-  ## Set element at index
+  ## Set element at index (1-based indexing for Smalltalk compatibility)
   if args.len < 2 or args[0].kind != vkInt:
     return nilValue()
   if not (self of DictionaryObj):
     return nilValue()
   let dict = cast[DictionaryObj](self)
-  let idx = args[0].intVal
+  # Convert from 1-based (Smalltalk) to 0-based (internal storage)
+  let idx = args[0].intVal - 1
+  if idx < 0:
+    return nilValue()
   let key = $idx
   dict.properties[key] = args[1]
-  # Expand size if needed
+  # Expand size if needed (store 1-based size for Smalltalk compatibility)
+  let oneBasedIdx = args[0].intVal
   if dict.properties.hasKey("__size"):
     let size = dict.properties["__size"].intVal
-    if idx >= size:
-      dict.properties["__size"] = NodeValue(kind: vkInt, intVal: idx + 1)
+    if oneBasedIdx > size:
+      dict.properties["__size"] = NodeValue(kind: vkInt, intVal: oneBasedIdx)
   else:
-    dict.properties["__size"] = NodeValue(kind: vkInt, intVal: idx + 1)
+    dict.properties["__size"] = NodeValue(kind: vkInt, intVal: oneBasedIdx)
   return args[1]
 
 proc arrayAddImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
@@ -1300,7 +1335,7 @@ proc arrayAddImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   return args[0]
 
 proc arrayRemoveAtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
-  ## Remove element at index and return it
+  ## Remove element at index and return it (1-based indexing for Smalltalk compatibility)
   if args.len < 1 or args[0].kind != vkInt:
     return nilValue()
   if not (self of DictionaryObj):
@@ -1310,12 +1345,13 @@ proc arrayRemoveAtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   if not dict.properties.hasKey("__size"):
     return nilValue()
 
-  let idx = args[0].intVal
+  # Convert from 1-based (Smalltalk) to 0-based (internal storage)
+  let idx = args[0].intVal - 1
   let size = dict.properties["__size"].intVal
   if idx < 0 or idx >= size:
     return nilValue()
 
-  # Get element to return
+  # Get element to return (using 0-based internal key)
   let removedElement = dict.properties.getOrDefault($idx)
 
   # Shift all elements after idx down by one
