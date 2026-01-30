@@ -268,7 +268,7 @@ suite "Evaluator: Block Evaluation":
         ]
       ].
 
-      counter := Counter new.
+      counter := Counter derive.
       c := counter makeCounter.
       result1 := c value.
       result2 := c value.

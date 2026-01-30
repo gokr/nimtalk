@@ -66,7 +66,7 @@ suite "Parser":
     check node != nil
 
   test "handles keyword messages":
-    let tokens = lex("obj at: 'key'")
+    let tokens = lex("obj at: #key")
     var parser = initParser(tokens)
     let node = parser.parseExpression()
     check node != nil

@@ -66,7 +66,10 @@ suite "Stdlib: Numbers":
     check(result.kind == vkObject)
 
   test "abs works":
-    let result = interp.evalStatements("result := -5 abs")
+    let result = interp.evalStatements("""
+      n := 0 - 5.
+      result := n abs
+    """)
     check(result[0][^1].kind == vkInt)
     check(result[0][^1].intVal == 5)
 
@@ -314,8 +317,8 @@ suite "Stdlib: Tables":
   test "at:put: stores values":
     let result = interp.evalStatements("""
       t := Table new.
-      t at: 'key' put: 'value'.
-      result := t at: 'key'
+      t at: "key" put: "value".
+      result := t at: "key"
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkString)
@@ -324,8 +327,8 @@ suite "Stdlib: Tables":
   test "includesKey: checks for key existence":
     let result = interp.evalStatements("""
       t := Table new.
-      t at: 'exists' put: 'yes'.
-      result := t includesKey: 'exists'
+      t at: "exists" put: "yes".
+      result := t includesKey: "exists"
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkObject)
@@ -340,7 +343,7 @@ suite "Stdlib: Strings":
 
   test "string size returns length":
     let result = interp.evalStatements("""
-      s := 'hello'.
+      s := "hello".
       result := s size
     """)
     check(result[1].len == 0)
@@ -349,7 +352,7 @@ suite "Stdlib: Strings":
 
   test "string uppercase works":
     let result = interp.evalStatements("""
-      s := 'hello' uppercase.
+      s := "hello" uppercase.
       result := s
     """)
     check(result[1].len == 0)
@@ -358,7 +361,7 @@ suite "Stdlib: Strings":
 
   test "string lowercase works":
     let result = interp.evalStatements("""
-      s := 'HELLO' lowercase.
+      s := "HELLO" lowercase.
       result := s
     """)
     check(result[1].len == 0)
@@ -367,7 +370,7 @@ suite "Stdlib: Strings":
 
   test "string trim works":
     let result = interp.evalStatements("""
-      s := '  hello  ' trim.
+      s := "  hello  " trim.
       result := s
     """)
     check(result[1].len == 0)
@@ -376,7 +379,7 @@ suite "Stdlib: Strings":
 
   test "string split: works":
     let result = interp.evalStatements("""
-      arr := 'a,b,c' split: ','.
+      arr := "a,b,c" split: ",".
       result := arr size
     """)
     check(result[1].len == 0)
