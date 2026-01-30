@@ -2,23 +2,15 @@
 
 ## Instance Variable Declaration
 
-### Dictionary (Property Bag)
+### Class with Declared Instance Variables
 ```smalltalk
-# For dynamic property storage, use Dictionary
-dict := Dictionary derive.
-dict at: #name put: "Alice"    # Dictionary access
-result := dict at: #name
-```
-
-### Object (Declared Instance Variables)
-```smalltalk
-# Declare instance variables when creating prototype
+# Declare instance variables when creating class
 # (derive: is a regular message, not special syntax)
 # Symbols in arrays need # prefix: #(#name #age)
 Person := Object derive: #(#name #age)
 
-# Create and initialize object
-person := Person derive.
+# Create and initialize instance
+person := Person new.
 person name: "Alice"              # Uses generated setter (direct slot access)
 person age: 30
 
@@ -34,6 +26,10 @@ Employee := Person derive: #(#salary #department)
 
 # Multi-level inheritance
 Manager := Employee derive: #(#teamSize)
+
+# Multiple inheritance (traits pattern)
+Enumerable := Object derive: #().
+Employee := Person derive: #(#salary) withParents: #(Enumerable)
 ```
 
 ## Method Definition Syntax (File Format)
@@ -41,13 +37,13 @@ Manager := Employee derive: #(#teamSize)
 ### Standard Syntax (REPL/Interactive)
 ```smalltalk
 # Normal executable code - works in REPL
-Person at: #greet put: [ ^ "Hello, " + name ]
+Person selector: #greet put: [ ^ "Hello, " + name ]
 ```
 
 ### Definition Syntax (Files Only - SPECIAL PARSING)
 ```smalltalk
 # This syntax requires special parsing - NOT executable in REPL
-# Use in .nt files for prototype definitions
+# Use in .nt files for class definitions
 
 # Unary method (no parameters)
 Person>>greet [ ^ "Hello, " + name ]
@@ -104,7 +100,22 @@ Executes: Same as standard message send
 
 Both `self` and `super` are available inside methods:
 - `self` - The receiver of the message (dynamic dispatch from receiver's class)
-- `super` - The parent of the object where the method was defined (for calling parent methods)
+- `super` - Lookup method in parent class (unqualified uses first parent, qualified uses explicit parent)
+
+### Super Send Examples
+```smalltalk
+# Unqualified super (uses first parent)
+Employee>>calculatePay [
+    base := super calculatePay.
+    ^ base + self bonus
+]
+
+# Qualified super (explicit parent selection)
+Employee>>calculatePay [
+    base := super<Person> calculatePay.
+    ^ base + self bonus
+]
+```
 
 ## Message Sending
 
