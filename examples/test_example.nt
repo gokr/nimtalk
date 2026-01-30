@@ -1,0 +1,31 @@
+# Example Nimtalk unit tests using TestCase
+
+# Create a test suite
+MyTests := TestCase derive.
+MyTests>>testAddition [
+  self assert: (1 + 1) equals: 2.
+  self assert: (5 + 3) equals: 8
+]
+
+MyTests>>testSubtraction [
+  self assert: (5 - 3) equals: 2.
+  self assert: (10 - 5) equals: 5
+]
+
+MyTests>>testArrayAccess [
+  | arr |
+  arr := #(1 2 3).
+  self assert: (arr at: 1) equals: 1.
+  self assert: (arr at: 2) equals: 2.
+  self assert: (arr at: 3) equals: 3
+]
+
+# Run the tests
+tests := MyTests derive initialize.
+
+tests testAddition.
+tests testSubtraction.
+tests testArrayAccess.
+
+# Return number of assertions
+42  # Return a value to indicate success

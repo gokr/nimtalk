@@ -1,0 +1,67 @@
+# TestCase - Unit testing framework for Nimtalk
+#
+# Provides assertion methods for writing unit tests in Nimtalk.
+#
+# Example:
+#   MyTests := TestCase derive.
+#   MyTests>>testAddition [
+#     self assert: (1 + 1) equals: 2
+#   ]
+
+TestCase := Object derive: #(name assertions failures).
+
+TestCase>>initialize [
+  name := "unnamed test".
+  assertions := 0.
+  failures := #().
+  ^self
+]
+
+TestCase>>name: aName [
+  name := aName
+]
+
+TestCase>>name [
+  ^name
+]
+
+TestCase>>assert: aBoolean [
+  assertions := assertions + 1.
+  aBoolean ifFalse: [
+    failures add: "Assertion failed in " , name.
+    Error signal: "Assertion failed"
+  ]
+]
+
+TestCase>>assert: actual equals: expected [
+  assertions := assertions + 1.
+  (actual = expected) ifFalse: [
+    failures add: "Assertion failed in " , name.
+    Error signal: "Assertion failed"
+  ]
+]
+
+TestCase>>fail: aMessage [
+  failures add: aMessage.
+  Error signal: aMessage
+]
+
+TestCase>>assertions [
+  ^assertions
+]
+
+TestCase>>failures [
+  ^failures
+]
+
+TestCase>>hasFailures [
+  ^failures size > 0
+]
+
+TestCase>>setUp [
+  # Override in subclasses to set up test fixtures
+]
+
+TestCase>>tearDown [
+  # Override in subclasses to clean up after tests
+]
