@@ -9,6 +9,46 @@ type
   Node* = ref object of RootObj
     line*, col*: int
 
+  # ============================================================================
+  # Class-Based Object Model (New)
+  # ============================================================================
+
+  Class* = ref object of RootObj
+    ## Class object - defines structure and behavior for instances
+    # Instance methods (methods that instances of this class will have)
+    methods*: Table[string, BlockNode]      # Methods defined on this class only
+    allMethods*: Table[string, BlockNode]   # All methods including inherited (for fast lookup)
+
+    # Class methods (methods called on the class itself, like 'new', 'derive:')
+    classMethods*: Table[string, BlockNode]     # Class methods defined on this class
+    allClassMethods*: Table[string, BlockNode]  # All class methods including inherited
+
+    # Slots
+    slotNames*: seq[string]                 # Slot names defined on this class only
+    allSlotNames*: seq[string]              # All slots including inherited (instance layout)
+
+    # Inheritance
+    parents*: seq[Class]                    # Direct parent classes
+    subclasses*: seq[Class]                 # Direct children (for efficient invalidation)
+
+    # Metadata
+    name*: string                           # Class name for debugging/reflection
+    tags*: seq[string]                      # Type tags
+    isNimProxy*: bool                       # Class wraps Nim type
+    nimtalkType*: string                    # Nim type name for FFI
+    hasSlots*: bool                         # Has any instance variables
+
+  Instance* = ref object of RootObj
+    ## Instance object - pure data with reference to its class
+    class*: Class                           # Reference to class
+    slots*: seq[NodeValue]                  # Instance data only (indexed by allSlotNames position)
+    isNimProxy*: bool                       # Instance wraps Nim value
+    nimValue*: pointer                      # Pointer to actual Nim value (for FFI)
+
+  # ============================================================================
+  # Legacy Prototype-Based Types (to be migrated)
+  # ============================================================================
+
   ProtoObject* = ref object of RootObj
     methods*: Table[string, BlockNode]     # method dictionary
     parents*: seq[ProtoObject]             # prototype chain
@@ -56,7 +96,7 @@ type
   # Value types for AST nodes and runtime values
   ValueKind* = enum
     vkInt, vkFloat, vkString, vkSymbol, vkBool, vkNil, vkObject, vkBlock,
-    vkArray, vkTable
+    vkArray, vkTable, vkClass, vkInstance
 
   NodeValue* = object
     case kind*: ValueKind
@@ -70,6 +110,8 @@ type
     of vkBlock: blockVal*: BlockNode
     of vkArray: arrayVal*: seq[NodeValue]
     of vkTable: tableVal*: Table[string, NodeValue]
+    of vkClass: classVal*: Class
+    of vkInstance: instVal*: Instance
 
   # AST Node specific types
   LiteralNode* = ref object of Node
@@ -110,10 +152,26 @@ type
   IdentNode* = ref object of Node
     name*: string
 
+  # Slot access node for efficient instance variable access
+  SlotAccessNode* = ref object of Node
+    slotName*: string      # Name for debugging
+    slotIndex*: int        # Index in allSlotNames (updated on layout change)
+    isAssignment*: bool    # true for slot: value, false for slot
+
+  # Super send node for calling parent class methods
+  SuperSendNode* = ref object of Node
+    selector*: string      # Method selector to lookup
+    arguments*: seq[Node]  # Arguments to pass
+    explicitParent*: string  # nil for unqualified super (first parent), else parent class name
+
+  # Pseudo-variable node for self, nil, true, false
+  PseudoVarNode* = ref object of Node
+    name*: string          # "self", "nil", "true", "false"
+
   # Node type enum for pattern matching
   NodeKind* = enum
     nkLiteral, nkIdent, nkMessage, nkBlock, nkAssign, nkReturn,
-    nkArray, nkTable, nkObjectLiteral, nkPrimitive, nkCascade
+    nkArray, nkTable, nkObjectLiteral, nkPrimitive, nkCascade, nkSlotAccess, nkSuperSend, nkPseudoVar
 
   # Root object (global singleton)
   RootObject* = ref object of ProtoObject
@@ -171,6 +229,9 @@ proc kind*(node: Node): NodeKind =
   elif node of ObjectLiteralNode: nkObjectLiteral
   elif node of PrimitiveNode: nkPrimitive
   elif node of CascadeNode: nkCascade
+  elif node of SlotAccessNode: nkSlotAccess
+  elif node of SuperSendNode: nkSuperSend
+  elif node of PseudoVarNode: nkPseudoVar
   else: raise newException(ValueError, "Unknown node type")
 
 # Value conversion utilities
@@ -183,6 +244,8 @@ proc toString*(val: NodeValue): string =
   of vkSymbol: val.symVal
   of vkBool: $val.boolVal
   of vkNil: "nil"
+  of vkClass: "<class " & val.classVal.name & ">"
+  of vkInstance: "<instance of " & val.instVal.class.name & ">"
   of vkObject: "<object>"
   of vkBlock: "<block>"
   of vkArray: "#(" & $val.arrayVal.len & ")"
@@ -300,6 +363,12 @@ proc toValue*(obj: ProtoObject): NodeValue =
 proc toValue*(blk: BlockNode): NodeValue =
   NodeValue(kind: vkBlock, blockVal: blk)
 
+proc toValue*(cls: Class): NodeValue =
+  NodeValue(kind: vkClass, classVal: cls)
+
+proc toValue*(inst: Instance): NodeValue =
+  NodeValue(kind: vkInstance, instVal: inst)
+
 proc toObject*(val: NodeValue): ProtoObject =
   if val.kind != vkObject:
     raise newException(ValueError, "Not an object: " & val.toString)
@@ -309,6 +378,16 @@ proc toBlock*(val: NodeValue): BlockNode =
   if val.kind != vkBlock:
     raise newException(ValueError, "Not a block: " & val.toString)
   val.blockVal
+
+proc toClass*(val: NodeValue): Class =
+  if val.kind != vkClass:
+    raise newException(ValueError, "Not a class: " & val.toString)
+  val.classVal
+
+proc toInstance*(val: NodeValue): Instance =
+  if val.kind != vkInstance:
+    raise newException(ValueError, "Not an instance: " & val.toString)
+  val.instVal
 
 proc toArray*(val: NodeValue): seq[NodeValue] =
   if val.kind != vkArray:
@@ -405,3 +484,65 @@ proc configureLogging*(level: Level = lvlError) =
     # Update existing handlers
     for handler in getHandlers():
       handler.levelThreshold = level
+
+# ============================================================================
+# Class and Instance Helpers
+# ============================================================================
+
+proc newClass*(parents: seq[Class] = @[], slotNames: seq[string] = @[], name: string = ""): Class =
+  ## Create a new Class with given parents and slot names
+  result = Class()
+  result.methods = initTable[string, BlockNode]()
+  result.allMethods = initTable[string, BlockNode]()
+  result.classMethods = initTable[string, BlockNode]()
+  result.allClassMethods = initTable[string, BlockNode]()
+  result.slotNames = slotNames
+  result.allSlotNames = @[]
+  result.parents = parents
+  result.subclasses = @[]
+  result.name = name
+  result.tags = @["Class"]
+  result.isNimProxy = false
+  result.nimtalkType = ""
+  result.hasSlots = slotNames.len > 0
+
+proc newInstance*(cls: Class): Instance =
+  ## Create a new Instance of the given Class
+  result = Instance()
+  result.class = cls
+  result.slots = newSeq[NodeValue](cls.allSlotNames.len)
+  # Initialize all slots to nil
+  for i in 0..<result.slots.len:
+    result.slots[i] = nilValue()
+  result.isNimProxy = false
+  result.nimValue = nil
+
+proc getSlotIndex*(cls: Class, name: string): int =
+  ## Get slot index by name, returns -1 if not found
+  for i, slotName in cls.allSlotNames:
+    if slotName == name:
+      return i
+  return -1
+
+proc getSlot*(inst: Instance, index: int): NodeValue =
+  ## Get slot value by index
+  if index < 0 or index >= inst.slots.len:
+    return nilValue()
+  return inst.slots[index]
+
+proc setSlot*(inst: Instance, index: int, value: NodeValue) =
+  ## Set slot value by index
+  if index >= 0 and index < inst.slots.len:
+    inst.slots[index] = value
+
+proc lookupInstanceMethod*(cls: Class, selector: string): BlockNode =
+  ## Look up instance method in class (fast O(1) lookup)
+  if selector in cls.allMethods:
+    return cls.allMethods[selector]
+  return nil
+
+proc lookupClassMethod*(cls: Class, selector: string): BlockNode =
+  ## Look up class method (fast O(1) lookup)
+  if selector in cls.allClassMethods:
+    return cls.allClassMethods[selector]
+  return nil
