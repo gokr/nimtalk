@@ -200,14 +200,30 @@ proc newInterpreter*(trace: bool = false): Interpreter =
   asSelfDoMethod.nativeImpl = cast[pointer](asSelfDoImpl)
   asSelfDoMethod.hasInterpreterParam = true
   addMethod(result.rootObject.ProtoObject, "asSelfDo:", asSelfDoMethod)
-  debug("Added asSelfDo: to root object")
+
+  # Add primitiveAsSelfDo: method to root object (interpreter-aware)
+  let primitiveAsSelfDoMethod = createCoreMethod("primitiveAsSelfDo:")
+  primitiveAsSelfDoMethod.nativeImpl = cast[pointer](asSelfDoImpl)
+  primitiveAsSelfDoMethod.hasInterpreterParam = true
+  addMethod(result.rootObject.ProtoObject, "primitiveAsSelfDo:", primitiveAsSelfDoMethod)
+
+  # Add perform: method to root object (interpreter-aware)
+  let performMethod = createCoreMethod("perform:")
+  performMethod.nativeImpl = cast[pointer](performWithImpl)
+  performMethod.hasInterpreterParam = true
+  addMethod(result.rootObject.ProtoObject, "perform:", performMethod)
 
   # Add perform:with: method to root object (interpreter-aware)
   let performWithMethod = createCoreMethod("perform:with:")
   performWithMethod.nativeImpl = cast[pointer](performWithImpl)
   performWithMethod.hasInterpreterParam = true
   addMethod(result.rootObject.ProtoObject, "perform:with:", performWithMethod)
-  debug("Added perform:with: to root object, methods count: ", result.rootObject.methods.len)
+
+  # Add perform:with:with: method to root object (interpreter-aware)
+  let performWithWithMethod = createCoreMethod("perform:with:with:")
+  performWithWithMethod.nativeImpl = cast[pointer](performWithImpl)
+  performWithWithMethod.hasInterpreterParam = true
+  addMethod(result.rootObject.ProtoObject, "perform:with:with:", performWithWithMethod)
 
 # Check stack depth to prevent infinite recursion
 proc checkStackDepth(interp: var Interpreter) =
