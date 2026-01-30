@@ -2,14 +2,14 @@
 
 Smalltalk semantics, Nim performance, modern tooling.
 
-Nimtalk is a prototype-based Smalltalk dialect that compiles to Nim. It preserves Smalltalk's message-passing syntax and live programming feel while adding native compilation, Nim ecosystem access, and familiar Unix tooling.
+Nimtalk is a class-based Smalltalk dialect that compiles to Nim. It preserves Smalltalk's message-passing syntax and live programming feel while adding native compilation, Nim ecosystem access, and familiar Unix tooling.
 
 ## Quick Example
 
 ```smalltalk
 #!/usr/bin/env ntalk
 
-"Create a prototype with instance variables"
+"Create a class with instance variables"
 Point := Object derive: #(x y).
 
 "Add a method using >> syntax"
@@ -20,7 +20,7 @@ Point>>moveBy: dx and: dy [
 ].
 
 "Create an instance and use it"
-p := Point derive.
+p := Point new.
 p x: 100 y: 200.
 p moveBy: 10 and: 20.
 p x  "Returns 110"
@@ -41,19 +41,19 @@ p x  "Returns 110"
 
 | Smalltalk | Nimtalk |
 |-----------|---------|
-| Classes define structure | Prototypes derive from other objects: `Object derive` or `Object derive: #(ivars)` |
-| Instance variables declared in class | Declare per prototype with `derive: #(x y)` or use property bags |
-| Methods compiled to method dictionary | Methods stored as properties: `Proto at: "selector" put: [ ... ]` |
+| Classes define structure | Classes derive from parents: `Object derive: #(ivars)` |
+| Instance variables declared in class | Declare in class with `derive: #(x y)`, inherited by subclasses |
+| Methods compiled to method dictionary | Methods stored in class tables, inherited via merged lookup |
 | Image-based persistence | Source files, git, normal Unix workflow |
 | VM execution | Compiles to Nim, then to native code |
 | FFI via C bindings | Direct Nim interop: call Nim functions, use Nim types |
 
-**The prototype system:**
+**The class system:**
 
-Instead of classes, you create prototypes and derive instances from them:
+Classes inherit from parent classes and instances are created via `new`:
 
 ```smalltalk
-"Create a prototype with automatic accessors for x and y"
+"Create a class with automatic accessors for x and y"
 Point := Object derive: #(x y).
 
 "Add methods using >> syntax"
@@ -61,14 +61,14 @@ Point>>printString [
     ^ '(' + (x asString) + ', ' + (y asString) + ')'
 ].
 
-"Derive an instance"
-p := Point derive.
+"Create an instance"
+p := Point new.
 p x: 42.
 p y: 99.
 p printString  "Returns '(42, 99)'"
 ```
 
-Instance variables declared with `derive:` are stored in slots (fast array access). Undeclared properties use a dictionary. The `derive:` syntax creates both the prototype and generates accessor methods `x`, `x:`, `y`, `y:`.
+Instance variables declared with `derive:` are stored in slots (fast array access). Classes have merged method tables for fast O(1) lookup. The `derive:` syntax creates a class and generates accessor methods `x`, `x:`, `y`, `y:`. Classes track subclasses for efficient method invalidation when methods change.
 
 ## Installation
 

@@ -6,14 +6,14 @@ This document tracks current work items and future directions for Nimtalk develo
 
 **Core Language**: The interpreter is fully functional with:
 - Lexer, parser, AST interpreter
-- Prototype object system with slots and property bags
+- **Class-based object system with inheritance and merged method tables** ✅
 - REPL with file execution
 - **Block closures with full lexical scoping, environment capture, and non-local returns** ✅
 - **Closure variable isolation and sibling block sharing** ✅
 - Method definition syntax (`>>`)
-- `self` and `super` support
+- `self` and `super` support (unqualified and qualified `super<Parent>`)
 - Standard library (collections, core objects)
-- **All 47 tests passing** ✅
+- **All core tests passing** ✅
 
 **Not Yet Implemented**: Compiler (ntalkc is currently a stub), FFI, advanced standard library.
 
@@ -21,7 +21,7 @@ This document tracks current work items and future directions for Nimtalk develo
 
 ### Compiler
 - [ ] Method compilation from AST to Nim procedures
-- [ ] Nim type definitions for ProtoObject
+- [ ] Nim type definitions for Class and Instance
 - [ ] Symbol export for compiled methods
 - [ ] Working `ntalkc` (currently stub)
 
