@@ -172,8 +172,8 @@ proc parseSymbol(lexer: var Lexer): Token =
     return Token(kind: tkError, value: "Expected # for symbol", line: startLine, col: startCol)
   # Symbol can be identifier, string, or keyword-like
   let c = lexer.peek()
-  if c == '\'':
-    # String symbol
+  if c == '"':
+    # String symbol: #"symbol with spaces"
     let strToken = parseString(lexer)
     if strToken.kind == tkString:
       return Token(kind: tkSymbol, value: strToken.value, line: startLine, col: startCol)
@@ -407,11 +407,12 @@ proc nextToken*(lexer: var Lexer): Token =
     else:
       return Token(kind: tkColon, value: ":", line: startLine, col: startCol)
   of '"':
-    # String literal
+    # String literal (double quotes only)
     return parseString(lexer)
   of '\'':
-    # String literal with single quotes
-    return parseString(lexer)
+    # Single quotes are reserved for future use
+    discard lexer.next()
+    return Token(kind: tkError, value: "Single quotes are reserved for future use", line: startLine, col: startCol)
   of '#':
     # # can start: comments, symbols, array/table literals
     # - #<whitespace> or #==== or #--- → comment
