@@ -8,6 +8,7 @@ This directory contains documentation for the Nimtalk programming language.
 
 These documents describe the current implementation and are kept up to date:
 
+- **[NEWLINE_RULES.md](NEWLINE_RULES.md)** - Newline handling and statement separation rules
 - **[SYNTAX-QUICKREF-updated.md](SYNTAX-QUICKREF-updated.md)** - Quick reference for Nimtalk syntax
 - **[SYNTAX-REALITY.md](SYNTAX-REALITY.md)** - Current implemented syntax details
 - **[SPECIFICATION.md](SPECIFICATION.md)** - Language specification
@@ -29,8 +30,9 @@ When in doubt, consult the user documentation above rather than research documen
 New to Nimtalk? Start with:
 
 1. The [main README](../README.md) for an overview
-2. [SYNTAX-QUICKREF-updated.md](SYNTAX-QUICKREF-updated.md) for syntax reference
-3. [TOOLS_AND_DEBUGGING.md](TOOLS_AND_DEBUGGING.md) for using the tools
+2. [NEWLINE_RULES.md](NEWLINE_RULES.md) for understanding newline behavior
+3. [SYNTAX-QUICKREF-updated.md](SYNTAX-QUICKREF-updated.md) for syntax reference
+4. [TOOLS_AND_DEBUGGING.md](TOOLS_AND_DEBUGGING.md) for using the tools
 
 ## Contributing to Documentation
 

@@ -1,12 +1,12 @@
 # Nimtalk Language Specification
 
-Nimtalk is a class-based Smalltalk dialect that compiles to Nim code. This document specifies the complete language syntax, semantics, and behavior.
+Nimtalk is a prototype-based Smalltalk dialect that compiles to Nim code. This document specifies the complete language syntax, semantics, and behavior.
 
 ## Overview
 
 Nimtalk combines Smalltalk's message-passing semantics with Nim's compilation and performance characteristics. Key features include:
 
-- Class-based object system with multiple inheritance
+- Prototype-based object system with multiple inheritance
 - Message-passing semantics (unary, binary, keyword)
 - Block closures with lexical scoping
 - Direct slot access for declared instance variables (O(1) access)
@@ -40,8 +40,12 @@ Nimtalk combines Smalltalk's message-passing semantics with Nim's compilation an
 ```smalltalk
 # This is a comment to end of line
 
-"This is also a comment"
+"Inline comment string"  # Double-quoted strings act as comments when evaluated
+#====              # Section header (no space needed after #)
+#----------         # Also works with dashes
 ```
+
+**Note**: `#` followed by whitespace or special characters (`=`, `-`, `*`, `/`, `.`, `|`, `&`, `@`, `!`) marks a comment. This allows section headers like `#====` to work without requiring spaces.
 
 ### Arrays and Tables
 
@@ -71,8 +75,14 @@ x * y            # Multiplication
 a / b            # Division
 x > y            # Greater than
 x < y            # Less than
-x = y            # Equality
+x = y            # Assignment or value comparison
+x == y           # Equality comparison
 x ~= y           # Inequality
+a <= b           # Less than or equal
+a >= b           # Greater than or equal
+a // b           # Integer division
+a \ b            # Modulo
+a ~~ b           # Not identity
 "a" , "b"        # String concatenation (comma operator)
 ```
 
@@ -94,30 +104,28 @@ The `^` operator returns a value from a block or method:
 
 ## Types
 
-### Class
+### ProtoObject
 
-The type that defines structure and behavior for instances:
+The type that defines structure and behavior for prototypes:
 
-- `methods: Table[string, BlockNode]` - Methods defined directly on this class
+- `methods: Table[string, BlockNode]` - Methods defined directly on this prototype
 - `allMethods: Table[string, BlockNode]` - All methods including inherited (for fast lookup)
-- `classMethods: Table[string, BlockNode]` - Class methods (called on the class itself)
-- `allClassMethods: Table[string, BlockNode]` - All class methods including inherited
-- `slotNames: seq[string]` - Slot names defined on this class
+- `slotNames: seq[string]` - Slot names defined on this prototype
 - `allSlotNames: seq[string]` - All slots including inherited (instance layout)
-- `parents: seq[Class]` - Direct parent classes
-- `subclasses: seq[Class]` - Direct children (for efficient invalidation)
-- `name: string` - Class name for debugging
+- `parents: seq[ProtoObject]` - Direct parent prototypes
+- `subclasses: seq[ProtoObject]` - Direct children (for efficient invalidation)
+- `name: string` - Prototype name for debugging
 
 ### Instance
 
-The type for class instances with pure data:
+The type for prototype instances with pure data:
 
-- `class: Class` - Reference to the class
+- `proto: ProtoObject` - Reference to the prototype
 - `slots: seq[NodeValue]` - Instance data indexed by allSlotNames position
 
-### DictionaryObj (Legacy)
+### DictionaryObj
 
-Extends ProtoObject with a property bag (deprecated in favor of Table):
+Extends ProtoObject with a property bag:
 
 - `properties: Table[Value, Value]` - For dynamic properties
 
@@ -132,10 +140,10 @@ Extends ProtoObject with a property bag (deprecated in favor of Table):
 
 ## Object System
 
-### Class Creation
+### Prototype Creation
 
 ```smalltalk
-# Class with declared instance variables
+# Prototype with declared instance variables
 Point := Object derive: #(x y)
 
 # Create an instance
@@ -174,7 +182,7 @@ Employee := Person derive: #(salary) withParents: #(Enumerable)
 
 ```smalltalk
 # Unary method
-Person>>greet [ ^ "Hello, " + name ]
+Person>>greet [ ^ "Hello, " , name ]
 
 # Method with one parameter
 Person>>name: aName [ name := aName ]
@@ -196,7 +204,7 @@ The `>>` syntax is parsed and transformed into standard `at:put:` message sends.
 ### Method Definition (Standard Syntax)
 
 ```smalltalk
-Person at: #greet put: [ ^ "Hello, " + name ]
+Person at: #greet put: [ ^ "Hello, " , name ]
 Person at: #name: put: [ :aName | name := aName ]
 ```
 
@@ -204,15 +212,15 @@ Person at: #name: put: [ :aName | name := aName ]
 
 Method lookup uses merged tables for O(1) access:
 
-1. Look up selector in `instance.class.allMethods`
+1. Look up selector in `instance.proto.allMethods`
 2. If not found, trigger `doesNotUnderstand:`
 
 For class methods:
-1. Look up selector in `class.allClassMethods`
+1. Look up selector in `proto.allMethods` (called on the prototype itself)
 
 ### Super Send
 
-Call a parent class method explicitly:
+Call a parent prototype method explicitly:
 
 ```smalltalk
 # Unqualified super (uses first parent)
@@ -227,18 +235,16 @@ Employee>>calculatePay [
     ^ base + self bonus
 ]
 ```
-3. Continue up the chain
-4. Send `doesNotUnderstand:` if not found
 
 ### self and super
 
 ```smalltalk
 Person>>greet [
-  ^ "Hello, I'm " + name    # self is implicit for instance variables
+  ^ "Hello, I'm " , name    # self is implicit for instance variables
 ]
 
 Employee>>greet [
-  ^ super greet + " from " + department  # Calls parent's greet
+  ^ super greet , " from " , department  # Calls parent's greet
 ]
 ```
 
@@ -259,7 +265,7 @@ Employee>>greet [
 # Multiple parameters
 [ :x :y | x + y ]
 
-# Temporaries (variables local to the block)
+# Temporary variables (variables local to the block)
 [ :block | index size |
   index := 0.
   size := self size
@@ -268,6 +274,11 @@ Employee>>greet [
 # Parameters and temporaries
 [ :x :y | temp1 temp2 | code ]
 ```
+
+**Temporary Variables**:
+- Must be declared at the BEGINNING of a block: `| temp1 temp2 |`
+- Come BEFORE any statements or comment strings
+- Provide local variable scope within the block
 
 ### Lexical Scoping
 
@@ -293,6 +304,16 @@ Conditional execution via message sends:
 # Until loop
 [ x >= 10 ] whileFalse: [ x := x + 1 ]
 ```
+
+**Multiline keyword messages are supported:**
+
+```smalltalk
+tags isNil
+  ifTrue: [ ^ 'Object' ]
+  ifFalse: [ ^ tags first ]
+```
+
+See [NEWLINE_RULES.md](NEWLINE_RULES.md) for complete newline handling rules.
 
 ## Assignment
 
@@ -374,9 +395,10 @@ Slot-based access is **149x faster** than property bag access.
 
 ## Related Documentation
 
+- `NEWLINE_RULES.md` - Newline handling and statement separation
 - `SYNTAX-QUICKREF-updated.md` - Syntax quick reference
 - `NIMTALK-NEW-OBJECT-MODEL.md` - Object model design
 - `IMPLEMENTATION-PLAN.md` - Implementation roadmap
 - `TOOLS_AND_DEBUGGING.md` - Debugging guide
 
-*Last updated: 2026-01-28 (Complete specification of implemented language features)*
+*Last updated: 2026-01-30 (Complete specification of implemented language features)*

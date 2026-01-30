@@ -4,7 +4,7 @@
 
 ### Class with Declared Instance Variables
 ```smalltalk
-# Declare instance variables when creating class
+# Declare instance variables when creating prototype
 # (derive: is a regular message, not special syntax)
 # Symbols in arrays need # prefix: #(#name #age)
 Person := Object derive: #(#name #age)
@@ -37,16 +37,16 @@ Employee := Person derive: #(#salary) withParents: #(Enumerable)
 ### Standard Syntax (REPL/Interactive)
 ```smalltalk
 # Normal executable code - works in REPL
-Person selector: #greet put: [ ^ "Hello, " + name ]
+Person selector: #greet put: [ ^ "Hello, " , name ]
 ```
 
 ### Definition Syntax (Files Only - SPECIAL PARSING)
 ```smalltalk
 # This syntax requires special parsing - NOT executable in REPL
-# Use in .nt files for class definitions
+# Use in .nt files for prototype definitions
 
 # Unary method (no parameters)
-Person>>greet [ ^ "Hello, " + name ]
+Person>>greet [ ^ "Hello, " , name ]
 
 # Method with one parameter
 Person>>name: aName [ name := aName ]
@@ -59,6 +59,7 @@ Person>>moveX: dx y: dy [
 
 # Method with comment and validation
 Person>>age: anAge [
+  | age |
   "Validate age is positive"
   (anAge >= 0) ifFalse: [ Error signal: "Age must be positive" ].
   age := anAge
@@ -70,13 +71,14 @@ Person>>name [ ^ name ]
 Person>>age [ ^ age ]
 
 Person>>description [
-  ^ name + " (age " + age asString + ")"
+  ^ name , " (age " , age asString , ")"
 ]
 ```
 
 **Note**: The closing `]` acts as the terminator. No trailing period needed!
+**Note**: Temporary variables (`| temp1 temp2 |`) must come BEFORE any statement comment strings.
 
-**Note on `super`**: Use `super` to call parent methods. Inside a method, `super` refers to the parent of the object where the method was defined, enabling proper inheritance chaining.
+**Note on `super`**: Use `super` to call parent methods. Inside a method, `super` refers to the parent of the prototype where the method was defined, enabling proper inheritance chaining.
 
 ### Why Two Syntaxes?
 
@@ -99,8 +101,8 @@ Executes: Same as standard message send
 ```
 
 Both `self` and `super` are available inside methods:
-- `self` - The receiver of the message (dynamic dispatch from receiver's class)
-- `super` - Lookup method in parent class (unqualified uses first parent, qualified uses explicit parent)
+- `self` - The receiver of the message (dynamic dispatch from receiver's prototype)
+- `super` - Lookup method in parent prototype (unqualified uses first parent, qualified uses explicit parent)
 
 ### Super Send Examples
 ```smalltalk
@@ -121,7 +123,7 @@ Employee>>calculatePay [
 
 ### Current Way (Works Everywhere)
 ```smalltalk
-# Property bag access (deprecated for declared objects)
+# Property bag access (deprecated for declared prototypes)
 obj at: "property"                        # Get
 obj at: "property" put: value             # Set
 
@@ -130,7 +132,7 @@ obj perform: "methodName"                 # Call method
 obj perform: "method:with:" with: args     # Call with args
 ```
 
-### New Way (Declared Objects)
+### New Way (Declared Prototypes)
 ```smalltalk
 # Generated accessor methods (compile to direct slot access)
 person name                                 # Getter - direct read
@@ -146,10 +148,11 @@ person at: #key put: "value"           # Keyword (for collections)
 ```smalltalk
 # Inside method bodies, access ivars directly
 Person>>greet [
-  ^ "Hello, " + name                    # Direct slot access
+  ^ "Hello, " , name                    # Direct slot access
 ]
 
 Person>>birthday [
+  | age |
   age := age + 1                        # Direct read and write
   ^ self
 ]
@@ -189,11 +192,11 @@ Employee>>initialize [
 
 Employee>>greet [
   "Override parent method, call super for base behavior"
-  ^ super greet + " from " + department
+  ^ super greet , " from " , department
 ]
 ```
 
-The `super` keyword refers to the parent of the object where the current method was defined. This ensures that when you override a method, you can call the parent implementation using `super methodName`.
+The `super` keyword refers to the parent of the prototype where the current method was defined. This ensures that when you override a method, you can call the parent implementation using `super methodName`.
 
 ## File Structure by Convention
 
@@ -230,7 +233,8 @@ src/
 Person := Object derive: #(#name #age)                    # Executable
 
 Person>>initialize [                                    # Method definition
-  name := "Anonymous"
+  | name age |
+  name := "Anonymous".
   age := 0
 ]
 
@@ -275,7 +279,7 @@ tab at: "key"          # Get value from table
 
 ```smalltalk
 # Conditional (messages to boolean objects)
-(x > 0) ifTrue: [ "positive" ] ifElse: [ "negative" ]
+(x > 0) ifTrue: [ "positive" ] ifFalse: [ "negative" ]
 
 # Looping
 [ x < 10 ] whileTrue: [ x := x + 1 ]
@@ -284,7 +288,14 @@ tab at: "key"          # Get value from table
 numbers do: [ :each | each print ]
 numbers select: [ :each | each > 5 ]
 numbers collect: [ :each | each * 2 ]
+
+# Multiline keyword messages (no period needed between lines)
+tags isNil
+  ifTrue: [ ^ 'Object' ]
+  ifFalse: [ ^ tags first ]
 ```
+
+See [NEWLINE_RULES.md](NEWLINE_RULES.md) for complete newline handling rules.
 
 ## Comparison: Smalltalk vs Nimtalk
 
@@ -300,7 +311,7 @@ numbers collect: [ :each | each * 2 ]
 | String Concat | `,` (comma) | `,` (comma) - same as Smalltalk |
 | File Structure | Image-based | File-based |
 | Parsing | Single mode | REPL + Definition modes |
-| String Literals | Single quotes | Double quotes (Nim-style) |
+| String Literals | Single quotes | Double or single quotes |
 
 ## Cheat Sheet: Quick Reference
 
@@ -339,73 +350,52 @@ Child := Parent derive: #(#newIvar)            # Inherit + add
 Child>>method [ super perform: #method ]   # Call parent
 
 #=== Control Flow ============================
-expr ifTrue: [ block ] ifElse: [ block ].
+expr ifTrue: [ block ] ifFalse: [ block ].
 [ condition ] whileTrue: [ block ].
 collection do: [ :each | block ].
 
 #=== Comments ================================
 # This is a comment (line, to end)
+#==== Section header (no space needed after #)
 "Inline comment" someCode                   # String as comment
 #!/usr/bin/env ntalk                         # Shebang at start of file
 
 #=== Strings =================================
 "double quoted"                             # String literal
 'c'                                         # Character
-"""multiline"""                           # Multiline string
-```
+"""multiline"""                            # Multiline string
 
-## Migration from Property Bag
+#=== Temporary Variables =====================
+[ | temp1 temp2 |
+  temp1 := 1.
+  temp2 := 2
+]                                            # Block with temps (no params)
 
-### Old Code (Property Bag on Object - No Longer Supported)
-```smalltalk
-# This no longer works - Object derive doesn't have property bag
-person := Object derive.
-person at: #name put: "Alice".   # ERROR: at:put: only on Dictionary
-```
+[ :x | temp |
+  temp := x * 2.
+  ^ temp
+]                                            # Block with param and temp
 
-### New Code Options
-
-**Option 1: Dictionary for Dynamic Properties**
-```smalltalk
-# Use Dictionary when you need dynamic property storage
-dict := Dictionary derive.
-dict at: #name put: "Alice".
-dict at: #age put: 30.
-result := dict at: #name.
-```
-
-**Option 2: Declared Ivars with Object**
-```smalltalk
-# Define Person with declared instance variables
-Person := Object derive: #(#name #age).
-
-# Create and use instance
-person := Person derive initialize.
-person name: "Alice".
-person age: 30.
-result := person name.
-```
-
-**Option 3: Dictionary with Slots**
-```smalltalk
-# Combine property bag with declared ivars
-Person := Dictionary derive: #(#name age).
-Person at: #greet put: [ ^"Hello, " + name ].
-
-person := Person derive.
-person name: "Alice".
-person at: #nickname put: "Al".  # Dynamic property
-result := person greet.             # "Hello, Alice"
+#=== Multi-char Binary Operators ============
+a == b                                      # Equality
+a ~= b                                      # Not equal
+a <= b                                      # Less than or equal
+a >= b                                      # Greater than or equal
+a // b                                      # Integer division
+a \ b                                       # Modulo
+a ~~ b                                      # Not identity
 ```
 
 ## Key Differences Summary
 
-1. **String Literals**: Use `"double quotes"` not `'single quotes'`
+1. **String Literals**: Use `"double quotes"` or `'single quotes'` - both work
 2. **Ivar Declaration**: `derive: #(#ivar1 #ivar2)` not property bags
 3. **Method Definitions**: `>>` syntax in files, `at:put:` in REPL
 4. **No Trailing Periods**: After method definitions (closing `]` is terminator)
 5. **Direct Access**: Inside methods, access ivars directly by name
 6. **Accessor Methods**: Used outside methods, compile to direct access
+7. **Temporary Variables**: Must be first in block after `[` before any comments
+8. **Multiline Keywords**: Keyword messages can span lines without periods
 
 ## Next Steps
 
@@ -421,8 +411,26 @@ result := person greet.             # "Hello, Alice"
 8. ✅ Cascade syntax implemented (`;` operator)
 9. ✅ Native method dispatch from Nimtalk code
 10. ✅ Base library with Object, Boolean, Collections
+11. ✅ Multi-character binary operators (`==`, `//`, `\`, `<=`, `>=`, `~=`, `~~`)
+12. ✅ Enhanced comment handling (`#====` section headers)
+13. ✅ Smalltalk-style temporary variables in blocks
+14. ✅ Multiline keyword message support
 
 ## Additional Features Implemented
+
+### Multi-Character Binary Operators
+
+Nimtalk supports multi-character binary operators, matched longest-first:
+
+```smalltalk
+a == b      # Equality comparison
+a ~= b      # Not equal
+a <= b      # Less than or equal
+a >= b      # Greater than or equal
+a // b      # Integer division (double slash)
+a \ b       # Modulo (single backslash)
+a ~~ b      # Not identity
+```
 
 ### Cascading Messages
 
@@ -430,13 +438,13 @@ Nimtalk supports Smalltalk's cascade syntax using `;` to send multiple messages 
 
 ```smalltalk
 # Send multiple messages to the same object
-obj at: #x put: 0; at: #y put: 0; at: #z put: 0.
+obj at: #x put: 0; at: #y put: 0; at: #z put: 0
 
 # Works with any message type
-calculator clear; add: 5; add: 10; result.
+calculator clear; add: 5; add: 10; result
 
 # Receiver is evaluated only once
-counter increment; increment; increment.
+counter increment; increment; increment
 ```
 
 ### Implementation Note
@@ -445,20 +453,17 @@ counter increment; increment; increment.
 
 ```smalltalk
 # New way (cleaner, file-only)
-Person>>greet: name [ ^"Hello " + name ].
+Person>>greet: name [ ^ "Hello " , name ]
 
 # Standard way (works in REPL and files)
-Person at: #greet: put: [ :name | ^"Hello " + name ].
+Person at: #greet: put: [ :name | ^ "Hello " , name ]
 ```
 
 The `>>` syntax is transformed by the parser into the standard `at:put:` message send, so both approaches are functionally equivalent.
 
 ## Resources
 
-- [FULL PROPOSAL](PROPOSAL-object-model.md) - Complete design proposal
-- [EXAMPLES](proposal-examples/) - Example code files using new syntax
-- [SPECIFICATION](SPECIFICATION.md) - Language specification details
-- [DECISIONS NEEDED](DECISION-NEEDED.md) - Key design decisions
----
-
----
+- [NEWLINE_RULES.md](NEWLINE_RULES.md) - Newline handling rules
+- [SPECIFICATION.md](SPECIFICATION.md) - Language specification details
+- [TOOLS_AND_DEBUGGING.md](TOOLS_AND_DEBUGGING.md) - Debugging guide
+- [closures.md](closures.md) - Closure implementation details

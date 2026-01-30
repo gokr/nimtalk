@@ -286,16 +286,9 @@ counter increment; increment; increment; value
 
 The receiver is evaluated once, then each message in the cascade is sent to that receiver in sequence.
 
-## Differences from Smalltalk
+---
 
-1. **Cascading**: Implemented using `;` operator for sending multiple messages to same receiver
-2. **Binary operators**: `+`, `-`, etc. are regular messages (not special syntax)
-3. **No metaclasses**: Class methods are defined on the class object itself
-4. **Nim integration**: Can embed Nim code using `<primitive>` tags
-5. **Dual storage**: Property bags for dynamic objects + slots for performance (149x faster)
-6. **`>>` method syntax**: Implemented for cleaner method definitions (transforms to `at:put:`)
-7. **Direct ivar access**: Inside methods, access ivars by name without `at:`
-8. **`super` and `self` keywords**: Fully implemented for method dispatch and receiver reference
+**Note**: This reflects the syntax as of the current implementation (2026-01-30). Key features like slot-based instance variables and multiline keyword messages are fully implemented. Check [NEWLINE_RULES.md](NEWLINE_RULES.md) for newline handling details.
 
 ## Embedding Nim Code
 
