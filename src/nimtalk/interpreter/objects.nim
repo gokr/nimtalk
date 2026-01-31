@@ -3,77 +3,95 @@ import ../core/types
 
 # ============================================================================
 # Object System for Nimtalk
-# Prototype-based objects with delegation
+# Class-based objects with delegation/inheritance
 # ============================================================================
 
 # Forward declarations for core method implementations (exported for testing)
-proc cloneImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc deriveImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc deriveWithIVarsImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc atImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc atPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc selectorPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc cloneImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc deriveImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc deriveWithIVarsImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc atImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc atPutImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc selectorPutImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
 proc wrapBoolAsObject*(value: bool): NodeValue
-proc plusImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc minusImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc starImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc slashImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc sqrtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc ltImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc gtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc eqImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc leImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc geImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc neImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc intDivImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc backslashModuloImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc moduloImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc printStringImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc writeImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc writelineImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc getSlotImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc setSlotValueImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc concatImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc atCollectionImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc sizeImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc atCollectionPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc randomNextImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc randomNewImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc plusImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc minusImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc starImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc slashImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc sqrtImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc ltImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc gtImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc eqImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc leImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc geImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc neImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc intDivImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc backslashModuloImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc moduloImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc printStringImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc writeImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc writelineImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc getSlotImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc setSlotValueImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc concatImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc atCollectionImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc sizeImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc atCollectionPutImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc randomNextImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc randomNewImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
 # Collection primitives
-proc arrayNewImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc arraySizeImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc arrayAddImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc arrayRemoveAtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc arrayIncludesImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc arrayReverseImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc arrayAtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc arrayAtPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc tableNewImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc tableKeysImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc tableIncludesKeyImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc tableRemoveKeyImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc tableAtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc tableAtPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc arrayNewImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc arraySizeImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc arrayAddImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc arrayRemoveAtImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc arrayIncludesImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc arrayReverseImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc arrayAtImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc arrayAtPutImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc tableNewImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc tableKeysImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc tableIncludesKeyImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc tableRemoveKeyImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc tableAtImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc tableAtPutImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
 # String primitives
-proc stringConcatImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc stringSizeImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc stringAtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc stringFromToImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc stringIndexOfImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc stringIncludesSubStringImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc stringReplaceWithImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc stringUppercaseImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc stringLowercaseImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc stringTrimImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc stringSplitImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc stringConcatImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc stringSizeImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc stringAtImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc stringFromToImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc stringIndexOfImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc stringIncludesSubStringImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc stringReplaceWithImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc stringUppercaseImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc stringLowercaseImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc stringTrimImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc stringSplitImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
 # File primitives
-proc fileOpenImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc fileCloseImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc fileReadLineImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc fileWriteImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc fileAtEndImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc fileReadAllImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc fileOpenImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc fileCloseImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc fileReadLineImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc fileWriteImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc fileAtEndImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc fileReadAllImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
 # doCollectionImpl is defined in evaluator.nim as it needs interpreter context
+
+# ============================================================================
+# Helper: Extract integer value from NodeValue or wrapped object
+# ============================================================================
+
+proc tryGetInt*(value: NodeValue): (bool, int) =
+  ## Try to extract an integer from a NodeValue
+  ## Returns (true, value) if successful, (false, 0) otherwise
+  case value.kind
+  of vkInt:
+    return (true, value.intVal)
+  of vkObject:
+    let obj = value.objVal
+    if obj.isNimProxy and obj.nimType == "int":
+      return (true, cast[ptr int](obj.nimValue)[])
+  else:
+    discard
+  return (false, 0)
 
 # ============================================================================
 # Class-Based Object System (New)
@@ -103,13 +121,13 @@ var randomPrototype*: DictionaryObj = nil
 var trueValue*: NodeValue = nilValue()
 var falseValue*: NodeValue = nilValue()
 
-# Prototype caches for wrapped primitives (set by loadStdlib)
-var truePrototypeCache*: ProtoObject = nil
-var falsePrototypeCache*: ProtoObject = nil
-var integerPrototypeCache*: ProtoObject = nil
-var stringPrototypeCache*: ProtoObject = nil
-var arrayPrototypeCache*: ProtoObject = nil
-var blockPrototypeCache*: ProtoObject = nil
+# Class caches for wrapped primitives (set by loadStdlib)
+var trueClassCache*: RuntimeObject = nil
+var falseClassCache*: RuntimeObject = nil
+var integerClassCache*: RuntimeObject = nil
+var stringClassCache*: RuntimeObject = nil
+var arrayClassCache*: RuntimeObject = nil
+var blockClassCache*: RuntimeObject = nil
 
 # Create a core method
 
@@ -129,7 +147,7 @@ proc createCoreMethod*(name: string): BlockNode =
   return blk
 
 # Method installation
-proc addMethod*(obj: ProtoObject, selector: string, blk: BlockNode) =
+proc addMethod*(obj: RuntimeObject, selector: string, blk: BlockNode) =
   ## Add a method to an object's method dictionary using canonical symbol
   let sym = getSymbol(selector)
   obj.methods[sym.symVal] = blk
@@ -177,10 +195,10 @@ proc globalNames*(): seq[string] =
   return toSeq(globals.keys)
 
 # Forward declarations for primitive implementations
-proc doesNotUnderstandImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc propertiesImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc methodsImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc isKindOfImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc doesNotUnderstandImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc propertiesImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc methodsImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc isKindOfImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
 
 # Initialize root object with core methods
 proc initRootObject*(): RootObject =
@@ -276,7 +294,7 @@ proc initRootObject*(): RootObject =
     addMethod(rootObject, "setSlot:value:", setSlotValueMethod)
 
     # Add class-based method definition support
-    # These are aliases for at:put: in the prototype-based system
+    # These are aliases for at:put: in the runtime system
     # In full class-based implementation, they would use the Class system
 
     let selectorPutMethod = createCoreMethod("selector:put:")
@@ -376,7 +394,7 @@ proc initRootObject*(): RootObject =
     # Initialize Dictionary prototype
     dictionaryPrototype = DictionaryPrototype()
     dictionaryPrototype.methods = initTable[string, BlockNode]()
-    dictionaryPrototype.parents = @[rootObject.ProtoObject]
+    dictionaryPrototype.parents = @[rootObject.RuntimeObject]
     dictionaryPrototype.tags = @["Dictionary"]
     dictionaryPrototype.isNimProxy = false
     dictionaryPrototype.nimValue = nil
@@ -387,21 +405,21 @@ proc initRootObject*(): RootObject =
     dictionaryPrototype.properties = initTable[string, NodeValue]()
 
     # Add Dictionary to globals
-    addGlobal("Dictionary", NodeValue(kind: vkObject, objVal: dictionaryPrototype.ProtoObject))
+    addGlobal("Dictionary", NodeValue(kind: vkObject, objVal: dictionaryPrototype.RuntimeObject))
 
     # Install Dictionary-specific methods (at: and at:put:)
     let dictAtMethod = createCoreMethod("at:")
     dictAtMethod.nativeImpl = cast[pointer](atImpl)
-    addMethod(dictionaryPrototype.ProtoObject, "at:", dictAtMethod)
+    addMethod(dictionaryPrototype.RuntimeObject, "at:", dictAtMethod)
 
     let dictAtPutMethod = createCoreMethod("at:put:")
     dictAtPutMethod.nativeImpl = cast[pointer](atPutImpl)
-    addMethod(dictionaryPrototype.ProtoObject, "at:put:", dictAtPutMethod)
+    addMethod(dictionaryPrototype.RuntimeObject, "at:put:", dictAtPutMethod)
 
     # Initialize Random prototype (uses DictionaryObj for properties)
     randomPrototype = DictionaryObj()
     randomPrototype.methods = initTable[string, BlockNode]()
-    randomPrototype.parents = @[rootObject.ProtoObject]
+    randomPrototype.parents = @[rootObject.RuntimeObject]
     randomPrototype.tags = @["Random"]
     randomPrototype.isNimProxy = false
     randomPrototype.nimValue = nil
@@ -427,10 +445,10 @@ proc initRootObject*(): RootObject =
 
   return rootObject
 
-# Nim-level clone function for ProtoObject - returns NodeValue wrapper
-proc clone*(self: ProtoObject): NodeValue =
-  ## Shallow clone of ProtoObject (Nim-level clone) wrapped in NodeValue
-  let objClone = ProtoObject()
+# Nim-level clone function for RuntimeObject - returns NodeValue wrapper
+proc clone*(self: RuntimeObject): NodeValue =
+  ## Shallow clone of RuntimeObject (Nim-level clone) wrapped in NodeValue
+  let objClone = RuntimeObject()
   objClone.methods = initTable[string, BlockNode]()
   for key, value in self.methods:
     objClone.methods[key] = value
@@ -493,10 +511,10 @@ proc clone*(self: DictionaryObj): NodeValue =
       objClone.properties[key] = NodeValue(kind: vkBlock, blockVal: newBlock)
     else:
       objClone.properties[key] = value
-  result = NodeValue(kind: vkObject, objVal: objClone.ProtoObject)
+  result = NodeValue(kind: vkObject, objVal: objClone.RuntimeObject)
 
 # Core method implementations
-proc cloneImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc cloneImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Shallow clone of object
   # For Dictionary objects, use Dictionary-specific clone
   if self of DictionaryObj:
@@ -529,10 +547,10 @@ proc cloneImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     clone.hasSlots = selfDict.hasSlots
     clone.slots = selfDict.slots
     clone.slotNames = selfDict.slotNames
-    return NodeValue(kind: vkObject, objVal: clone.ProtoObject)
+    return NodeValue(kind: vkObject, objVal: clone.RuntimeObject)
 
-  # Regular ProtoObject clone
-  let clone = ProtoObject()
+  # Regular RuntimeObject clone
+  let clone = RuntimeObject()
   clone.methods = self.methods  # Copy methods table, don't create empty one
   clone.parents = self.parents
   clone.tags = self.tags
@@ -544,9 +562,9 @@ proc cloneImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   clone.slotNames = self.slotNames
   return NodeValue(kind: vkObject, objVal: clone)
 
-proc deriveImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
-  ## Create child with self as parent (prototype delegation)
-  # If deriving from Dictionary, create a Dictionary child
+proc deriveImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+  ## Create child with self as parent (inheritance/delegation)
+  # If deriving from Dictionary or Table, create a DictionaryObj child
   if self of DictionaryObj:
     let child = DictionaryObj()
     child.properties = initTable[string, NodeValue]()
@@ -569,10 +587,10 @@ proc deriveImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
       child.slots = @[]
       child.slotNames = initTable[string, int]()
 
-    return NodeValue(kind: vkObject, objVal: child.ProtoObject)
+    return NodeValue(kind: vkObject, objVal: child.RuntimeObject)
 
-  # Regular ProtoObject derivation
-  let child = ProtoObject()
+  # Regular RuntimeObject derivation
+  let child = RuntimeObject()
   child.methods = initTable[string, BlockNode]()
   child.parents = @[self]
   child.tags = self.tags & @["derived"]
@@ -595,7 +613,7 @@ proc deriveImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
 
   return NodeValue(kind: vkObject, objVal: child)
 
-proc deriveWithIVarsImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc deriveWithIVarsImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Create child with self as parent and declared instance variables
   ## Also generates accessor methods for all instance variables
   if args.len < 1:
@@ -643,7 +661,7 @@ proc deriveWithIVarsImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   let parentIsDictionary = self of DictionaryObj
 
   # Create object with combined slots
-  var child: ProtoObject
+  var child: RuntimeObject
   if parentIsDictionary:
     # Create Dictionary-derived object with slots
     let dictChild = DictionaryObj()
@@ -667,13 +685,13 @@ proc deriveWithIVarsImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
       dictChild.slots = @[]
       dictChild.slotNames = initTable[string, int]()
 
-    child = dictChild.ProtoObject
+    child = dictChild.RuntimeObject
   else:
     if allIvars.len > 0:
       child = initSlotObject(allIvars)
     else:
       # Fallback to empty object if no ivars
-      child = ProtoObject()
+      child = RuntimeObject()
       child.methods = initTable[string, BlockNode]()
       child.parents = @[]
       child.tags = @[]
@@ -733,7 +751,7 @@ proc deriveWithIVarsImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
 
   return NodeValue(kind: vkObject, objVal: child)
 
-proc atImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc atImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Get property value from Dictionary: dict at: 'key'
   if args.len < 1:
     return nilValue()
@@ -753,7 +771,7 @@ proc atImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   let dict = cast[DictionaryObj](self)
   return getProperty(dict, key)
 
-proc atPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc atPutImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Set property value on Dictionary: dict at: 'key' put: value
   if args.len < 2:
     return nilValue()
@@ -776,9 +794,9 @@ proc atPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   setProperty(dict, key, value)
   return value
 
-proc selectorPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc selectorPutImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Store a method in the object's method dictionary: obj selector: 'sel' put: [block]
-  ## Works on any ProtoObject, not just Dictionary
+  ## Works on any RuntimeObject, not just Dictionary
   if args.len < 2:
     return nilValue()
 
@@ -803,43 +821,42 @@ proc selectorPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   debug("Added method: ", selector, " to object with tags: ", $self.tags)
   return args[1]
 
-proc plusImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc plusImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Add two numbers: a + b
   if args.len < 1:
     return nilValue()
 
   let other = args[0]
-  if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
-    # Both are integers, add them
+  let (otherOk, otherVal) = tryGetInt(other)
+  if self.isNimProxy and self.nimType == "int" and otherOk:
     let a = cast[ptr int](self.nimValue)[]
-    let b = other.intVal
-    return NodeValue(kind: vkInt, intVal: a + b)
+    return NodeValue(kind: vkInt, intVal: a + otherVal)
 
   return nilValue()
 
-proc minusImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc minusImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Subtract two numbers: a - b
   if args.len < 1:
     return nilValue()
 
   let other = args[0]
-  if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
+  let (otherOk, otherVal) = tryGetInt(other)
+  if self.isNimProxy and self.nimType == "int" and otherOk:
     let a = cast[ptr int](self.nimValue)[]
-    let b = other.intVal
-    return NodeValue(kind: vkInt, intVal: a - b)
+    return NodeValue(kind: vkInt, intVal: a - otherVal)
 
   return nilValue()
 
-proc starImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc starImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Multiply two numbers: a * b
   if args.len < 1:
     return nilValue()
 
   let other = args[0]
-  if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
+  let (otherOk, otherVal) = tryGetInt(other)
+  if self.isNimProxy and self.nimType == "int" and otherOk:
     let a = cast[ptr int](self.nimValue)[]
-    let b = other.intVal
-    return NodeValue(kind: vkInt, intVal: a * b)
+    return NodeValue(kind: vkInt, intVal: a * otherVal)
 
   # Handle float multiplication
   if self.isNimProxy and self.nimType == "int" and other.kind == vkFloat:
@@ -849,22 +866,22 @@ proc starImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
 
   return nilValue()
 
-proc slashImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc slashImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Divide two numbers: a / b (integer division)
   if args.len < 1:
     return nilValue()
 
   let other = args[0]
-  if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
+  let (otherOk, otherVal) = tryGetInt(other)
+  if self.isNimProxy and self.nimType == "int" and otherOk:
     let a = cast[ptr int](self.nimValue)[]
-    let b = other.intVal
-    if b == 0:
+    if otherVal == 0:
       return nilValue()  # Division by zero
-    return NodeValue(kind: vkInt, intVal: a div b)
+    return NodeValue(kind: vkInt, intVal: a div otherVal)
 
   return nilValue()
 
-proc sqrtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc sqrtImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Square root: a sqrt
   if self.isNimProxy and self.nimType == "int":
     let a = cast[ptr int](self.nimValue)[]
@@ -872,130 +889,130 @@ proc sqrtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
 
   return nilValue()
 
-proc ltImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc ltImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Less than comparison: a < b
   if args.len < 1:
     return nilValue()
 
   let other = args[0]
-  if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
+  let (otherOk, otherVal) = tryGetInt(other)
+  if self.isNimProxy and self.nimType == "int" and otherOk:
     let a = cast[ptr int](self.nimValue)[]
-    let b = other.intVal
-    return wrapBoolAsObject(a < b)
+    return wrapBoolAsObject(a < otherVal)
 
   return nilValue()
 
-proc gtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc gtImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Greater than comparison: a > b
   if args.len < 1:
     return nilValue()
 
   let other = args[0]
-  if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
+  let (otherOk, otherVal) = tryGetInt(other)
+  if self.isNimProxy and self.nimType == "int" and otherOk:
     let a = cast[ptr int](self.nimValue)[]
-    let b = other.intVal
-    return wrapBoolAsObject(a > b)
+    return wrapBoolAsObject(a > otherVal)
 
   return nilValue()
 
-proc eqImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc eqImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Equality comparison: a = b
   if args.len < 1:
     return nilValue()
 
   let other = args[0]
-  if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
+  let (otherOk, otherVal) = tryGetInt(other)
+  if self.isNimProxy and self.nimType == "int" and otherOk:
     let a = cast[ptr int](self.nimValue)[]
-    let b = other.intVal
-    return wrapBoolAsObject(a == b)
+    return wrapBoolAsObject(a == otherVal)
 
   return nilValue()
 
-proc leImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc leImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Less than or equal: a <= b
   if args.len < 1:
     return nilValue()
 
   let other = args[0]
-  if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
+  let (otherOk, otherVal) = tryGetInt(other)
+  if self.isNimProxy and self.nimType == "int" and otherOk:
     let a = cast[ptr int](self.nimValue)[]
-    let b = other.intVal
-    return wrapBoolAsObject(a <= b)
+    return wrapBoolAsObject(a <= otherVal)
 
   return nilValue()
 
-proc geImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc geImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Greater than or equal: a >= b
   if args.len < 1:
     return nilValue()
 
   let other = args[0]
-  if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
+  let (otherOk, otherVal) = tryGetInt(other)
+  if self.isNimProxy and self.nimType == "int" and otherOk:
     let a = cast[ptr int](self.nimValue)[]
-    let b = other.intVal
-    return wrapBoolAsObject(a >= b)
+    return wrapBoolAsObject(a >= otherVal)
 
   return nilValue()
 
-proc neImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc neImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Not equal: a ~= b
   if args.len < 1:
     return nilValue()
 
   let other = args[0]
-  if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
+  let (otherOk, otherVal) = tryGetInt(other)
+  if self.isNimProxy and self.nimType == "int" and otherOk:
     let a = cast[ptr int](self.nimValue)[]
-    let b = other.intVal
-    return wrapBoolAsObject(a != b)
+    return wrapBoolAsObject(a != otherVal)
 
   return nilValue()
 
-proc intDivImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc intDivImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Integer division: a // b
   if args.len < 1:
     return nilValue()
 
   let other = args[0]
-  if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
+  let (otherOk, otherVal) = tryGetInt(other)
+  if self.isNimProxy and self.nimType == "int" and otherOk:
     let a = cast[ptr int](self.nimValue)[]
-    let b = other.intVal
-    if b == 0:
+    if otherVal == 0:
       return nilValue()  # Division by zero
-    return NodeValue(kind: vkInt, intVal: a div b)
+    return NodeValue(kind: vkInt, intVal: a div otherVal)
 
   return nilValue()
 
-proc backslashModuloImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc backslashModuloImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Smalltalk-style modulo: a \\ b
   if args.len < 1:
     return nilValue()
 
   let other = args[0]
-  if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
+  let (otherOk, otherVal) = tryGetInt(other)
+  if self.isNimProxy and self.nimType == "int" and otherOk:
     let a = cast[ptr int](self.nimValue)[]
-    let b = other.intVal
-    if b == 0:
+    if otherVal == 0:
       return nilValue()  # Modulo by zero
-    return NodeValue(kind: vkInt, intVal: a mod b)
+    return NodeValue(kind: vkInt, intVal: a mod otherVal)
 
   return nilValue()
 
-proc moduloImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc moduloImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Modulo: a % b
   if args.len < 1:
     return nilValue()
 
   let other = args[0]
-  if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
+  let (otherOk, otherVal) = tryGetInt(other)
+  if self.isNimProxy and self.nimType == "int" and otherOk:
     let a = cast[ptr int](self.nimValue)[]
-    let b = other.intVal
-    if b == 0:
+    if otherVal == 0:
       return nilValue()  # Modulo by zero
-    return NodeValue(kind: vkInt, intVal: a mod b)
+    return NodeValue(kind: vkInt, intVal: a mod otherVal)
 
   return nilValue()
 
-proc printStringImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc printStringImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Default print representation
   if self.isNimProxy and self.nimType == "int":
     let val = cast[ptr int](self.nimValue)[]
@@ -1007,7 +1024,7 @@ proc printStringImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   else:
     return NodeValue(kind: vkString, strVal: "<unknown>")
 
-proc writeImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc writeImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Write string to stdout without newline (Stdout write: 'text')
   if args.len < 1:
     return nilValue()
@@ -1017,7 +1034,7 @@ proc writeImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     flushFile(stdout)
   return strVal  ## Return the string written
 
-proc writelineImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc writelineImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Write string or integer to stdout with newline (Stdout writeline: value)
   if args.len < 1:
     stdout.write("\n")
@@ -1032,7 +1049,7 @@ proc writelineImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
       echo value.toString()
   return nilValue()
 
-proc getSlotImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc getSlotImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Get slot value: obj getSlot: 'key'
   when defined(release):
     discard  # No debug in release
@@ -1063,7 +1080,7 @@ proc getSlotImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     debug("getSlotImpl: getting slot '", key, "'")
   return getSlot(self, key)
 
-proc setSlotValueImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc setSlotValueImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Set slot value: obj setSlot: 'key' value: value
   if args.len < 2:
     return nilValue()
@@ -1084,7 +1101,7 @@ proc setSlotValueImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   setSlot(self, key, value)
   return value
 
-proc doesNotUnderstandImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc doesNotUnderstandImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Default handler for unknown messages
   if args.len < 1 or args[0].kind != vkSymbol:
     raise newException(ValueError, "doesNotUnderstand: requires message symbol")
@@ -1092,7 +1109,7 @@ proc doesNotUnderstandImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue 
   let selector = args[0].symVal
   raise newException(ValueError, "Message not understood: " & selector)
 
-proc propertiesImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc propertiesImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Return collection of all property keys on this object
   ## For Dictionary objects, return the property keys
   if self of DictionaryObj:
@@ -1104,15 +1121,15 @@ proc propertiesImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   ## For regular objects, return empty array (properties not supported)
   return NodeValue(kind: vkArray, arrayVal: @[])
 
-proc methodsImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc methodsImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Return collection of all method selectors on this object
   var selectors: seq[NodeValue] = @[]
   for selector in self.methods.keys:
     selectors.add(NodeValue(kind: vkSymbol, symVal: selector))
   return NodeValue(kind: vkArray, arrayVal: selectors)
 
-proc isKindOfImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
-  ## Check if object is kind of aClass (in prototype chain)
+proc isKindOfImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+  ## Check if object is kind of aClass (in class hierarchy)
   if args.len < 1:
     return NodeValue(kind: vkBool, boolVal: false)
 
@@ -1131,7 +1148,7 @@ proc isKindOfImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
 
   return NodeValue(kind: vkBool, boolVal: false)
 
-proc concatImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc concatImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Concatenate strings: a , b (Smalltalk style using , operator)
   if args.len < 1:
     return nilValue()
@@ -1158,7 +1175,7 @@ proc concatImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
 
   return nilValue()
 
-proc atCollectionImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc atCollectionImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Get element from array or table: arr at: index OR table at: key
   ## Also handles DictionaryObj properties for regular objects
   when not defined(release):
@@ -1228,7 +1245,7 @@ proc atCollectionImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
 
   return nilValue()
 
-proc sizeImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc sizeImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Get size of array: arr size
   # Handle array size
   if self.isNimProxy and self.nimType == "array":
@@ -1244,7 +1261,7 @@ proc sizeImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
       return NodeValue(kind: vkInt, intVal: size)
   return nilValue()
 
-proc atCollectionPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc atCollectionPutImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Set element in array: arr at: index put: value
   ## Also handles DictionaryObj properties for regular objects
   if args.len < 2:
@@ -1295,7 +1312,7 @@ proc atCollectionPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
 
   return nilValue()
 
-proc randomNextImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc randomNextImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Generate random integer: random next
   ## Uses same LCG as SOM: seed = (seed * 1309 + 13849) & 65535
   if self.tags.contains("Random") and self of DictionaryObj:
@@ -1309,13 +1326,13 @@ proc randomNextImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
       return NodeValue(kind: vkInt, intVal: seed)
   return nilValue()
 
-proc randomNewImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc randomNewImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Create a new Random instance with fresh seed: Random new
   if self.tags.contains("Random") and self of DictionaryObj:
     let selfDict = cast[DictionaryObj](self)
     let randObj = DictionaryObj()
     randObj.methods = initTable[string, BlockNode]()
-    randObj.parents = @[selfDict.ProtoObject]
+    randObj.parents = @[selfDict.RuntimeObject]
     randObj.tags = @["Random", "derived"]
     randObj.isNimProxy = false
     randObj.nimValue = nil
@@ -1325,14 +1342,14 @@ proc randomNewImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     randObj.slotNames = initTable[string, int]()
     randObj.properties = initTable[string, NodeValue]()
     randObj.properties["seed"] = NodeValue(kind: vkInt, intVal: 74755)
-    return NodeValue(kind: vkObject, objVal: randObj.ProtoObject)
+    return NodeValue(kind: vkObject, objVal: randObj.RuntimeObject)
   return nilValue()
 
 # ============================================================================
 # Collection primitives for Array and Table
 # ============================================================================
 
-proc arrayNewImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc arrayNewImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Create new array with given size: Array new: 1000
   var size = 0
   if args.len >= 1 and args[0].kind == vkInt:
@@ -1341,7 +1358,7 @@ proc arrayNewImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   # Create array proxy with properties for 0-based indexing
   let obj = DictionaryObj()
   obj.methods = initTable[string, BlockNode]()
-  obj.parents = @[rootObject.ProtoObject]
+  obj.parents = @[rootObject.RuntimeObject]
   obj.tags = @["Array", "Collection"]
   obj.isNimProxy = true
   obj.nimType = "array"
@@ -1350,9 +1367,9 @@ proc arrayNewImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   # Initialize all slots to nil
   for i in 0..<size:
     obj.properties[$i] = nilValue()
-  return NodeValue(kind: vkObject, objVal: obj.ProtoObject)
+  return NodeValue(kind: vkObject, objVal: obj.RuntimeObject)
 
-proc arraySizeImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc arraySizeImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Return number of elements in array
   if not (self of DictionaryObj):
     return NodeValue(kind: vkInt, intVal: 0)
@@ -1361,7 +1378,7 @@ proc arraySizeImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     return dict.properties["__size"]
   return NodeValue(kind: vkInt, intVal: 0)
 
-proc arrayAtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc arrayAtImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Get element at index (1-based indexing for Smalltalk compatibility)
   if args.len < 1 or args[0].kind != vkInt:
     return nilValue()
@@ -1377,7 +1394,7 @@ proc arrayAtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     return dict.properties[key]
   return nilValue()
 
-proc arrayAtPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc arrayAtPutImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Set element at index (1-based indexing for Smalltalk compatibility)
   if args.len < 2 or args[0].kind != vkInt:
     return nilValue()
@@ -1400,7 +1417,7 @@ proc arrayAtPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     dict.properties["__size"] = NodeValue(kind: vkInt, intVal: oneBasedIdx)
   return args[1]
 
-proc arrayAddImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc arrayAddImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Add element to end of array
   if args.len < 1:
     return nilValue()
@@ -1416,7 +1433,7 @@ proc arrayAddImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   dict.properties["__size"] = NodeValue(kind: vkInt, intVal: size + 1)
   return args[0]
 
-proc arrayRemoveAtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc arrayRemoveAtImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Remove element at index and return it (1-based indexing for Smalltalk compatibility)
   if args.len < 1 or args[0].kind != vkInt:
     return nilValue()
@@ -1460,7 +1477,7 @@ proc valuesEqual(v1, v2: NodeValue): bool =
   of vkBlock: return v1.blockVal == v2.blockVal
   else: return false  # Arrays and tables - identity comparison only
 
-proc arrayIncludesImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc arrayIncludesImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Check if array includes element (using = comparison)
   if args.len < 1:
     return falseValue
@@ -1482,7 +1499,7 @@ proc arrayIncludesImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
 
   return falseValue
 
-proc arrayReverseImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc arrayReverseImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Return new array with elements reversed
   if not (self of DictionaryObj):
     return nilValue()
@@ -1496,7 +1513,7 @@ proc arrayReverseImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   # Create new reversed array
   let obj = DictionaryObj()
   obj.methods = initTable[string, BlockNode]()
-  obj.parents = @[rootObject.ProtoObject]
+  obj.parents = @[rootObject.RuntimeObject]
   obj.tags = @["Array", "Collection"]
   obj.isNimProxy = true
   obj.nimType = "array"
@@ -1506,21 +1523,21 @@ proc arrayReverseImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   for i in 0..<size:
     obj.properties[$i] = dict.properties.getOrDefault($(size - 1 - i))
 
-  return NodeValue(kind: vkObject, objVal: obj.ProtoObject)
+  return NodeValue(kind: vkObject, objVal: obj.RuntimeObject)
 
-proc tableNewImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc tableNewImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Create new empty table: Table new
   let obj = DictionaryObj()
   obj.methods = initTable[string, BlockNode]()
-  obj.parents = @[rootObject.ProtoObject]
+  obj.parents = @[rootObject.RuntimeObject]
   obj.tags = @["Table", "Collection", "Dictionary"]
   obj.isNimProxy = true
   obj.nimType = "table"
   obj.properties = initTable[string, NodeValue]()
   # Table uses native Table[string, NodeValue] in properties
-  return NodeValue(kind: vkObject, objVal: obj.ProtoObject)
+  return NodeValue(kind: vkObject, objVal: obj.RuntimeObject)
 
-proc tableKeysImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc tableKeysImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Return array of all keys in table
   if not (self of DictionaryObj):
     return nilValue()
@@ -1530,7 +1547,7 @@ proc tableKeysImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   # Create array proxy to hold keys
   let arr = DictionaryObj()
   arr.methods = initTable[string, BlockNode]()
-  arr.parents = @[rootObject.ProtoObject]
+  arr.parents = @[rootObject.RuntimeObject]
   arr.tags = @["Array", "Collection"]
   arr.isNimProxy = true
   arr.nimType = "array"
@@ -1543,9 +1560,9 @@ proc tableKeysImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
       idx += 1
 
   arr.properties["__size"] = NodeValue(kind: vkInt, intVal: idx)
-  return NodeValue(kind: vkObject, objVal: arr.ProtoObject)
+  return NodeValue(kind: vkObject, objVal: arr.RuntimeObject)
 
-proc tableIncludesKeyImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc tableIncludesKeyImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Check if table includes key
   if args.len < 1:
     return falseValue
@@ -1563,7 +1580,7 @@ proc tableIncludesKeyImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
 
   return toValue(dict.properties.hasKey(keyStr))
 
-proc tableRemoveKeyImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc tableRemoveKeyImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Remove key from table and return value (or nil)
   if args.len < 1:
     return nilValue()
@@ -1585,7 +1602,7 @@ proc tableRemoveKeyImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     return removedValue
   return nilValue()
 
-proc tableAtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc tableAtImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Get value at key: table at: 'key'
   if args.len < 1:
     return nilValue()
@@ -1605,7 +1622,7 @@ proc tableAtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     return dict.properties[keyStr]
   return nilValue()
 
-proc tableAtPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc tableAtPutImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Set value at key: table at: 'key' put: value
   if args.len < 2:
     return nilValue()
@@ -1628,7 +1645,7 @@ proc tableAtPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
 # String primitives
 # ============================================================================
 
-proc getStringValue(obj: ProtoObject): string =
+proc getStringValue(obj: RuntimeObject): string =
   ## Helper to extract string value from string proxy
   if obj.isNimProxy and obj.nimType == "string":
     if obj of DictionaryObj:
@@ -1639,7 +1656,7 @@ proc getStringValue(obj: ProtoObject): string =
           return val.strVal
   return ""
 
-proc stringConcatImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc stringConcatImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Concatenate strings: self , other
   if args.len < 1:
     return nilValue()
@@ -1653,12 +1670,12 @@ proc stringConcatImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     return nilValue()
   return NodeValue(kind: vkString, strVal: selfStr & otherStr)
 
-proc stringSizeImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc stringSizeImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Return string length
   let selfStr = getStringValue(self)
   return NodeValue(kind: vkInt, intVal: selfStr.len)
 
-proc stringAtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc stringAtImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Return character at index (1-based like Smalltalk)
   if args.len < 1 or args[0].kind != vkInt:
     return nilValue()
@@ -1668,7 +1685,7 @@ proc stringAtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     return nilValue()
   return NodeValue(kind: vkString, strVal: $selfStr[idx])
 
-proc stringFromToImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc stringFromToImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Return substring from start to end (1-based like Smalltalk)
   if args.len < 2 or args[0].kind != vkInt or args[1].kind != vkInt:
     return nilValue()
@@ -1679,7 +1696,7 @@ proc stringFromToImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     return nilValue()
   return NodeValue(kind: vkString, strVal: selfStr[startIdx..<endIdx])
 
-proc stringIndexOfImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc stringIndexOfImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Return index of substring (1-based, 0 if not found)
   if args.len < 1:
     return NodeValue(kind: vkInt, intVal: 0)
@@ -1696,7 +1713,7 @@ proc stringIndexOfImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     return NodeValue(kind: vkInt, intVal: 0)
   return NodeValue(kind: vkInt, intVal: idx + 1)  # 1-based
 
-proc stringIncludesSubStringImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc stringIncludesSubStringImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Check if string includes substring
   if args.len < 1:
     return falseValue
@@ -1710,7 +1727,7 @@ proc stringIncludesSubStringImpl*(self: ProtoObject, args: seq[NodeValue]): Node
     return falseValue
   return toValue(selfStr.contains(searchStr))
 
-proc stringReplaceWithImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc stringReplaceWithImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Replace all occurrences of old with new
   if args.len < 2:
     return nilValue()
@@ -1724,22 +1741,22 @@ proc stringReplaceWithImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue 
   else: return nilValue()
   return NodeValue(kind: vkString, strVal: selfStr.replace(oldStr, newStr))
 
-proc stringUppercaseImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc stringUppercaseImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Return uppercase version
   let selfStr = getStringValue(self)
   return NodeValue(kind: vkString, strVal: selfStr.toUpperAscii())
 
-proc stringLowercaseImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc stringLowercaseImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Return lowercase version
   let selfStr = getStringValue(self)
   return NodeValue(kind: vkString, strVal: selfStr.toLowerAscii())
 
-proc stringTrimImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc stringTrimImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Remove leading and trailing whitespace
   let selfStr = getStringValue(self)
   return NodeValue(kind: vkString, strVal: selfStr.strip())
 
-proc stringSplitImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc stringSplitImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Split string by delimiter, return array
   if args.len < 1:
     return nilValue()
@@ -1752,7 +1769,7 @@ proc stringSplitImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   # Create array proxy to hold results
   let arr = DictionaryObj()
   arr.methods = initTable[string, BlockNode]()
-  arr.parents = @[rootObject.ProtoObject]
+  arr.parents = @[rootObject.RuntimeObject]
   arr.tags = @["Array", "Collection"]
   arr.isNimProxy = true
   arr.nimType = "array"
@@ -1763,13 +1780,13 @@ proc stringSplitImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     arr.properties[$i] = NodeValue(kind: vkString, strVal: part)
 
   arr.properties["__size"] = NodeValue(kind: vkInt, intVal: parts.len)
-  return NodeValue(kind: vkObject, objVal: arr.ProtoObject)
+  return NodeValue(kind: vkObject, objVal: arr.RuntimeObject)
 
 proc wrapIntAsObject*(value: int): NodeValue =
   ## Wrap an integer as a Nim proxy object that can receive messages
-  let obj = ProtoObject()
+  let obj = RuntimeObject()
   obj.methods = initTable[string, BlockNode]()
-  obj.parents = @[rootObject.ProtoObject]
+  obj.parents = @[rootObject.RuntimeObject]
   obj.tags = @["Integer", "Number"]
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](alloc(sizeof(int)))
@@ -1782,16 +1799,16 @@ proc wrapIntAsObject*(value: int): NodeValue =
 
 proc wrapBoolAsObject*(value: bool): NodeValue =
   ## Wrap a boolean as a Nim proxy object that can receive messages
-  ## Uses True/False prototype caches if available for proper method inheritance
-  let obj = ProtoObject()
+  ## Uses True/False class caches if available for proper method inheritance
+  let obj = RuntimeObject()
   obj.methods = initTable[string, BlockNode]()
-  # Use True/False prototype caches if available
-  if value and truePrototypeCache != nil:
-    obj.parents = @[truePrototypeCache]
-  elif not value and falsePrototypeCache != nil:
-    obj.parents = @[falsePrototypeCache]
+  # Use True/False class caches if available
+  if value and trueClassCache != nil:
+    obj.parents = @[trueClassCache]
+  elif not value and falseClassCache != nil:
+    obj.parents = @[falseClassCache]
   else:
-    obj.parents = @[rootObject.ProtoObject]
+    obj.parents = @[rootObject.RuntimeObject]
   obj.tags = if value: @["Boolean", "True"] else: @["Boolean", "False"]
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](alloc(sizeof(bool)))
@@ -1802,11 +1819,11 @@ proc wrapBoolAsObject*(value: bool): NodeValue =
   obj.slotNames = initTable[string, int]()
   return NodeValue(kind: vkObject, objVal: obj)
 
-proc newObject*(): ProtoObject =
+proc newObject*(): RuntimeObject =
   ## Create a new lightweight object (no property bag)
-  let obj = ProtoObject()
+  let obj = RuntimeObject()
   obj.methods = initTable[string, BlockNode]()
-  obj.parents = @[initRootObject().ProtoObject]
+  obj.parents = @[initRootObject().RuntimeObject]
   obj.tags = @["derived"]
   obj.isNimProxy = false
   obj.nimValue = nil
@@ -1820,7 +1837,7 @@ proc newDictionary*(properties = initTable[string, NodeValue]()): DictionaryObj 
   ## Create a new Dictionary object with property bag
   let obj = DictionaryObj()
   obj.methods = initTable[string, BlockNode]()
-  obj.parents = @[initRootObject().ProtoObject]
+  obj.parents = @[initRootObject().RuntimeObject]
   obj.tags = @["Dictionary", "derived"]
   obj.isNimProxy = false
   obj.nimValue = nil
@@ -1832,12 +1849,12 @@ proc newDictionary*(properties = initTable[string, NodeValue]()): DictionaryObj 
   return obj
 
 # Object comparison
-proc isSame*(obj1, obj2: ProtoObject): bool =
+proc isSame*(obj1, obj2: RuntimeObject): bool =
   ## Check if two objects are the same (identity)
   return obj1 == obj2
 
-proc inheritsFrom*(obj: ProtoObject, parent: ProtoObject): bool =
-  ## Check if object inherits from parent in prototype chain
+proc inheritsFrom*(obj: RuntimeObject, parent: RuntimeObject): bool =
+  ## Check if object inherits from parent in class hierarchy
   if obj.isSame(parent):
     return true
 
@@ -1848,7 +1865,7 @@ proc inheritsFrom*(obj: ProtoObject, parent: ProtoObject): bool =
   return false
 
 # Display helpers
-proc printObject*(obj: ProtoObject, indent: int = 0): string =
+proc printObject*(obj: RuntimeObject, indent: int = 0): string =
   ## Pretty print object structure
   let spaces = repeat(' ', indent * 2)
   var output = spaces & "Object"
@@ -1885,7 +1902,7 @@ proc formatString*(tmpl: string, args: Table[string, NodeValue]): string =
     result = result.replace(placeholder, val.toString())
 
 # Create a simple test object hierarchy (commented out - needs proper method invocation)
-# proc makeTestObjects*(): (RootObject, ProtoObject, ProtoObject) =
+# proc makeTestObjects*(): (RootObject, RuntimeObject, RuntimeObject) =
 #   ## Create test object hierarchy for testing
 #   let root = initRootObject()
 #
@@ -1920,7 +1937,7 @@ proc formatString*(tmpl: string, args: Table[string, NodeValue]): string =
 # File I/O primitives
 # ============================================================================
 
-proc getFileStreamFile(obj: ProtoObject): File =
+proc getFileStreamFile(obj: RuntimeObject): File =
   ## Helper to get File handle from FileStream object
   if obj of FileStreamObj:
     let fs = cast[FileStreamObj](obj)
@@ -1928,7 +1945,7 @@ proc getFileStreamFile(obj: ProtoObject): File =
       result = fs.file
   # Return nil file if not valid
 
-proc fileOpenImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc fileOpenImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Open a file: file open: filename mode: mode
   if args.len < 2:
     return nilValue()
@@ -1969,7 +1986,7 @@ proc fileOpenImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     return self.toValue()
   return nilValue()
 
-proc fileCloseImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc fileCloseImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Close a file: file close
   if not (self of FileStreamObj):
     return nilValue()
@@ -1980,7 +1997,7 @@ proc fileCloseImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
     fs.isOpen = false
   return nilValue()
 
-proc fileReadLineImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc fileReadLineImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Read one line from file: file readLine
   if not (self of FileStreamObj):
     return nilValue()
@@ -1995,7 +2012,7 @@ proc fileReadLineImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   let line = fs.file.readLine()
   return NodeValue(kind: vkString, strVal: line)
 
-proc fileWriteImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc fileWriteImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Write string to file: file write: string
   if args.len < 1 or args[0].kind != vkString:
     return nilValue()
@@ -2010,7 +2027,7 @@ proc fileWriteImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   fs.file.write(args[0].strVal)
   return args[0]
 
-proc fileAtEndImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc fileAtEndImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Check if at end of file: file atEnd
   if not (self of FileStreamObj):
     return trueValue
@@ -2021,7 +2038,7 @@ proc fileAtEndImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
 
   return toValue(fs.file.endOfFile())
 
-proc fileReadAllImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc fileReadAllImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Read entire file contents: file readAll
   if not (self of FileStreamObj):
     return nilValue()

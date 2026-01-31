@@ -9,9 +9,9 @@ import ../parser/[lexer, parser]
 # ============================================================================
 
 proc newActivation*(blk: BlockNode,
-                   receiver: ProtoObject,
+                   receiver: RuntimeObject,
                    sender: Activation,
-                   definingObject: ProtoObject = nil): Activation =
+                   definingObject: RuntimeObject = nil): Activation =
   ## Create a new activation record
   result = Activation(
     sender: sender,
@@ -40,7 +40,7 @@ proc newActivation*(blk: BlockNode,
   # parameters will be bound when method is invoked
 
 # Create activation from code string (for testing)
-proc parseAndActivate*(source: string, receiver: ProtoObject = nil): Activation =
+proc parseAndActivate*(source: string, receiver: RuntimeObject = nil): Activation =
   ## Parse source code and create an activation for it
 
   let tokens = lex(source)

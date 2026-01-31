@@ -9,8 +9,8 @@ import ../interpreter/[objects, activation]
 
 type
   Runtime* = ref object
-    rootObject*: ProtoObject
-    prototypes*: Table[string, ProtoObject]
+    rootObject*: RuntimeObject
+    classes*: Table[string, RuntimeObject]
     methodCache*: Table[string, CompiledMethod]
     isInitializing*: bool
 
@@ -26,7 +26,7 @@ proc newRuntime*(): Runtime =
   ## Create new runtime instance
   result = Runtime(
     rootObject: rootObject,
-    prototypes: initTable[string, ProtoObject](),
+    classes: initTable[string, RuntimeObject](),
     methodCache: initTable[string, CompiledMethod](),
     isInitializing: false
   )
@@ -40,23 +40,23 @@ proc initRuntime*() =
 proc shutdownRuntime*() =
   ## Shutdown and cleanup runtime
   if currentRuntime != nil:
-    # Clean up prototypes
-    for proto in currentRuntime.prototypes.values:
-      proto.methods.clear()
-    currentRuntime.prototypes.clear()
+    # Clean up classes
+    for obj in currentRuntime.classes.values:
+      obj.methods.clear()
+    currentRuntime.classes.clear()
     currentRuntime.methodCache.clear()
     deallocShared(cast[pointer](currentRuntime))
     currentRuntime = nil
 
-proc registerPrototype*(runtime: var Runtime, name: string, proto: ProtoObject) =
-  ## Register a prototype in the runtime
-  runtime.prototypes[name] = proto
-  proto.tags.add(name)
+proc registerClass*(runtime: var Runtime, name: string, cls: RuntimeObject) =
+  ## Register a class in the runtime
+  runtime.classes[name] = cls
+  cls.tags.add(name)
 
-proc getPrototype*(runtime: Runtime, name: string): ProtoObject =
-  ## Get a registered prototype by name
-  if name in runtime.prototypes:
-    return runtime.prototypes[name]
+proc getClass*(runtime: Runtime, name: string): RuntimeObject =
+  ## Get a registered class by name
+  if name in runtime.classes:
+    return runtime.classes[name]
   return nil
 
 proc registerMethod*(runtime: var Runtime, selector: string,
@@ -86,13 +86,13 @@ proc sendMessage*(runtime: Runtime, receiver: NodeValue,
 
 # Convenience procs for common operations
 
-proc toValue*(obj: ProtoObject): NodeValue =
-  ## Convert ProtoObject to NodeValue
+proc toValue*(obj: RuntimeObject): NodeValue =
+  ## Convert RuntimeObject to NodeValue
   if obj == nil:
     return NodeValue(kind: vkNil)
   return NodeValue(kind: vkObject, objVal: obj)
 
-proc toNodeValue*(obj: ProtoObject): NodeValue =
+proc toNodeValue*(obj: RuntimeObject): NodeValue =
   ## Alias for toValue
   return obj.toValue()
 
@@ -124,7 +124,7 @@ proc toBool*(value: NodeValue): bool =
 
 # Slot access helpers
 
-proc getSlot*(obj: ProtoObject, name: string): NodeValue =
+proc getSlot*(obj: RuntimeObject, name: string): NodeValue =
   ## Get slot value by name (O(1) if slot exists)
   if obj == nil or not obj.hasSlots:
     return NodeValue(kind: vkNil)
@@ -136,7 +136,7 @@ proc getSlot*(obj: ProtoObject, name: string): NodeValue =
 
   return NodeValue(kind: vkNil)
 
-proc setSlot*(obj: ProtoObject, name: string, value: NodeValue): NodeValue =
+proc setSlot*(obj: RuntimeObject, name: string, value: NodeValue): NodeValue =
   ## Set slot value by name
   if obj == nil:
     return NodeValue(kind: vkNil)

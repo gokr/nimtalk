@@ -54,7 +54,7 @@ proc setInterpreter*(process: Process, interp: Interpreter) =
 # ============================================================================
 
 proc forkProcess*(ctx: SchedulerContext, blockNode: BlockNode,
-                  receiver: ProtoObject, name: string = ""): Process =
+                  receiver: RuntimeObject, name: string = ""): Process =
   ## Create a new green process from a Nimtalk block
   ## The new process will execute the block when scheduled
 
@@ -177,7 +177,7 @@ proc runToCompletion*(ctx: SchedulerContext, maxSteps: int = 100000): int =
 # ============================================================================
 
 # Processor yield implementation
-proc processorYieldImpl(interp: var Interpreter, self: ProtoObject,
+proc processorYieldImpl(interp: var Interpreter, self: RuntimeObject,
                         args: seq[NodeValue]): NodeValue =
   ## Processor yield - yields the current process
   ## This is called from Nimtalk code and triggers a context switch
@@ -187,7 +187,7 @@ proc processorYieldImpl(interp: var Interpreter, self: ProtoObject,
   return nilValue()
 
 # Processor fork: implementation (placeholder - needs scheduler context)
-proc processorForkImpl(interp: var Interpreter, self: ProtoObject,
+proc processorForkImpl(interp: var Interpreter, self: RuntimeObject,
                        args: seq[NodeValue]): NodeValue =
   ## Processor fork: aBlock - creates a new process to run aBlock
   ## Note: This is a placeholder. Full implementation needs scheduler context.
@@ -200,17 +200,17 @@ proc processorForkImpl(interp: var Interpreter, self: ProtoObject,
   return nilValue()
 
 # Processor current implementation
-proc processorCurrentImpl(interp: var Interpreter, self: ProtoObject,
+proc processorCurrentImpl(interp: var Interpreter, self: RuntimeObject,
                           args: seq[NodeValue]): NodeValue =
   ## Processor current - returns the current process (placeholder)
   debug("Processor current called")
   return nilValue()
 
-proc createProcessorObject*(interp: var Interpreter): ProtoObject =
+proc createProcessorObject*(interp: var Interpreter): RuntimeObject =
   ## Create the Processor global object
-  let processorObj = ProtoObject()
+  let processorObj = RuntimeObject()
   processorObj.methods = initTable[string, BlockNode]()
-  processorObj.parents = @[interp.rootObject.ProtoObject]
+  processorObj.parents = @[interp.rootObject.RuntimeObject]
   processorObj.tags = @["Processor", "Scheduler"]
   processorObj.isNimProxy = false
   processorObj.nimValue = nil

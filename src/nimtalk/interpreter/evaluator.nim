@@ -5,18 +5,18 @@ import ../parser/parser
 import ../interpreter/objects
 import ../interpreter/activation
 
-# Prototype caches are defined in objects.nim and shared across the interpreter
+# Class caches are defined in objects.nim and shared across the interpreter
 
 # Forward declarations for methods defined later in this file
 proc wrapIntAsObject*(value: int): NodeValue =
   ## Wrap an integer as a Nim proxy object that can receive messages
-  let obj = ProtoObject()
+  let obj = RuntimeObject()
   obj.methods = initTable[string, BlockNode]()
-  # Use Integer prototype as parent if available
-  if integerPrototypeCache != nil:
-    obj.parents = @[integerPrototypeCache]
+  # Use Integer class as parent if available
+  if integerClassCache != nil:
+    obj.parents = @[integerClassCache]
   else:
-    obj.parents = @[initRootObject().ProtoObject]
+    obj.parents = @[initRootObject().RuntimeObject]
   obj.tags = @["Integer", "Number"]
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](alloc(sizeof(int)))
@@ -27,15 +27,15 @@ proc wrapIntAsObject*(value: int): NodeValue =
 # Implementation of wrapBoolAsObject for proxy booleans
 proc wrapBoolAsObject*(value: bool): NodeValue =
   ## Wrap a boolean as a Nim proxy object that can receive messages
-  let obj = ProtoObject()
+  let obj = RuntimeObject()
   obj.methods = initTable[string, BlockNode]()
-  # Use True/False prototype as parent if available
-  if value and truePrototypeCache != nil:
-    obj.parents = @[truePrototypeCache]
-  elif not value and falsePrototypeCache != nil:
-    obj.parents = @[falsePrototypeCache]
+  # Use True/False class as parent if available
+  if value and trueClassCache != nil:
+    obj.parents = @[trueClassCache]
+  elif not value and falseClassCache != nil:
+    obj.parents = @[falseClassCache]
   else:
-    obj.parents = @[initRootObject().ProtoObject]
+    obj.parents = @[initRootObject().RuntimeObject]
   obj.tags = if value: @["Boolean", "True"] else: @["Boolean", "False"]
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](alloc(sizeof(bool)))
@@ -48,18 +48,18 @@ proc wrapStringAsObject*(s: string): NodeValue =
   ## Wrap a string as a Nim proxy object that can receive messages
   let obj = DictionaryObj()
   obj.methods = initTable[string, BlockNode]()
-  # Use String prototype as parent if available
-  if stringPrototypeCache != nil:
-    obj.parents = @[stringPrototypeCache]
+  # Use String class as parent if available
+  if stringClassCache != nil:
+    obj.parents = @[stringClassCache]
   else:
-    obj.parents = @[initRootObject().ProtoObject]
+    obj.parents = @[initRootObject().RuntimeObject]
   obj.tags = @["String", "Text"]
   obj.isNimProxy = true
   obj.nimType = "string"
   # Store string value
   obj.properties = initTable[string, NodeValue]()
   obj.properties["__value"] = NodeValue(kind: vkString, strVal: s)
-  return NodeValue(kind: vkObject, objVal: obj.ProtoObject)
+  return NodeValue(kind: vkObject, objVal: obj.RuntimeObject)
 
 # Implementation of wrapArrayAsObject for proxy arrays
 # Uses DictionaryObj to store elements in properties for safety
@@ -68,11 +68,11 @@ proc wrapArrayAsObject*(arr: seq[NodeValue]): NodeValue =
   let obj = DictionaryObj()
   obj.methods = initTable[string, BlockNode]()
 
-  # Try to use Array prototype as parent if available
-  if arrayPrototypeCache != nil:
-    obj.parents = @[arrayPrototypeCache]
+  # Try to use Array class as parent if available
+  if arrayClassCache != nil:
+    obj.parents = @[arrayClassCache]
   else:
-    obj.parents = @[initRootObject().ProtoObject]
+    obj.parents = @[initRootObject().RuntimeObject]
 
   obj.tags = @["Array", "Collection"]
   obj.isNimProxy = true
@@ -82,7 +82,7 @@ proc wrapArrayAsObject*(arr: seq[NodeValue]): NodeValue =
   obj.properties["__size"] = NodeValue(kind: vkInt, intVal: arr.len)
   for i, elem in arr:
     obj.properties[$i] = elem  # 0-based index internally
-  return NodeValue(kind: vkObject, objVal: obj.ProtoObject)
+  return NodeValue(kind: vkObject, objVal: obj.RuntimeObject)
 
 # Implementation of wrapTableAsObject for proxy tables
 # Uses DictionaryObj to store entries in properties for safety
@@ -90,20 +90,20 @@ proc wrapTableAsObject*(tab: Table[string, NodeValue]): NodeValue =
   ## Wrap a table as a Nim proxy object that can receive messages
   let obj = DictionaryObj()
   obj.methods = initTable[string, BlockNode]()
-  obj.parents = @[initRootObject().ProtoObject]
+  obj.parents = @[initRootObject().RuntimeObject]
   obj.tags = @["Table", "Collection", "Dictionary"]
   obj.isNimProxy = true
   obj.nimType = "table"
   # Store entries in properties
   obj.properties = tab
-  return NodeValue(kind: vkObject, objVal: obj.ProtoObject)
+  return NodeValue(kind: vkObject, objVal: obj.RuntimeObject)
 
 # Implementation of wrapFloatAsObject for proxy floats
 proc wrapFloatAsObject*(value: float): NodeValue =
   ## Wrap a float as a Nim proxy object that can receive messages
-  let obj = ProtoObject()
+  let obj = RuntimeObject()
   obj.methods = initTable[string, BlockNode]()
-  obj.parents = @[initRootObject().ProtoObject]
+  obj.parents = @[initRootObject().RuntimeObject]
   obj.tags = @["Float", "Number"]
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](alloc(sizeof(float)))
@@ -116,22 +116,22 @@ proc wrapFloatAsObject*(value: float): NodeValue =
 
 # Implementation of wrapBlockAsObject for blocks (needed for methods like whileTrue:)
 proc wrapBlockAsObject*(blockNode: BlockNode): NodeValue =
-  ## Wrap a block as a ProtoObject that can receive messages (like whileTrue:)
+  ## Wrap a block as a RuntimeObject that can receive messages (like whileTrue:)
   ## The BlockNode is stored so it can be executed later
   let obj = DictionaryObj()
   obj.methods = initTable[string, BlockNode]()
-  # Use Block prototype as parent if available
-  if blockPrototypeCache != nil:
-    obj.parents = @[blockPrototypeCache]
+  # Use Block class as parent if available
+  if blockClassCache != nil:
+    obj.parents = @[blockClassCache]
   else:
-    obj.parents = @[initRootObject().ProtoObject]
+    obj.parents = @[initRootObject().RuntimeObject]
   obj.tags = @["Block", "Closure"]
   obj.isNimProxy = false
   obj.nimType = "block"
   # Store block node in properties so whileTrue:/whileFalse: can access it
   obj.properties = initTable[string, NodeValue]()
   obj.properties["__blockNode"] = NodeValue(kind: vkBlock, blockVal: blockNode)
-  return NodeValue(kind: vkObject, objVal: obj.ProtoObject)
+  return NodeValue(kind: vkObject, objVal: obj.RuntimeObject)
 
 # ============================================================================
 # Evaluation engine for Nimtalk
@@ -141,7 +141,7 @@ proc wrapBlockAsObject*(blockNode: BlockNode): NodeValue =
 type
   # Exception handler record for on:do: mechanism
   ExceptionHandler* {.acyclic.} = object
-    exceptionClass*: ProtoObject    # The exception class to catch
+    exceptionClass*: RuntimeObject    # The exception class to catch
     handlerBlock*: BlockNode        # Block to execute when caught
     activation*: Activation         # Activation where handler was installed
     stackDepth*: int                # Stack depth when handler installed
@@ -150,7 +150,7 @@ type
     globals*: ref Table[string, NodeValue]
     activationStack*: seq[Activation]
     currentActivation*: Activation
-    currentReceiver*: ProtoObject
+    currentReceiver*: RuntimeObject
     rootObject*: RootObject
     maxStackDepth*: int
     traceExecution*: bool
@@ -166,8 +166,8 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue
 proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue
 proc evalCascade(interp: var Interpreter, cascadeNode: CascadeNode): NodeValue
 proc evalSuperSend(interp: var Interpreter, superNode: SuperSendNode): NodeValue
-proc asSelfDoImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue
-proc performWithImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc asSelfDoImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc performWithImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue
 
 # Initialize interpreter
 proc newInterpreter*(trace: bool = false): Interpreter =
@@ -193,31 +193,31 @@ proc newInterpreter*(trace: bool = false): Interpreter =
   let asSelfDoMethod = createCoreMethod("asSelfDo:")
   asSelfDoMethod.nativeImpl = cast[pointer](asSelfDoImpl)
   asSelfDoMethod.hasInterpreterParam = true
-  addMethod(result.rootObject.ProtoObject, "asSelfDo:", asSelfDoMethod)
+  addMethod(result.rootObject.RuntimeObject, "asSelfDo:", asSelfDoMethod)
 
   # Add primitiveAsSelfDo: method to root object (interpreter-aware)
   let primitiveAsSelfDoMethod = createCoreMethod("primitiveAsSelfDo:")
   primitiveAsSelfDoMethod.nativeImpl = cast[pointer](asSelfDoImpl)
   primitiveAsSelfDoMethod.hasInterpreterParam = true
-  addMethod(result.rootObject.ProtoObject, "primitiveAsSelfDo:", primitiveAsSelfDoMethod)
+  addMethod(result.rootObject.RuntimeObject, "primitiveAsSelfDo:", primitiveAsSelfDoMethod)
 
   # Add perform: method to root object (interpreter-aware)
   let performMethod = createCoreMethod("perform:")
   performMethod.nativeImpl = cast[pointer](performWithImpl)
   performMethod.hasInterpreterParam = true
-  addMethod(result.rootObject.ProtoObject, "perform:", performMethod)
+  addMethod(result.rootObject.RuntimeObject, "perform:", performMethod)
 
   # Add perform:with: method to root object (interpreter-aware)
   let performWithMethod = createCoreMethod("perform:with:")
   performWithMethod.nativeImpl = cast[pointer](performWithImpl)
   performWithMethod.hasInterpreterParam = true
-  addMethod(result.rootObject.ProtoObject, "perform:with:", performWithMethod)
+  addMethod(result.rootObject.RuntimeObject, "perform:with:", performWithMethod)
 
   # Add perform:with:with: method to root object (interpreter-aware)
   let performWithWithMethod = createCoreMethod("perform:with:with:")
   performWithWithMethod.nativeImpl = cast[pointer](performWithImpl)
   performWithWithMethod.hasInterpreterParam = true
-  addMethod(result.rootObject.ProtoObject, "perform:with:with:", performWithWithMethod)
+  addMethod(result.rootObject.RuntimeObject, "perform:with:with:", performWithWithMethod)
 
 # Create interpreter with shared globals and rootObject (for green threads)
 proc newInterpreterWithShared*(globals: ref Table[string, NodeValue],
@@ -245,7 +245,7 @@ proc checkStackDepth(interp: var Interpreter) =
     raise newException(EvalError, "Stack overflow: max depth " & $interp.maxStackDepth)
 
 # Helper to get method name from receiver
-proc getMethodName(receiver: ProtoObject, blk: BlockNode): string =
+proc getMethodName(receiver: RuntimeObject, blk: BlockNode): string =
   ## Get a display name for a method
   # Find method name by looking up in receiver
   for selector, meth in receiver.methods:
@@ -486,8 +486,14 @@ proc invokeBlock*(interp: var Interpreter, blockNode: BlockNode, args: seq[NodeV
       ", got " & $args.len)
 
   # Create activation for block execution
-  # The receiver is the same as the current receiver
-  let activation = newActivation(blockNode, interp.currentReceiver, interp.currentActivation)
+  # Use the block's home activation receiver for proper 'self' resolution
+  # This ensures that 'self' inside a block refers to the receiver where
+  # the block was created, not where it's being invoked
+  let blockReceiver = if blockNode.homeActivation != nil:
+                        blockNode.homeActivation.receiver
+                      else:
+                        interp.currentReceiver
+  let activation = newActivation(blockNode, blockReceiver, interp.currentActivation)
 
   # Keep track of captured variable names so we can save them back
   var capturedVarNames: seq[string] = @[]
@@ -545,12 +551,12 @@ proc invokeBlock*(interp: var Interpreter, blockNode: BlockNode, args: seq[NodeV
 type
   MethodResult* = object
     currentMethod*: BlockNode
-    receiver*: ProtoObject
-    definingObject*: ProtoObject  # where method was found (for super)
+    receiver*: RuntimeObject
+    definingObject*: RuntimeObject  # where method was found (for super)
     found*: bool
 
-proc lookupMethod(interp: Interpreter, receiver: ProtoObject, selector: string): MethodResult =
-  ## Look up method in receiver and prototype chain using canonical symbol
+proc lookupMethod(interp: Interpreter, receiver: RuntimeObject, selector: string): MethodResult =
+  ## Look up method in receiver and class hierarchy using canonical symbol
   let sym = getSymbol(selector)
   let selectorKey = sym.symVal
   debug("Looking up method: '", selectorKey, "' in receiver with tags: ", $receiver.tags)
@@ -590,8 +596,8 @@ proc lookupMethod(interp: Interpreter, receiver: ProtoObject, selector: string):
 
 # Execute a currentMethod
 proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
-                  receiver: ProtoObject, arguments: seq[Node],
-                  definingObject: ProtoObject = nil): NodeValue =
+                  receiver: RuntimeObject, arguments: seq[Node],
+                  definingObject: RuntimeObject = nil): NodeValue =
   ## Execute a currentMethod with given receiver and arguments
   ## definingObject is where the method was found (for super sends)
   interp.checkStackDepth()
@@ -608,12 +614,12 @@ proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
 
     # Check if this is an interpreter-aware native method (has interp parameter)
     if currentMethod.hasInterpreterParam:
-      type NativeProcWithInterp = proc(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue {.nimcall.}
+      type NativeProcWithInterp = proc(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue {.nimcall.}
       let nativeProc = cast[NativeProcWithInterp](currentMethod.nativeImpl)
       return nativeProc(interp, receiver, argValues)
     else:
       # Standard native method without interpreter
-      type NativeProc = proc(self: ProtoObject, args: seq[NodeValue]): NodeValue {.nimcall.}
+      type NativeProc = proc(self: RuntimeObject, args: seq[NodeValue]): NodeValue {.nimcall.}
       let nativeProc = cast[NativeProc](currentMethod.nativeImpl)
       return nativeProc(receiver, argValues)
 
@@ -882,7 +888,7 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
     for prop in objLit.properties:
       let valueVal = interp.eval(prop.value)
       addDictionaryProperty(dict, prop.name, valueVal)
-    return toValue(dict.ProtoObject)
+    return toValue(dict.RuntimeObject)
 
   of nkPrimitive:
     # Primitive declaration - ignore Nim code, evaluate fallback Smalltalk
@@ -906,7 +912,7 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
         let inst = cast[Instance](interp.currentReceiver)
         if slotNode.slotIndex >= 0 and slotNode.slotIndex < inst.slots.len:
           return inst.slots[slotNode.slotIndex]
-      # Fall back to legacy ProtoObject slot access by name
+      # Fall back to legacy RuntimeObject slot access by name
       else:
         return getSlot(interp.currentReceiver, slotNode.slotName)
     return nilValue()
@@ -1041,7 +1047,7 @@ proc evalSuperSend(interp: var Interpreter, superNode: SuperSendNode): NodeValue
   var cls: Class = nil
   if interp.currentReceiver of Instance:
     cls = cast[Instance](interp.currentReceiver).class
-  elif interp.currentReceiver of ProtoObject:
+  elif interp.currentReceiver of RuntimeObject:
     # Legacy: try to find class from protoObject
     # For now, raise error - super requires class-based model
     raise newException(EvalError, "super requires class-based object model")
@@ -1124,7 +1130,7 @@ proc evalCascade(interp: var Interpreter, cascadeNode: CascadeNode): NodeValue =
   return cascadeResult
 
 # Special form for sending messages directly without AST
-proc sendMessage*(interp: var Interpreter, receiver: ProtoObject,
+proc sendMessage*(interp: var Interpreter, receiver: RuntimeObject,
                  selector: string, args: varargs[NodeValue]): NodeValue =
   ## Direct message send for internal use
   var argNodes = newSeq[Node]()
@@ -1216,12 +1222,20 @@ proc evalStatements*(interp: var Interpreter, source: string): (seq[NodeValue], 
     return (@[], "Error: " & e.msg)
 
 # Block evaluation helper
-proc evalBlock(interp: var Interpreter, receiver: ProtoObject, blockNode: BlockNode): NodeValue =
+proc evalBlock(interp: var Interpreter, receiver: RuntimeObject, blockNode: BlockNode): NodeValue =
   ## Evaluate a block in the context of the given receiver
   ## Creates a proper activation to allow access to outer scope
 
+  # Use the block's home activation receiver for proper 'self' resolution
+  # This ensures that 'self' inside a block refers to the receiver where
+  # the block was created, not the caller-provided receiver
+  let blockReceiver = if blockNode.homeActivation != nil:
+                        blockNode.homeActivation.receiver
+                      else:
+                        receiver
+
   # Create activation for the block
-  let activation = newActivation(blockNode, receiver, interp.currentActivation)
+  let activation = newActivation(blockNode, blockReceiver, interp.currentActivation)
 
   # Push the activation onto the stack
   interp.activationStack.add(activation)
@@ -1246,9 +1260,14 @@ proc evalBlock(interp: var Interpreter, receiver: ProtoObject, blockNode: BlockN
 
   return blockResult
 
-proc evalBlockWithArg(interp: var Interpreter, receiver: ProtoObject, blockNode: BlockNode, arg: NodeValue): NodeValue =
+proc evalBlockWithArg(interp: var Interpreter, receiver: RuntimeObject, blockNode: BlockNode, arg: NodeValue): NodeValue =
   ## Evaluate a block with one argument
-  let activation = newActivation(blockNode, receiver, interp.currentActivation)
+  # Use the block's home activation receiver for proper 'self' resolution
+  let blockReceiver = if blockNode.homeActivation != nil:
+                        blockNode.homeActivation.receiver
+                      else:
+                        receiver
+  let activation = newActivation(blockNode, blockReceiver, interp.currentActivation)
 
   # Bind the first parameter to the argument
   if blockNode.parameters.len > 0:
@@ -1275,7 +1294,7 @@ proc evalBlockWithArg(interp: var Interpreter, receiver: ProtoObject, blockNode:
   return blockResult
 
 # asSelfDo: implementation (interpreter-aware)
-proc asSelfDoImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc asSelfDoImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Evaluate a block with self temporarily bound to the receiver
   ## Usage: someObject asSelfDo: [ ... self ... ]
   ## Inside the block, 'self' refers to someObject
@@ -1289,7 +1308,7 @@ proc asSelfDoImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValu
   return evalBlock(interp, self, blockNode)
 
 # perform:with: implementation (interpreter-aware)
-proc performWithImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc performWithImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Send a message to self with arguments: self perform: #selector with: arg
   if args.len < 1:
     return nilValue()
@@ -1320,7 +1339,7 @@ proc performWithImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeV
   return executeMethod(interp, methodResult.currentMethod, self, messageArgs, methodResult.definingObject)
 
 # Collection iteration method (interpreter-aware)
-proc doCollectionImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc doCollectionImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Iterate over collection: collection do: [:item | ... ]
   ## Returns the collection (like Smalltalk)
   if args.len < 1 or args[0].kind != vkBlock:
@@ -1368,7 +1387,7 @@ proc doCollectionImpl(interp: var Interpreter, self: ProtoObject, args: seq[Node
   return nilValue()
 
 # Conditional method implementations (need to be defined before initGlobals)
-proc ifTrueImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc ifTrueImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Execute block if receiver is true: true ifTrue: [code]
   if args.len < 1 or args[0].kind != vkBlock:
     return nilValue()
@@ -1382,7 +1401,7 @@ proc ifTrueImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]
       return evalBlock(interp, interp.currentReceiver, blockNode)
   return nilValue()
 
-proc ifFalseImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc ifFalseImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Execute block if receiver is false: false ifFalse: [code]
   if args.len < 1 or args[0].kind != vkBlock:
     return nilValue()
@@ -1397,7 +1416,7 @@ proc ifFalseImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue
   return nilValue()
 
 # Loop method implementations (interpreter-aware)
-proc whileTrueImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc whileTrueImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Execute bodyBlock while conditionBlock evaluates to true: [cond] whileTrue: [body]
   ## self is the condition block (receiver), args[0] is the body block
   if args.len < 1 or args[0].kind != vkBlock:
@@ -1441,7 +1460,7 @@ proc whileTrueImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeVal
 
   return lastResult
 
-proc whileFalseImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc whileFalseImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Execute bodyBlock while conditionBlock evaluates to false: [cond] whileFalse: [body]
   ## self is the condition block (receiver), args[0] is the body block
   if args.len < 1 or args[0].kind != vkBlock:
@@ -1486,7 +1505,7 @@ proc whileFalseImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeVa
   return lastResult
 
 # Exception handling methods
-proc onDoImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc onDoImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Install exception handler: [ protectedBlock ] on: ExceptionClass do: [ :ex | handler ]
   ## self is the protected block (receiver), args[0] is exception class, args[1] is handler block
   if args.len < 2 or args[1].kind != vkBlock:
@@ -1532,7 +1551,7 @@ proc onDoImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]):
         exObj.message = e.msg
         exObj.stackTrace = "Stack trace placeholder"
         exObj.methods = initTable[string, BlockNode]()
-        exObj.parents = @[rootObject.ProtoObject]
+        exObj.parents = @[rootObject.RuntimeObject]
         exObj.tags = @["Exception", "Error"]
         exObj.isNimProxy = false
         exObj.hasSlots = false
@@ -1541,7 +1560,7 @@ proc onDoImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]):
         interp.exceptionHandlers.setLen(i)
 
         # Execute handler with exception as argument
-        let exVal = NodeValue(kind: vkObject, objVal: exObj.ProtoObject)
+        let exVal = NodeValue(kind: vkObject, objVal: exObj.RuntimeObject)
         blockResult = evalBlockWithArg(interp, interp.currentReceiver, h.handlerBlock, exVal)
         handled = true
         break
@@ -1558,7 +1577,7 @@ proc onDoImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]):
 
   return blockResult
 
-proc signalImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc signalImpl(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Signal an exception: exception signal
   ## self is the exception object
   var message = "Unknown error"
@@ -1570,7 +1589,7 @@ proc signalImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   raise newException(ValueError, message)
 
 # Global namespace methods - using shared table reference
-proc globalAtImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc globalAtImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Global at: key - lookup global by name
   if args.len < 1 or args[0].kind != vkString:
     return nilValue()
@@ -1579,7 +1598,7 @@ proc globalAtImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValu
     return interp.globals[][key]
   return nilValue()
 
-proc globalAtPutImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc globalAtPutImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Global at: key put: value - set global
   if args.len < 2 or args[0].kind != vkString:
     return nilValue()
@@ -1588,7 +1607,7 @@ proc globalAtPutImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeV
   interp.globals[][key] = val
   return val
 
-proc globalAtIfAbsentImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc globalAtIfAbsentImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Global at: key ifAbsent: block - lookup or execute block
   if args.len < 2 or args[0].kind != vkString or args[1].kind != vkBlock:
     return nilValue()
@@ -1599,7 +1618,7 @@ proc globalAtIfAbsentImpl(interp: var Interpreter, self: ProtoObject, args: seq[
   return evalBlock(interp, self, args[1].blockVal)
 
 # Array iteration method
-proc arrayDoImpl(interp: var Interpreter, self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc arrayDoImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Iterate over array elements: arr do: [ :elem | code ]
   ## self is the array, args[0] is the block to execute for each element
   if args.len < 1 or args[0].kind != vkBlock:
@@ -1635,12 +1654,12 @@ proc initGlobals*(interp: var Interpreter) =
 
   # Add Dictionary to globals
   if dictionaryPrototype != nil:
-    interp.globals[]["Dictionary"] = dictionaryPrototype.ProtoObject.toValue()
+    interp.globals[]["Dictionary"] = dictionaryPrototype.RuntimeObject.toValue()
 
-  # Create Float prototype
-  let floatProto = ProtoObject()
+  # Create Float class
+  let floatProto = RuntimeObject()
   floatProto.methods = initTable[string, BlockNode]()
-  floatProto.parents = @[interp.rootObject.ProtoObject]
+  floatProto.parents = @[interp.rootObject.RuntimeObject]
   floatProto.tags = @["Float", "Number"]
   floatProto.isNimProxy = false
   floatProto.nimValue = nil
@@ -1650,10 +1669,10 @@ proc initGlobals*(interp: var Interpreter) =
   floatProto.slotNames = initTable[string, int]()
   interp.globals[]["Float"] = floatProto.toValue()
 
-  # Create Array prototype
-  let arrayProto = ProtoObject()
+  # Create Array class
+  let arrayProto = RuntimeObject()
   arrayProto.methods = initTable[string, BlockNode]()
-  arrayProto.parents = @[interp.rootObject.ProtoObject]
+  arrayProto.parents = @[interp.rootObject.RuntimeObject]
   arrayProto.tags = @["Array", "Collection"]
   arrayProto.isNimProxy = false
   arrayProto.nimValue = nil
@@ -1705,12 +1724,12 @@ proc initGlobals*(interp: var Interpreter) =
   addMethod(arrayProto, "do:", arrayDoMethod)
 
   interp.globals[]["Array"] = arrayProto.toValue()
-  arrayPrototypeCache = arrayProto  # Set cache for array literals
+  arrayClassCache = arrayProto  # Set cache for array literals
 
-  # Create Table prototype
-  let tableProto = ProtoObject()
+  # Create Table class
+  let tableProto = RuntimeObject()
   tableProto.methods = initTable[string, BlockNode]()
-  tableProto.parents = @[interp.rootObject.ProtoObject]
+  tableProto.parents = @[interp.rootObject.RuntimeObject]
   tableProto.tags = @["Table", "Collection", "Dictionary"]
   tableProto.isNimProxy = false
   tableProto.nimValue = nil
@@ -1746,10 +1765,10 @@ proc initGlobals*(interp: var Interpreter) =
 
   interp.globals[]["Table"] = tableProto.toValue()
 
-  # Create String prototype
-  let stringProto = ProtoObject()
+  # Create String class
+  let stringProto = RuntimeObject()
   stringProto.methods = initTable[string, BlockNode]()
-  stringProto.parents = @[interp.rootObject.ProtoObject]
+  stringProto.parents = @[interp.rootObject.RuntimeObject]
   stringProto.tags = @["String", "Text"]
   stringProto.isNimProxy = false
   stringProto.nimValue = nil
@@ -1805,10 +1824,10 @@ proc initGlobals*(interp: var Interpreter) =
 
   interp.globals[]["String"] = stringProto.toValue()
 
-  # Create FileStream prototype
+  # Create FileStream class
   let fileStreamProto = FileStreamObj()
   fileStreamProto.methods = initTable[string, BlockNode]()
-  fileStreamProto.parents = @[interp.rootObject.ProtoObject]
+  fileStreamProto.parents = @[interp.rootObject.RuntimeObject]
   fileStreamProto.tags = @["FileStream", "IO"]
   fileStreamProto.isNimProxy = false
   fileStreamProto.nimValue = nil
@@ -1823,38 +1842,38 @@ proc initGlobals*(interp: var Interpreter) =
   # Add FileStream primitive methods
   let fileOpenMethod = createCoreMethod("primitiveFileOpen:mode:")
   fileOpenMethod.nativeImpl = cast[pointer](fileOpenImpl)
-  addMethod(fileStreamProto.ProtoObject, "primitiveFileOpen:mode:", fileOpenMethod)
+  addMethod(fileStreamProto.RuntimeObject, "primitiveFileOpen:mode:", fileOpenMethod)
 
   let fileCloseMethod = createCoreMethod("primitiveFileClose")
   fileCloseMethod.nativeImpl = cast[pointer](fileCloseImpl)
-  addMethod(fileStreamProto.ProtoObject, "primitiveFileClose", fileCloseMethod)
+  addMethod(fileStreamProto.RuntimeObject, "primitiveFileClose", fileCloseMethod)
 
   let fileReadLineMethod = createCoreMethod("primitiveFileReadLine")
   fileReadLineMethod.nativeImpl = cast[pointer](fileReadLineImpl)
-  addMethod(fileStreamProto.ProtoObject, "primitiveFileReadLine", fileReadLineMethod)
+  addMethod(fileStreamProto.RuntimeObject, "primitiveFileReadLine", fileReadLineMethod)
 
   let fileWriteMethod = createCoreMethod("primitiveFileWrite:")
   fileWriteMethod.nativeImpl = cast[pointer](fileWriteImpl)
-  addMethod(fileStreamProto.ProtoObject, "primitiveFileWrite:", fileWriteMethod)
+  addMethod(fileStreamProto.RuntimeObject, "primitiveFileWrite:", fileWriteMethod)
 
   let fileAtEndMethod = createCoreMethod("primitiveFileAtEnd")
   fileAtEndMethod.nativeImpl = cast[pointer](fileAtEndImpl)
-  addMethod(fileStreamProto.ProtoObject, "primitiveFileAtEnd", fileAtEndMethod)
+  addMethod(fileStreamProto.RuntimeObject, "primitiveFileAtEnd", fileAtEndMethod)
 
   let fileReadAllMethod = createCoreMethod("primitiveFileReadAll")
   fileReadAllMethod.nativeImpl = cast[pointer](fileReadAllImpl)
-  addMethod(fileStreamProto.ProtoObject, "primitiveFileReadAll", fileReadAllMethod)
+  addMethod(fileStreamProto.RuntimeObject, "primitiveFileReadAll", fileReadAllMethod)
 
-  interp.globals[]["FileStream"] = fileStreamProto.ProtoObject.toValue()
+  interp.globals[]["FileStream"] = fileStreamProto.RuntimeObject.toValue()
 
   # Add Random to globals
   if randomPrototype != nil:
-    interp.globals[]["Random"] = randomPrototype.ProtoObject.toValue()
+    interp.globals[]["Random"] = randomPrototype.RuntimeObject.toValue()
 
   # Create and register Stdout object
-  let stdoutObj = ProtoObject()
+  let stdoutObj = RuntimeObject()
   stdoutObj.methods = initTable[string, BlockNode]()
-  stdoutObj.parents = @[interp.rootObject.ProtoObject]
+  stdoutObj.parents = @[interp.rootObject.RuntimeObject]
   stdoutObj.tags = @["Stdio", "Stdout"]
   stdoutObj.isNimProxy = false
   stdoutObj.nimValue = nil
@@ -1874,9 +1893,9 @@ proc initGlobals*(interp: var Interpreter) =
   interp.globals[]["stdout"] = stdoutObj.toValue()
 
   # Create Transcript object for logging/output
-  let transcriptObj = ProtoObject()
+  let transcriptObj = RuntimeObject()
   transcriptObj.methods = initTable[string, BlockNode]()
-  transcriptObj.parents = @[interp.rootObject.ProtoObject]
+  transcriptObj.parents = @[interp.rootObject.RuntimeObject]
   transcriptObj.tags = @["Transcript"]
   transcriptObj.isNimProxy = false
   transcriptObj.nimValue = nil
@@ -1901,7 +1920,7 @@ proc initGlobals*(interp: var Interpreter) =
   # Create Global namespace object with shared table reference
   let globalObj = GlobalObj()
   globalObj.methods = initTable[string, BlockNode]()
-  globalObj.parents = @[interp.rootObject.ProtoObject]
+  globalObj.parents = @[interp.rootObject.RuntimeObject]
   globalObj.tags = @["Global", "Registry"]
   globalObj.isNimProxy = false
   globalObj.nimValue = nil
@@ -1916,24 +1935,24 @@ proc initGlobals*(interp: var Interpreter) =
   let globalAtMethod = createCoreMethod("at:")
   globalAtMethod.nativeImpl = cast[pointer](globalAtImpl)
   globalAtMethod.hasInterpreterParam = true
-  addMethod(globalObj.ProtoObject, "at:", globalAtMethod)
+  addMethod(globalObj.RuntimeObject, "at:", globalAtMethod)
 
   let globalAtPutMethod = createCoreMethod("at:put:")
   globalAtPutMethod.nativeImpl = cast[pointer](globalAtPutImpl)
   globalAtPutMethod.hasInterpreterParam = true
-  addMethod(globalObj.ProtoObject, "at:put:", globalAtPutMethod)
+  addMethod(globalObj.RuntimeObject, "at:put:", globalAtPutMethod)
 
   let globalAtIfAbsentMethod = createCoreMethod("at:ifAbsent:")
   globalAtIfAbsentMethod.nativeImpl = cast[pointer](globalAtIfAbsentImpl)
   globalAtIfAbsentMethod.hasInterpreterParam = true
-  addMethod(globalObj.ProtoObject, "at:ifAbsent:", globalAtIfAbsentMethod)
+  addMethod(globalObj.RuntimeObject, "at:ifAbsent:", globalAtIfAbsentMethod)
 
-  interp.globals[]["Global"] = globalObj.ProtoObject.toValue()
+  interp.globals[]["Global"] = globalObj.RuntimeObject.toValue()
 
   # Create true and false as objects with ifTrue: and ifFalse: methods
-  let trueObj = ProtoObject()
+  let trueObj = RuntimeObject()
   trueObj.methods = initTable[string, BlockNode]()
-  trueObj.parents = @[interp.rootObject.ProtoObject]
+  trueObj.parents = @[interp.rootObject.RuntimeObject]
   trueObj.tags = @["Boolean", "True"]
   trueObj.isNimProxy = true
   trueObj.nimValue = cast[pointer](alloc(sizeof(bool)))
@@ -1942,9 +1961,9 @@ proc initGlobals*(interp: var Interpreter) =
   trueObj.hasSlots = false
   trueObj.slotNames = initTable[string, int]()
 
-  let falseObj = ProtoObject()
+  let falseObj = RuntimeObject()
   falseObj.methods = initTable[string, BlockNode]()
-  falseObj.parents = @[interp.rootObject.ProtoObject]
+  falseObj.parents = @[interp.rootObject.RuntimeObject]
   falseObj.tags = @["Boolean", "False"]
   falseObj.isNimProxy = true
   falseObj.nimValue = cast[pointer](alloc(sizeof(bool)))
@@ -1966,10 +1985,10 @@ proc initGlobals*(interp: var Interpreter) =
   addMethod(trueObj, "ifFalse:", ifFalseMethod)
   addMethod(falseObj, "ifFalse:", ifFalseMethod)
 
-  # Create Block prototype with loop methods
-  let blockProto = ProtoObject()
+  # Create Block class with loop methods
+  let blockProto = RuntimeObject()
   blockProto.methods = initTable[string, BlockNode]()
-  blockProto.parents = @[interp.rootObject.ProtoObject]
+  blockProto.parents = @[interp.rootObject.RuntimeObject]
   blockProto.tags = @["Block", "Closure"]
   blockProto.isNimProxy = false
   blockProto.nimValue = nil
@@ -2003,10 +2022,10 @@ proc initGlobals*(interp: var Interpreter) =
   trueValue = trueObj.toValue()
   falseValue = falseObj.toValue()
 
-  # Create Exception prototype
+  # Create Exception class
   let exceptionProto = ExceptionObj()
   exceptionProto.methods = initTable[string, BlockNode]()
-  exceptionProto.parents = @[interp.rootObject.ProtoObject]
+  exceptionProto.parents = @[interp.rootObject.RuntimeObject]
   exceptionProto.tags = @["Exception", "Error"]
   exceptionProto.isNimProxy = false
   exceptionProto.nimValue = nil
@@ -2020,17 +2039,17 @@ proc initGlobals*(interp: var Interpreter) =
 
   let signalMethod = createCoreMethod("signal:")
   signalMethod.nativeImpl = cast[pointer](signalImpl)
-  addMethod(exceptionProto.ProtoObject, "signal:", signalMethod)
+  addMethod(exceptionProto.RuntimeObject, "signal:", signalMethod)
 
   let signalNoArgMethod = createCoreMethod("signal")
   signalNoArgMethod.nativeImpl = cast[pointer](signalImpl)
-  addMethod(exceptionProto.ProtoObject, "signal", signalNoArgMethod)
+  addMethod(exceptionProto.RuntimeObject, "signal", signalNoArgMethod)
 
-  interp.globals[]["Exception"] = exceptionProto.ProtoObject.toValue()
-  interp.globals[]["Error"] = exceptionProto.ProtoObject.toValue()
+  interp.globals[]["Exception"] = exceptionProto.RuntimeObject.toValue()
+  interp.globals[]["Error"] = exceptionProto.RuntimeObject.toValue()
 
   # Note: do: method is registered on array and table proxy objects dynamically
-  # It would be better to have a Collection prototype, but for now we rely on
+  # It would be better to have a Collection class, but for now we rely on
   # the atCollectionImpl method registered on rootObject for at: access
 
 # Load standard library files
@@ -2064,37 +2083,37 @@ proc loadStdlib*(interp: var Interpreter, basePath: string = "") =
     else:
       warn("Stdlib file not found: ", filepath)
 
-  # Set up prototype caches for primitive types
+  # Set up class caches for primitive types
   # These allow wrapped primitives to inherit methods from stdlib
   if "Integer" in interp.globals[]:
     let intVal = interp.globals[]["Integer"]
     if intVal.kind == vkObject:
-      integerPrototypeCache = intVal.objVal
-      debug("Set integerPrototypeCache from Integer global")
+      integerClassCache = intVal.objVal
+      debug("Set integerClassCache from Integer global")
 
   if "String" in interp.globals[]:
     let strVal = interp.globals[]["String"]
     if strVal.kind == vkObject:
-      stringPrototypeCache = strVal.objVal
-      debug("Set stringPrototypeCache from String global")
+      stringClassCache = strVal.objVal
+      debug("Set stringClassCache from String global")
 
   if "True" in interp.globals[]:
     let trueVal = interp.globals[]["True"]
     if trueVal.kind == vkObject:
-      truePrototypeCache = trueVal.objVal
-      debug("Set truePrototypeCache from True global")
+      trueClassCache = trueVal.objVal
+      debug("Set trueClassCache from True global")
 
   if "False" in interp.globals[]:
     let falseVal = interp.globals[]["False"]
     if falseVal.kind == vkObject:
-      falsePrototypeCache = falseVal.objVal
-      debug("Set falsePrototypeCache from False global")
+      falseClassCache = falseVal.objVal
+      debug("Set falseClassCache from False global")
 
   if "Block" in interp.globals[]:
     let blockVal = interp.globals[]["Block"]
     if blockVal.kind == vkObject:
-      blockPrototypeCache = blockVal.objVal
-      debug("Set blockPrototypeCache from Block global")
+      blockClassCache = blockVal.objVal
+      debug("Set blockClassCache from Block global")
 
 # Simple test function (incomplete - commented out)
 ## proc testBasicArithmetic*(): bool =
