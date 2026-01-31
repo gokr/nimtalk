@@ -4,7 +4,7 @@ This document compares Nimtalk's current implementation against the Smalltalk-80
 
 ## Overview
 
-Nimtalk is a prototype-based Smalltalk dialect that compiles to Nim. While it captures much of the Smalltalk "feel" with message passing, blocks, and collection protocols, there are significant gaps compared to the full Smalltalk-80 class library.
+Nimtalk is a class-based Smalltalk dialect that compiles to Nim. While it captures much of the Smalltalk "feel" with message passing, blocks, and collection protocols, there are significant gaps compared to the full Smalltalk-80 class library.
 
 ## What's Already Implemented Well
 
@@ -378,12 +378,12 @@ Smalltalk-80 has `Date` and `Time` as subclasses of `Magnitude`:
 
 ## Implementation Notes
 
-### Prototype vs Class Model
+### Class Model
 
-Smalltalk-80 is class-based with metaclasses. Nimtalk is prototype-based. Some adaptations:
+Smalltalk-80 is class-based with metaclasses. Nimtalk is class-based. Some adaptations:
 
-- `species` in Smalltalk returns a class; in Nimtalk it could return a prototype object
-- Class methods become constructor methods on prototypes
+- `species` in Smalltalk returns a class; in Nimtalk it returns a class object
+- Class methods become constructor methods on classes
 - Instance variables become object properties
 
 ### Collection Creation Patterns

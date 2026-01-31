@@ -5,13 +5,7 @@ import ../parser/parser
 import ../interpreter/objects
 import ../interpreter/activation
 
-# Forward declaration for prototype caches
-var arrayPrototypeCache: ProtoObject = nil
-var integerPrototypeCache: ProtoObject = nil
-var stringPrototypeCache: ProtoObject = nil
-var truePrototypeCache: ProtoObject = nil
-var falsePrototypeCache: ProtoObject = nil
-var blockPrototypeCache: ProtoObject = nil
+# Prototype caches are defined in objects.nim and shared across the interpreter
 
 # Forward declarations for methods defined later in this file
 proc wrapIntAsObject*(value: int): NodeValue =
@@ -224,6 +218,26 @@ proc newInterpreter*(trace: bool = false): Interpreter =
   performWithWithMethod.nativeImpl = cast[pointer](performWithImpl)
   performWithWithMethod.hasInterpreterParam = true
   addMethod(result.rootObject.ProtoObject, "perform:with:with:", performWithWithMethod)
+
+# Create interpreter with shared globals and rootObject (for green threads)
+proc newInterpreterWithShared*(globals: ref Table[string, NodeValue],
+                                root: RootObject,
+                                trace: bool = false): Interpreter =
+  ## Create a new interpreter that shares globals and rootObject with others
+  ## Used for green threads where multiple interpreters share state
+  result = Interpreter(
+    globals: globals,
+    activationStack: @[],
+    currentActivation: nil,
+    currentReceiver: nil,
+    maxStackDepth: 1000,
+    traceExecution: trace,
+    lastResult: nilValue()
+  )
+
+  # Use the shared root object
+  result.rootObject = root
+  result.currentReceiver = root
 
 # Check stack depth to prevent infinite recursion
 proc checkStackDepth(interp: var Interpreter) =

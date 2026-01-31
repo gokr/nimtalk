@@ -190,8 +190,8 @@ Use the REPL to test small pieces of code:
 ```bash
 $ ntalk
 nt> obj := Object derive
-nt> obj at: 'test' put: 42
-nt> obj at: 'test'
+nt> obj at: #test put: 42
+nt> obj at: #test
 42
 ```
 
@@ -202,8 +202,8 @@ Create test files to isolate and reproduce issues:
 ```smalltalk
 # test_debug.nt
 test := Object derive.
-test at: 'value' put: 3 + 4.
-test at: 'value'  # Should be 7
+test at: #value put: 3 + 4.
+test at: #value  "Should be 7"
 ```
 
 Then run: `ntalk --ast --loglevel DEBUG test_debug.nt`

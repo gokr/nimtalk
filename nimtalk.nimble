@@ -1,7 +1,7 @@
-# Nimtalk - Prototype-based Smalltalk dialect for Nim
-version = "0.1.0"
+# Nimtalk - Modern Smalltalk dialect
+version = "0.2.0"
 author = "Göran Krampe"
-description = "Prototype-based Smalltalk dialect that compiles to Nim"
+description = "Modern Smalltalk dialect written in Nim"
 license = "MIT"
 
 srcDir = "src"

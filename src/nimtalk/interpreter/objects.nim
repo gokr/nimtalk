@@ -13,6 +13,7 @@ proc deriveWithIVarsImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc atImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc atPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc selectorPutImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
+proc wrapBoolAsObject*(value: bool): NodeValue
 proc plusImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc minusImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
 proc starImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue
@@ -101,6 +102,14 @@ var randomPrototype*: DictionaryObj = nil
 # Global true/false values for comparison operators
 var trueValue*: NodeValue = nilValue()
 var falseValue*: NodeValue = nilValue()
+
+# Prototype caches for wrapped primitives (set by loadStdlib)
+var truePrototypeCache*: ProtoObject = nil
+var falsePrototypeCache*: ProtoObject = nil
+var integerPrototypeCache*: ProtoObject = nil
+var stringPrototypeCache*: ProtoObject = nil
+var arrayPrototypeCache*: ProtoObject = nil
+var blockPrototypeCache*: ProtoObject = nil
 
 # Create a core method
 
@@ -872,10 +881,7 @@ proc ltImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
     let a = cast[ptr int](self.nimValue)[]
     let b = other.intVal
-    if a < b:
-      return trueValue
-    else:
-      return falseValue
+    return wrapBoolAsObject(a < b)
 
   return nilValue()
 
@@ -888,10 +894,7 @@ proc gtImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
     let a = cast[ptr int](self.nimValue)[]
     let b = other.intVal
-    if a > b:
-      return trueValue
-    else:
-      return falseValue
+    return wrapBoolAsObject(a > b)
 
   return nilValue()
 
@@ -904,10 +907,7 @@ proc eqImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
     let a = cast[ptr int](self.nimValue)[]
     let b = other.intVal
-    if a == b:
-      return trueValue
-    else:
-      return falseValue
+    return wrapBoolAsObject(a == b)
 
   return nilValue()
 
@@ -920,10 +920,7 @@ proc leImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
     let a = cast[ptr int](self.nimValue)[]
     let b = other.intVal
-    if a <= b:
-      return trueValue
-    else:
-      return falseValue
+    return wrapBoolAsObject(a <= b)
 
   return nilValue()
 
@@ -936,10 +933,7 @@ proc geImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
     let a = cast[ptr int](self.nimValue)[]
     let b = other.intVal
-    if a >= b:
-      return trueValue
-    else:
-      return falseValue
+    return wrapBoolAsObject(a >= b)
 
   return nilValue()
 
@@ -952,10 +946,7 @@ proc neImpl*(self: ProtoObject, args: seq[NodeValue]): NodeValue =
   if self.isNimProxy and self.nimType == "int" and other.kind == vkInt:
     let a = cast[ptr int](self.nimValue)[]
     let b = other.intVal
-    if a != b:
-      return trueValue
-    else:
-      return falseValue
+    return wrapBoolAsObject(a != b)
 
   return nilValue()
 
@@ -1791,10 +1782,17 @@ proc wrapIntAsObject*(value: int): NodeValue =
 
 proc wrapBoolAsObject*(value: bool): NodeValue =
   ## Wrap a boolean as a Nim proxy object that can receive messages
+  ## Uses True/False prototype caches if available for proper method inheritance
   let obj = ProtoObject()
   obj.methods = initTable[string, BlockNode]()
-  obj.parents = @[rootObject.ProtoObject]
-  obj.tags = @["Boolean"]
+  # Use True/False prototype caches if available
+  if value and truePrototypeCache != nil:
+    obj.parents = @[truePrototypeCache]
+  elif not value and falsePrototypeCache != nil:
+    obj.parents = @[falsePrototypeCache]
+  else:
+    obj.parents = @[rootObject.ProtoObject]
+  obj.tags = if value: @["Boolean", "True"] else: @["Boolean", "False"]
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](alloc(sizeof(bool)))
   cast[ptr bool](obj.nimValue)[] = value

@@ -317,13 +317,13 @@ See [NEWLINE_RULES.md](NEWLINE_RULES.md) for complete newline handling rules.
 
 ```smalltalk
 #=== Object Creation =========================
-proto := Object derive                        # Empty class
-obj   := proto derive initialize              # Create then init
+proto := Object derive                        "Empty class
+obj   := proto derive initialize              "Create then init"
 
 #=== Instance Variables ======================
-Proto := Object derive: #(#ivar1 #ivar2)        # Declare ivars
+Proto := Object derive: #(#ivar1 #ivar2)        "Declare ivars"
 obj   := Proto derive initialize.
-obj ivar1: value                              # Accessor method (direct slot access)
+obj ivar1: value                              "Accessor method" (direct slot access)
 
 #=== Methods (in files) ======================
 Proto>>method [ ^ result ]                    "Define unary"

@@ -4,7 +4,7 @@ A guide for experienced Smalltalk programmers coming to Nimtalk. This document c
 
 ## Quick Summary
 
-Nimtalk is a prototype-based Smalltalk dialect that compiles to Nim. It preserves Smalltalk's message-passing semantics and syntax feel while making pragmatic changes for a modern implementation.
+Nimtalk is a class-based Smalltalk dialect that compiles to Nim. It preserves Smalltalk's message-passing semantics and syntax feel while making pragmatic changes for a modern implementation.
 
 | Feature | Smalltalk-80 | Nimtalk |
 |---------|-------------|---------|
@@ -54,10 +54,10 @@ z := x + y.
 
 **Nimtalk:**
 ```nimtalk
-"Hello World"       "Double quotes only"
+'Hello World'       'Single quotes'
 ```
 
-**Note**: Single quotes are reserved for future use (character literals).
+**Note**: Double quotes are used for comments.
 
 ### 3. Comments
 
@@ -68,11 +68,11 @@ z := x + y.
 
 **Nimtalk:**
 ```nimtalk
-# This is a comment - hash style only
-#==== Section header
+"This is a comment - double quotes for comments"
+"==== Section header
 ```
 
-**Note**: Smalltalk-style `"comment"` syntax is not supported. Double-quoted strings are actual string literals, not comments.
+**Note**: Hash-style `# comment` is also supported for section headers.
 
 ### 4. Block Syntax
 
@@ -128,7 +128,7 @@ name: aName
 **Nimtalk:**
 ```nimtalk
 * Define class with slots
-Person := Object derive: #(name age).
+Person := Object derive: #(#name #age).
 
 * Define method using >> syntax
 Person>>name: aName [
@@ -187,7 +187,7 @@ The `class` message returns the class object itself, and methods can be stored t
 **Nimtalk:** Instance variables are indexed slots for O(1) access. The class maintains `slotNames` (declared on class) and `allSlotNames` (inherited layout).
 
 ```nimtalk
-Person := Object derive: #(name age).
+Person := Object derive: #(#name #age).
 
 * Inside methods, access by name (converted to slot index at compile time)
 Person>>name: aName [

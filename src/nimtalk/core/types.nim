@@ -5,6 +5,9 @@ import std/[tables, algorithm, hashes, logging]
 # ============================================================================
 
 # All type definitions in a single section to allow forward declarations
+# Note: {.acyclic.} pragmas are used to prevent ORC cycle detection issues
+# when objects form reference cycles (which is common in an interpreter).
+# See CLAUDE.md for details on ORC issues.
 type
   Node* = ref object of RootObj
     line*, col*: int
@@ -13,7 +16,7 @@ type
   # Class-Based Object Model (New)
   # ============================================================================
 
-  Class* = ref object of RootObj
+  Class* {.acyclic.} = ref object of RootObj
     ## Class object - defines structure and behavior for instances
     # Instance methods (methods that instances of this class will have)
     methods*: Table[string, BlockNode]      # Methods defined on this class only
@@ -38,7 +41,7 @@ type
     nimtalkType*: string                    # Nim type name for FFI
     hasSlots*: bool                         # Has any instance variables
 
-  Instance* = ref object of RootObj
+  Instance* {.acyclic.} = ref object of RootObj
     ## Instance object - pure data with reference to its class
     class*: Class                           # Reference to class
     slots*: seq[NodeValue]                  # Instance data only (indexed by allSlotNames position)
@@ -49,7 +52,7 @@ type
   # Legacy Prototype-Based Types (to be migrated)
   # ============================================================================
 
-  ProtoObject* = ref object of RootObj
+  ProtoObject* {.acyclic.} = ref object of RootObj
     methods*: Table[string, BlockNode]     # method dictionary
     parents*: seq[ProtoObject]             # prototype chain
     tags*: seq[string]                     # type tags
@@ -65,13 +68,13 @@ type
     properties*: Table[string, NodeValue]  # property bag for dynamic objects
 
   # Mutable cell for captured variables (shared between closures)
-  MutableCell* = ref object
+  MutableCell* {.acyclic.} = ref object
     value*: NodeValue          # the captured value
 
   # Forward declarations to break circular dependency
   Activation* = ref ActivationObj
 
-  BlockNode* = ref object of Node
+  BlockNode* {.acyclic.} = ref object of Node
     parameters*: seq[string]              # method parameters
     temporaries*: seq[string]             # local variables
     body*: seq[Node]                      # AST statements
@@ -82,7 +85,7 @@ type
     homeActivation*: Activation           # for non-local returns: method that created this block
 
   # Activation records for method execution (defined after BlockNode)
-  ActivationObj* = object of RootObj
+  ActivationObj* {.acyclic.} = object of RootObj
     sender*: Activation       # calling context
     receiver*: ProtoObject    # 'self'
     currentMethod*: BlockNode # current method

@@ -11,37 +11,37 @@ This document describes the **actual implemented syntax** in the current Nimtalk
 
 ## String Literals
 
-**Double quotes only** for string literals:
+**Single quotes** for string literals:
 
 ```nimtalk
-"This is a string"
+'This is a string'
 ```
 
-Single quotes are reserved for future use (possibly character literals).
+Double quotes are used for comments.
 
 ## Comments
 
-Nimtalk uses **hash-style comments only** (like Nim):
+Nimtalk uses **double-quote comments** (like Smalltalk):
 
 ```nimtalk
-# This is a comment to end of line
+"This is a comment - double quotes for comments"
 
-# Create a shallow copy of this object
+"Create a shallow copy of this object"
 ^ self perform: "primitiveClone"
 
-# Array literal - the # is followed by (, not whitespace
+"Array literal - the # is followed by (, not whitespace
 #(1 2 3)
 
-# Table literal - the # is followed by {, not whitespace
+"Table literal - the # is followed by {, not whitespace
 #{key: value}
 
-# Symbol - the # is followed by a letter
+"Symbol - the # is followed by a letter
 #symbol
 
-# Symbol with spaces: #"symbol with spaces"
+"Symbol with spaces: #'symbol with spaces'
 ```
 
-**Note**: Smalltalk-style `"comment"` syntax is not supported. Use `#` for all comments.
+**Note**: Hash-style `# comment` syntax is also supported for section headers.
 
 ## Shebang Support
 
@@ -154,7 +154,7 @@ Nimtalk supports the `>>` method definition syntax for cleaner method declaratio
 
 ```smalltalk
 # Unary method (no parameters)
-Person>>greet [ ^ "Hello, " + name ]
+Person>>greet [ ^ 'Hello, ' + name ]
 
 # Method with one parameter
 Person>>name: aName [ name := aName ]
@@ -217,10 +217,10 @@ name := "Alice".
 -10
 
 # Strings
-"hello"
+'hello'
 'world'
 
-# Symbols
+"Symbols
 #symbol
 #'symbol with spaces'
 
@@ -228,8 +228,8 @@ name := "Alice".
 #(1 2 3 "four")
 
 # Tables (use Nim's Table) - use -> for key-value pairs
-#{"key1" -> "value1" "key2" -> 42}
-#{#symbolKey -> "value"}     # Symbol keys also supported
+#{'key1' -> 'value1' 'key2' -> 42}
+#{#symbolKey -> 'value'}     "Symbol keys also supported
 ```
 
 ## Message Passing

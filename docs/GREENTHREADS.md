@@ -97,7 +97,7 @@ type
 - Each `Process` contains its own `Interpreter` instance with its own activation stack
 - The activation stack and program counter live inside the `Interpreter`, not duplicated in `Process`
 - All interpreters share a common `globals` table (for global variables)
-- All interpreters share a common `rootObject` (the prototype hierarchy root)
+- All interpreters share a common `rootObject` (the class hierarchy root)
 
 ### 3.2. Green‑threads Scheduler
 
@@ -229,7 +229,7 @@ proc forkProcess*(sched: var Scheduler, block: BlockNode, receiver: ProtoObject)
   ## Create a new green process from a Nimtalk block
   let newInterp = newInterpreter()
   newInterp.globals = sched.sharedGlobals     # Share globals table
-  newInterp.rootObject = sched.rootObject     # Share prototype root
+  newInterp.rootObject = sched.rootObject     "Share class root
 
   result = Process(
     pid: sched.nextPid(),
@@ -323,6 +323,30 @@ Processor fork: [100 timesRepeat: [Transcript show: queue take]]
 - [ ] Channels: bounded capacity, typed.
 - [ ] Actor‑mailbox processes.
 - [ ] Supervisor‑style process‑linking (re‑invent OTP for Nimtalk).
+
+### Why Green Threads Before GTK?
+
+Green threads are not strictly required for GTK4 integration. A simpler model could work:
+- Single interpreter, no scheduler
+- GTK events directly invoke Nimtalk blocks
+- Each callback runs to completion before returning to GTK
+
+This works for simple UIs but has limitations:
+- Long-running Nimtalk code blocks the UI
+- No background processing while UI is active
+- No debugger that can inspect a running process
+
+**Reasons to do green threads first:**
+
+1. **The GTK integration design assumes the scheduler exists** – the idle callback strategy, event-to-process routing, etc. all hook into scheduler infrastructure.
+
+2. **Responsive UI requires it** – even a simple "Cancel" button during a computation needs another process to handle the click.
+
+3. **The debugger use case** – one of the main goals is a Nimtalk debugger that can step through another process. This fundamentally requires multiple processes.
+
+4. **Retrofitting is harder** – adding green threads later means rewriting the GTK integration layer.
+
+**Practical approach**: Implement a minimal Phase 1 (basic scheduler with explicit yields only, no monitors yet), then start Phase 3 GTK work in parallel with Phase 2. The core scheduler loop and process spawning are what GTK integration really needs – the synchronization primitives can come later.
 
 ---
 
