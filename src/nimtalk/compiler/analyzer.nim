@@ -5,18 +5,18 @@ import ./types
 
 # ============================================================================
 # Type Analyzer
-# Parses type hints from derive: syntax and builds prototype type info
+# Parses type hints from derive: syntax and builds class type info
 # ============================================================================
 
 type
   AnalysisResult* = ref object
-    prototypes*: Table[string, PrototypeInfo]
+    classes*: Table[string, ClassInfo]
     errors*: seq[string]
 
 proc newAnalysisResult*(): AnalysisResult =
   ## Create new analysis result
   result = AnalysisResult(
-    prototypes: initTable[string, PrototypeInfo](),
+    classes: initTable[string, ClassInfo](),
     errors: @[]
   )
 
@@ -130,69 +130,69 @@ proc extractDeriveChain*(node: Node): (string, string, string) =
 
   return (receiver, parent, typeList)
 
-proc analyzePrototypeDef*(node: Node, ctx: var CompilerContext,
-                           parentProto: PrototypeInfo): PrototypeInfo =
-  ## Analyze a prototype definition and create PrototypeInfo
-  let (protoName, parentName, typeList) = extractDeriveChain(node)
+proc analyzeClassDef*(node: Node, ctx: var CompilerContext,
+                      parentClass: ClassInfo): ClassInfo =
+  ## Analyze a class definition and create ClassInfo
+  let (className, parentName, typeList) = extractDeriveChain(node)
 
-  if protoName.len == 0:
+  if className.len == 0:
     return nil
 
-  result = newPrototypeInfo(protoName, parentProto)
-  ctx.prototypes[protoName] = result
+  result = newClassInfo(className, parentClass)
+  ctx.classes[className] = result
 
   if typeList.len > 0:
     let slots = parseTypeList(typeList)
     for (name, constraint) in slots:
       discard result.addSlot(name, constraint)
 
-proc buildPrototypeGraph*(nodes: seq[Node]): AnalysisResult =
-  ## Build prototype graph from parsed nodes
+proc buildClassGraph*(nodes: seq[Node]): AnalysisResult =
+  ## Build class graph from parsed nodes
   result = newAnalysisResult()
   var ctx = newCompiler()
-  var protoMap: Table[string, PrototypeInfo]
+  var classMap: Table[string, ClassInfo]
 
-  # First pass: collect all prototype declarations
+  # First pass: collect all class declarations
   for node in nodes:
     if node.kind == nkMessage:
       let chain = extractDeriveChain(node)
-      let protoName = chain[0]
-      if protoName.len > 0 and protoName notin protoMap:
-        protoMap[protoName] = nil  # Placeholder
+      let className = chain[0]
+      if className.len > 0 and className notin classMap:
+        classMap[className] = nil  # Placeholder
 
-  # Second pass: create ProtoInfo with parent links
+  # Second pass: create ClassInfo with parent links
   for node in nodes:
     if node.kind == nkMessage:
       let chain = extractDeriveChain(node)
-      let protoName = chain[0]
+      let className = chain[0]
       let parentName = chain[1]
       let typeList = chain[2]
 
-      if protoName.len > 0:
-        let parent = if parentName in protoMap: protoMap[parentName] else: nil
+      if className.len > 0:
+        let parent = if parentName in classMap: classMap[parentName] else: nil
 
-        if protoName in ctx.prototypes:
-          result.errors.add("Duplicate prototype definition: " & protoName)
+        if className in ctx.classes:
+          result.errors.add("Duplicate class definition: " & className)
           continue
 
-        let proto = newPrototypeInfo(protoName, parent)
-        ctx.prototypes[protoName] = proto
+        let cls = newClassInfo(className, parent)
+        ctx.classes[className] = cls
 
         if typeList.len > 0:
           let slots = parseTypeList(typeList)
           for (name, constraint) in slots:
-            discard proto.addSlot(name, constraint)
+            discard cls.addSlot(name, constraint)
 
-  result.prototypes = ctx.prototypes
+  result.classes = ctx.classes
 
   # Resolve slot indices
-  for proto in ctx.prototypes.mvalues:
-    proto.slotIndex.clear()
-    var idx = proto.parent.getAllSlots().len
-    for slot in proto.slots.mitems:
+  for cls in ctx.classes.mvalues:
+    cls.slotIndex.clear()
+    var idx = cls.parent.getAllSlots().len
+    for slot in cls.slots.mitems:
       if not slot.isInherited:
         slot.index = idx
-        proto.slotIndex[slot.name] = idx
+        cls.slotIndex[slot.name] = idx
         inc idx
 
   return result

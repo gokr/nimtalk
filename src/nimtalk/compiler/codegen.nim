@@ -21,7 +21,7 @@ proc genMethodStub(meth: BlockNode, selector: string): string =
   let nimName = mangleSelector(selector)
   let arity = meth.parameters.len
 
-  var output = "proc " & nimName & "*(self: ref ProtoObject"
+  var output = "proc " & nimName & "*(self: ref RuntimeObject"
 
   # Add parameters
   for param in meth.parameters:

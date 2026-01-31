@@ -10,21 +10,21 @@ import ./types
 
 type
   InferenceContext* = ref object
-    currentProto*: PrototypeInfo
+    currentClass*: ClassInfo
     slotConstraints*: Table[string, TypeConstraint]
     localTypes*: Table[string, TypeConstraint]
 
-proc newInferenceContext*(proto: PrototypeInfo): InferenceContext =
+proc newInferenceContext*(cls: ClassInfo): InferenceContext =
   ## Create new inference context
   result = InferenceContext(
-    currentProto: proto,
+    currentClass: cls,
     slotConstraints: initTable[string, TypeConstraint](),
     localTypes: initTable[string, TypeConstraint]()
   )
 
-  # Build slot constraints from prototype
-  if proto != nil:
-    for slot in proto.slots:
+  # Build slot constraints from class
+  if cls != nil:
+    for slot in cls.slots:
       result.slotConstraints[slot.name] = slot.constraint
 
 proc inferNodeType*(ctx: InferenceContext, node: Node): TypeConstraint =
