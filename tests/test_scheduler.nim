@@ -1,0 +1,178 @@
+import std/[unittest, tables]
+import ../src/nimtalk/core/types
+import ../src/nimtalk/core/process
+import ../src/nimtalk/core/scheduler
+import ../src/nimtalk/interpreter/evaluator
+
+suite "Green Threads - Scheduler Integration":
+
+  test "Create scheduler context":
+    let ctx = newSchedulerContext()
+
+    check ctx.scheduler != nil
+    check ctx.mainProcess != nil
+    check ctx.scheduler.processCount == 1
+    check ctx.mainProcess.name == "main"
+
+  test "Main process has interpreter":
+    let ctx = newSchedulerContext()
+    let interp = ctx.mainProcess.getInterpreter()
+
+    check not interp.globals.isNil
+    check interp.rootObject != nil
+
+  test "Shared globals between interpreters":
+    let ctx = newSchedulerContext()
+    let mainInterp = ctx.mainProcess.getInterpreter()
+
+    # Set a global in main interpreter
+    mainInterp.globals[]["testVar"] = NodeValue(kind: vkInt, intVal: 42)
+
+    # Create a second interpreter with shared state
+    let newInterp = newInterpreterWithShared(
+      ctx.scheduler.sharedGlobals,
+      ctx.scheduler.rootObject
+    )
+
+    # Check that both interpreters share the same globals
+    check "testVar" in newInterp.globals[]
+    check newInterp.globals[]["testVar"].intVal == 42
+
+    # Modify in new interpreter, check in main
+    newInterp.globals[]["testVar"] = NodeValue(kind: vkInt, intVal: 100)
+    check mainInterp.globals[]["testVar"].intVal == 100
+
+  test "Fork process with block":
+    let ctx = newSchedulerContext()
+
+    # Create a simple block
+    let blockNode = BlockNode(
+      parameters: @[],
+      temporaries: @[],
+      body: @[LiteralNode(value: NodeValue(kind: vkInt, intVal: 42)).Node],
+      isMethod: false
+    )
+
+    # Fork a new process
+    let newProc = ctx.forkProcess(blockNode, ctx.scheduler.rootObject, "test-fork")
+
+    check newProc != nil
+    check newProc.name == "test-fork"
+    check newProc.state == psReady
+    check ctx.scheduler.processCount == 2
+
+  test "Forked process has own interpreter":
+    let ctx = newSchedulerContext()
+
+    let blockNode = BlockNode(
+      parameters: @[],
+      temporaries: @[],
+      body: @[LiteralNode(value: NodeValue(kind: vkInt, intVal: 1)).Node],
+      isMethod: false
+    )
+
+    let newProc = ctx.forkProcess(blockNode, ctx.scheduler.rootObject, "forked")
+    let mainInterp = ctx.mainProcess.getInterpreter()
+    let forkInterp = newProc.getInterpreter()
+
+    # Different interpreter instances
+    check cast[pointer](mainInterp) != cast[pointer](forkInterp)
+
+    # But shared globals (same reference)
+    check cast[pointer](mainInterp.globals) == cast[pointer](forkInterp.globals)
+
+  test "Multiple processes scheduling":
+    let ctx = newSchedulerContext()
+
+    # Create processes
+    for i in 1..3:
+      let blockNode = BlockNode(
+        parameters: @[],
+        temporaries: @[],
+        body: @[LiteralNode(value: NodeValue(kind: vkInt, intVal: i)).Node],
+        isMethod: false
+      )
+      discard ctx.forkProcess(blockNode, ctx.scheduler.rootObject, "proc-" & $i)
+
+    # Should have 4 processes (main + 3 forked)
+    check ctx.scheduler.processCount == 4
+    check ctx.scheduler.readyCount == 4
+
+  test "Process lifecycle states":
+    let ctx = newSchedulerContext()
+
+    let blockNode = BlockNode(
+      parameters: @[],
+      temporaries: @[],
+      body: @[LiteralNode(value: NodeValue(kind: vkInt, intVal: 1)).Node],
+      isMethod: false
+    )
+
+    let proc1 = ctx.forkProcess(blockNode, ctx.scheduler.rootObject, "lifecycle")
+
+    # Initially ready
+    check proc1.state == psReady
+
+    # Select it - becomes running
+    discard ctx.scheduler.selectNextProcess()
+    check ctx.scheduler.currentProcess != nil
+    check ctx.scheduler.currentProcess.state == psRunning
+
+  test "Processor global initialization":
+    let ctx = newSchedulerContext()
+    var interp = ctx.mainProcess.getInterpreter()
+
+    # Initialize Processor global
+    initProcessorGlobal(interp)
+
+    check "Processor" in interp.globals[]
+    let processorVal = interp.globals[]["Processor"]
+    check processorVal.kind == vkObject
+
+  test "Run forked process to completion":
+    let ctx = newSchedulerContext()
+
+    # Create a block that sets a global variable
+    let blockNode = BlockNode(
+      parameters: @[],
+      temporaries: @[],
+      body: @[
+        AssignNode(
+          variable: "processResult",
+          expression: LiteralNode(value: NodeValue(kind: vkInt, intVal: 99))
+        ).Node
+      ],
+      isMethod: false
+    )
+
+    # Fork the process
+    discard ctx.forkProcess(blockNode, ctx.scheduler.rootObject, "compute")
+
+    # Run until done
+    let steps = ctx.runToCompletion(maxSteps = 100)
+
+    # Should have run some steps
+    check steps > 0
+
+  test "Processor yield is callable":
+    let ctx = newSchedulerContext()
+    var interp = ctx.mainProcess.getInterpreter()
+    initProcessorGlobal(interp)
+
+    # Evaluate Processor yield
+    let (_, err) = interp.doit("Processor yield")
+    check err.len == 0
+
+  test "Context preserves interpreter state":
+    let ctx = newSchedulerContext()
+    var interp = ctx.mainProcess.getInterpreter()
+    initGlobals(interp)
+
+    # Set up some state
+    discard interp.doit("x := 10")
+
+    # Verify state persists
+    let (result, err) = interp.doit("x")
+    check err.len == 0
+    check result.kind == vkInt
+    check result.intVal == 10
