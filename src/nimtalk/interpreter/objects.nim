@@ -14,6 +14,11 @@ proc atImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
 proc atPutImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
 proc selectorPutImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
 proc wrapBoolAsObject*(value: bool): NodeValue
+proc wrapBlockAsObject*(blockNode: BlockNode): NodeValue
+proc wrapStringAsObject*(s: string): NodeValue
+proc wrapArrayAsObject*(arr: seq[NodeValue]): NodeValue
+proc wrapTableAsObject*(tab: Table[string, NodeValue]): NodeValue
+proc wrapFloatAsObject*(value: float): NodeValue
 proc plusImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
 proc minusImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
 proc starImpl*(self: RuntimeObject, args: seq[NodeValue]): NodeValue
@@ -1816,6 +1821,87 @@ proc wrapBoolAsObject*(value: bool): NodeValue =
   obj.nimValue = cast[pointer](alloc(sizeof(bool)))
   cast[ptr bool](obj.nimValue)[] = value
   obj.nimType = "bool"
+  obj.hasSlots = false
+  obj.slots = @[]
+  obj.slotNames = initTable[string, int]()
+  return NodeValue(kind: vkObject, objVal: obj)
+
+proc wrapBlockAsObject*(blockNode: BlockNode): NodeValue =
+  ## Wrap a block as a RuntimeObject that can receive messages (like whileTrue:)
+  ## The BlockNode is stored so it can be executed later
+  let obj = DictionaryObj()
+  obj.methods = initTable[string, BlockNode]()
+  # Use Block class as parent if available
+  if blockClassCache != nil:
+    obj.parents = @[blockClassCache]
+  else:
+    obj.parents = @[initRootObject().RuntimeObject]
+  obj.tags = @["Block", "Closure"]
+  obj.isNimProxy = false
+  obj.nimType = "block"
+  # Store block node in properties so whileTrue:/whileFalse: can access it
+  obj.properties = initTable[string, NodeValue]()
+  obj.properties["__blockNode"] = NodeValue(kind: vkBlock, blockVal: blockNode)
+  return NodeValue(kind: vkObject, objVal: obj.RuntimeObject)
+
+proc wrapStringAsObject*(s: string): NodeValue =
+  ## Wrap a string as a Nim proxy object that can receive messages
+  let obj = DictionaryObj()
+  obj.methods = initTable[string, BlockNode]()
+  # Use String class as parent if available
+  if stringClassCache != nil:
+    obj.parents = @[stringClassCache]
+  else:
+    obj.parents = @[initRootObject().RuntimeObject]
+  obj.tags = @["String", "Text"]
+  obj.isNimProxy = true
+  obj.nimType = "string"
+  # Store string value
+  obj.properties = initTable[string, NodeValue]()
+  obj.properties["__value"] = NodeValue(kind: vkString, strVal: s)
+  return NodeValue(kind: vkObject, objVal: obj.RuntimeObject)
+
+proc wrapArrayAsObject*(arr: seq[NodeValue]): NodeValue =
+  ## Wrap an array (seq) as a Nim proxy object that can receive messages
+  let obj = DictionaryObj()
+  obj.methods = initTable[string, BlockNode]()
+  # Try to use Array class as parent if available
+  if arrayClassCache != nil:
+    obj.parents = @[arrayClassCache]
+  else:
+    obj.parents = @[initRootObject().RuntimeObject]
+  obj.tags = @["Array", "Collection"]
+  obj.isNimProxy = true
+  obj.nimType = "array"
+  # Store elements in properties with numeric keys
+  obj.properties = initTable[string, NodeValue]()
+  obj.properties["__size"] = NodeValue(kind: vkInt, intVal: arr.len)
+  for i, elem in arr:
+    obj.properties[$i] = elem  # 0-based index internally
+  return NodeValue(kind: vkObject, objVal: obj.RuntimeObject)
+
+proc wrapTableAsObject*(tab: Table[string, NodeValue]): NodeValue =
+  ## Wrap a table as a Nim proxy object that can receive messages
+  let obj = DictionaryObj()
+  obj.methods = initTable[string, BlockNode]()
+  obj.parents = @[initRootObject().RuntimeObject]
+  obj.tags = @["Table", "Collection", "Dictionary"]
+  obj.isNimProxy = true
+  obj.nimType = "table"
+  # Store entries in properties
+  obj.properties = tab
+  return NodeValue(kind: vkObject, objVal: obj.RuntimeObject)
+
+proc wrapFloatAsObject*(value: float): NodeValue =
+  ## Wrap a float as a Nim proxy object that can receive messages
+  let obj = RuntimeObject()
+  obj.methods = initTable[string, BlockNode]()
+  obj.parents = @[initRootObject().RuntimeObject]
+  obj.tags = @["Float", "Number"]
+  obj.isNimProxy = true
+  obj.nimValue = cast[pointer](alloc(sizeof(float)))
+  cast[ptr float](obj.nimValue)[] = value
+  obj.nimType = "float"
   obj.hasSlots = false
   obj.slots = @[]
   obj.slotNames = initTable[string, int]()
