@@ -32,48 +32,48 @@ proc genModuleHeader*(ctx: var CompilerContext, moduleName: string): string =
 
   return output
 
-proc genPrototypeConstants*(proto: PrototypeInfo): string =
-  ## Generate prototype constant declarations
-  let protoName = manglePrototype(proto.name)
+proc genClassConstants*(cls: ClassInfo): string =
+  ## Generate class constant declarations
+  let clsName = mangleClass(cls.name)
 
-  var output = fmt("# {proto.name} Prototype\n")
+  var output = fmt("# {cls.name} Class\n")
   output.add("###################\n\n")
 
   # Slot count constant
-  let slots = proto.getAllSlots()
-  output.add(fmt("const {protoName}_slotCount* = {slots.len}\n"))
+  let slots = cls.getAllSlots()
+  output.add(fmt("const {clsName}_slotCount* = {slots.len}\n"))
 
   # Slot name array
   if slots.len > 0:
     let slotNames = slots.mapIt(fmt("\"{it.name}\"")).join(", ")
-    output.add(fmt("\nconst {protoName}_slotNames*: array[{slots.len}, string] = [\n"))
+    output.add(fmt("\nconst {clsName}_slotNames*: array[{slots.len}, string] = [\n"))
     output.add("  " & slotNames & "\n")
     output.add("]\n")
 
   # Method count
-  output.add(fmt("\nconst {protoName}_methodCount = {proto.methods.len}\n"))
+  output.add(fmt("\nconst {clsName}_methodCount = {cls.methods.len}\n"))
 
   output.add("\n")
 
   return output
 
-proc genPrototypeInit*(proto: PrototypeInfo): string =
-  ## Generate prototype initialization procedure
-  let protoName = manglePrototype(proto.name)
+proc genClassInit*(cls: ClassInfo): string =
+  ## Generate class initialization procedure
+  let clsName = mangleClass(cls.name)
 
   return fmt("""
-proc init_{protoName}*(parent: ref ProtoObject = nil): ref ProtoObject {{.cdecl, exportc.}} =
-  ## Initialize {proto.name} prototype
+proc init_{clsName}*(parent: ref RuntimeObject = nil): ref RuntimeObject {{.cdecl, exportc.}} =
+  ## Initialize {cls.name} class
   ##
   var obj = if parent != nil:
               parent.clone()
             else:
               rootObject.clone()
 
-  obj.tags.add("{proto.name}")
+  obj.tags.add("{cls.name}")
 
   # Initialize slots
-  obj.slots.setLen({proto.getAllSlots().len()})
+  obj.slots.setLen({cls.getAllSlots().len()})
 
   # Register methods
   for meth in obj.methods.values:
@@ -92,17 +92,17 @@ proc genModule*(ctx: var CompilerContext, nodes: seq[Node],
   output.add(genRuntimeHelperMethods())
   output.add("\n")
 
-  # Analyze prototypes
-  let analysis = buildPrototypeGraph(nodes)
+  # Analyze classes
+  let analysis = buildClassGraph(nodes)
 
   # Resolve slot indices
   ctx.resolveSlotIndices()
 
-  # Generate for each prototype
-  for proto in analysis.prototypes.values:
-    output.add(genPrototypeConstants(proto))
-    output.add(genSlotAccessors(proto))
-    output.add(genPrototypeInit(proto))
+  # Generate for each class
+  for cls in analysis.classes.values:
+    output.add(genClassConstants(cls))
+    output.add(genSlotAccessors(cls))
+    output.add(genClassInit(cls))
 
   # Generate control flow methods
   output.add("\n")

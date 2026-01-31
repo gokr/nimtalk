@@ -8,13 +8,13 @@ import ../compiler/symbols
 # Generates type-specialized methods with dynamic fallback
 # ============================================================================
 
-proc genMethodSignature*(proto: PrototypeInfo, meth: BlockNode,
+proc genMethodSignature*(cls: ClassInfo, meth: BlockNode,
                           selector: string): string =
   ## Generate method signature with properly mangled name
   let nimName = mangleSelector(selector)
-  let protoPrefix = if proto != nil: manglePrototype(proto.name) & "_" else: ""
+  let clsPrefix = if cls != nil: mangleClass(cls.name) & "_" else: ""
 
-  var output = "proc " & protoPrefix & nimName & "*(self: ref ProtoObject"
+  var output = "proc " & clsPrefix & nimName & "*(self: ref RuntimeObject"
 
   # Add parameters
   for param in meth.parameters:
@@ -23,22 +23,22 @@ proc genMethodSignature*(proto: PrototypeInfo, meth: BlockNode,
   output.add("): NodeValue {.cdecl, exportc.}\n")
   return output
 
-proc genMethodHeader*(proto: PrototypeInfo, meth: BlockNode,
-                      selector: string, prototypeName: string = ""): string =
+proc genMethodHeader*(cls: ClassInfo, meth: BlockNode,
+                      selector: string, className: string = ""): string =
   ## Generate method header with documentation
-  let sig = genMethodSignature(proto, meth, selector)
+  let sig = genMethodSignature(cls, meth, selector)
   var output = sig & " =\n"
   output.add("  ## Compiled method: " & selector & "\n")
-  output.add("  ## Prototype: " & prototypeName & "\n")
+  output.add("  ## Class: " & className & "\n")
   output.add("  ##\n")
   return output
 
-proc genSlotFastAccess*(proto: PrototypeInfo, slotName: string): string =
+proc genSlotFastAccess*(cls: ClassInfo, slotName: string): string =
   ## Generate fast path for slot access
-  let idx = proto.getSlotIndex(slotName)
+  let idx = cls.getSlotIndex(slotName)
 
   if idx < 0:
-    return "  # Dynamic fallback: slot '" & slotName & "' not found in prototype\n" &
+    return "  # Dynamic fallback: slot '" & slotName & "' not found in class\n" &
            "  return sendMessage(currentRuntime[], self, \"at:\", @[NodeValue(kind: vkSymbol, symVal: \"" &
            slotName & "\")])\n"
 
@@ -100,7 +100,7 @@ proc genComparisonFastPath*(op: string): string =
   output.add("    return NodeValue(kind: vkBool, boolVal: a.boolVal " & nimOp & " b.boolVal)\n")
   return output
 
-proc genMethodBody*(proto: PrototypeInfo, meth: BlockNode,
+proc genMethodBody*(cls: ClassInfo, meth: BlockNode,
                      selector: string): string =
   ## Generate method body with type specialization and fallback
 
@@ -116,7 +116,7 @@ proc genMethodBody*(proto: PrototypeInfo, meth: BlockNode,
 
   of "at:":
     if meth.parameters.len > 0:
-      if proto != nil and meth.parameters[0].len > 0:
+      if cls != nil and meth.parameters[0].len > 0:
         let param = meth.parameters[0]
         return "\n  # Slot access with parameter '" & param & "'\n" &
                "  if param.kind == vkSymbol:\n" &
@@ -148,16 +148,16 @@ proc genMethodBody*(proto: PrototypeInfo, meth: BlockNode,
            "  return sendMessage(currentRuntime[], self, \"" & selector &
            "\", @[" & args & "])\n"
 
-proc genMethod*(proto: PrototypeInfo, meth: BlockNode,
-                selector: string, prototypeName: string = ""): string =
+proc genMethod*(cls: ClassInfo, meth: BlockNode,
+                selector: string, className: string = ""): string =
   ## Generate complete method procedure
-  var output = genMethodHeader(proto, meth, selector, prototypeName)
-  output.add(genMethodBody(proto, meth, selector))
+  var output = genMethodHeader(cls, meth, selector, className)
+  output.add(genMethodBody(cls, meth, selector))
   output.add("\n\n")
   return output
 
 proc genBinaryOpMethod*(selector: string): string =
-  ## Generate a binary operator method (top-level, not prototype-scoped)
+  ## Generate a binary operator method (top-level, not class-scoped)
   let nimName = mangleSelector(selector)
 
   var output = "\nproc " & nimName & "*(a: NodeValue, b: NodeValue): NodeValue {.cdecl, exportc.} =\n"

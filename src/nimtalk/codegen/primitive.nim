@@ -8,13 +8,13 @@ import ../compiler/symbols
 # Handles <primitive> blocks with embedded Nim code
 # ============================================================================
 
-proc genPrimitiveMethod*(proto: PrototypeInfo, prim: PrimitiveNode,
+proc genPrimitiveMethod*(cls: ClassInfo, prim: PrimitiveNode,
                          selector: string, prototypeName: string = ""): string =
   ## Generate a method with primitive implementation
   let nimName = mangleSelector(selector)
-  let protoPrefix = if proto != nil: manglePrototype(proto.name) & "_" else: ""
+  let clsPrefix = if cls != nil: mangleClass(cls.name) & "_" else: ""
 
-  var output = "proc " & protoPrefix & nimName & "*(self: ref ProtoObject"
+  var output = "proc " & clsPrefix & nimName & "*(self: ref RuntimeObject"
 
   # Determine parameter count from selector and add parameters
   let paramCount = selector.count(':')
@@ -49,13 +49,13 @@ proc genPrimitiveMethod*(proto: PrototypeInfo, prim: PrimitiveNode,
   output.add("\n\n")
   return output
 
-proc genPrimitiveWrapper*(proto: PrototypeInfo, prim: PrimitiveNode,
+proc genPrimitiveWrapper*(cls: ClassInfo, prim: PrimitiveNode,
                           selector: string): string =
   ## Generate a wrapper that calls the primitive with error handling
   let nimName = mangleSelector(selector)
-  let protoPrefix = if proto != nil: manglePrototype(proto.name) & "_" else: ""
+  let clsPrefix = if cls != nil: mangleClass(cls.name) & "_" else: ""
 
-  var output = "proc " & protoPrefix & nimName & "_safe*(self: ref ProtoObject"
+  var output = "proc " & clsPrefix & nimName & "_safe*(self: ref RuntimeObject"
 
   let paramCount = selector.count(':')
   for i in 0..<paramCount:
@@ -65,7 +65,7 @@ proc genPrimitiveWrapper*(proto: PrototypeInfo, prim: PrimitiveNode,
   output.add("  ## Safe wrapper for primitive: " & selector & "\n")
   output.add("  ##\n")
   output.add("  try:\n")
-  output.add("    return " & protoPrefix & nimName & "(self")
+  output.add("    return " & clsPrefix & nimName & "(self")
 
   for i in 0..<paramCount:
     output.add(", arg" & $i)

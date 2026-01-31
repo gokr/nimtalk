@@ -10,16 +10,16 @@ import ../compiler/symbols
 
 type
   GenContext* = ref object
-    proto*: PrototypeInfo
+    cls*: ClassInfo
     inBlock*: bool
 
 # Forward declaration
 proc genExpression*(ctx: GenContext, node: Node): string
 
-proc newGenContext*(proto: PrototypeInfo): GenContext =
+proc newGenContext*(cls: ClassInfo): GenContext =
   ## Create new generation context
   result = GenContext(
-    proto: proto,
+    cls: cls,
     inBlock: false
   )
 
@@ -51,8 +51,8 @@ proc genSymbolAccess*(ctx: GenContext, name: string): string =
     return "self.toValue()"
 
   # Check if it's a slot
-  if ctx.proto != nil:
-    let slotIdx = ctx.proto.getSlotIndex(name)
+  if ctx.cls != nil:
+    let slotIdx = ctx.cls.getSlotIndex(name)
     if slotIdx >= 0:
       return fmt("self.slots[{slotIdx}]")
 
@@ -129,8 +129,8 @@ proc genExpression*(ctx: GenContext, node: Node): string =
     let exprCode = genExpression(ctx, assign.expression)
 
     # Check if variable is a slot
-    if ctx.proto != nil and ctx.proto.getSlotIndex(varName) >= 0:
-      let idx = ctx.proto.getSlotIndex(varName)
+    if ctx.cls != nil and ctx.cls.getSlotIndex(varName) >= 0:
+      let idx = ctx.cls.getSlotIndex(varName)
       return fmt("(proc(): NodeValue = self.slots[{idx}] = {exprCode})()")
 
     # Local variable assignment

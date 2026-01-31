@@ -8,40 +8,40 @@ import ../compiler/types as compTypes
 # Generates fast O(1) slot accessors
 # ============================================================================
 
-proc genSlotConsts*(proto: PrototypeInfo): string =
+proc genSlotConsts*(cls: ClassInfo): string =
   ## Generate slot constant declarations
   result = ""
 
-  if proto.slots.len == 0:
+  if cls.slots.len == 0:
     return
 
   result.add("  # Slot constants\n")
-  for i, slot in proto.slots:
-    result.add(fmt("  const {manglePrototype(proto.name)}_{mangleSlot(slot.name)}_index = {i}\n"))
+  for i, slot in cls.slots:
+    result.add(fmt("  const {mangleClass(cls.name)}_{mangleSlot(slot.name)}_index = {i}\n"))
   result.add("\n")
 
-proc genSlotGetter*(proto: PrototypeInfo, slot: SlotDef): string =
+proc genSlotGetter*(cls: ClassInfo, slot: SlotDef): string =
   ## Generate optimized slot getter procedure
-  let protoName = manglePrototype(proto.name)
+  let clsName = mangleClass(cls.name)
   let slotName = mangleSlot(slot.name)
   let nimType = compTypes.toNimType(slot.constraint)
 
   var output = ""
-  output.add(fmt("proc nt_{protoName}_{slotName}*(self: ref ProtoObject): NodeValue {{.cdecl, exportc, inline.}} =\n"))
-  output.add(fmt("  ## Get slot '{slot.name}' from {proto.name}\n"))
+  output.add(fmt("proc nt_{clsName}_{slotName}*(self: ref RuntimeObject): NodeValue {{.cdecl, exportc, inline.}} =\n"))
+  output.add(fmt("  ## Get slot '{slot.name}' from {cls.name}\n"))
   output.add(fmt("  if self == nil or self.slots.len <= {slot.index}:\n"))
   output.add("    return NodeValue(kind: vkNil)\n")
   output.add(fmt("  return self.slots[{slot.index}]\n\n"))
   return output
 
-proc genSlotSetter*(proto: PrototypeInfo, slot: SlotDef): string =
+proc genSlotSetter*(cls: ClassInfo, slot: SlotDef): string =
   ## Generate optimized slot setter procedure
-  let protoName = manglePrototype(proto.name)
+  let clsName = mangleClass(cls.name)
   let slotName = mangleSlot(slot.name)
 
   var output = ""
-  output.add(fmt("proc nt_{protoName}_{slotName}_put*(self: ref ProtoObject, value: NodeValue): NodeValue {{.cdecl, exportc.}} =\n"))
-  output.add(fmt("  ## Set slot '{slot.name}' on {proto.name}\n"))
+  output.add(fmt("proc nt_{clsName}_{slotName}_put*(self: ref RuntimeObject, value: NodeValue): NodeValue {{.cdecl, exportc.}} =\n"))
+  output.add(fmt("  ## Set slot '{slot.name}' on {cls.name}\n"))
   output.add("  if self == nil:\n")
   output.add("    return NodeValue(kind: vkNil)\n")
   output.add(fmt("  while self.slots.len <= {slot.index}:\n"))
@@ -50,29 +50,29 @@ proc genSlotSetter*(proto: PrototypeInfo, slot: SlotDef): string =
   output.add("  return value\n\n")
   return output
 
-proc genSlotAccessors*(proto: PrototypeInfo): string =
-  ## Generate all slot accessors for a prototype
+proc genSlotAccessors*(cls: ClassInfo): string =
+  ## Generate all slot accessors for a class
   result = ""
 
-  if proto.slots.len == 0:
+  if cls.slots.len == 0:
     return
 
   result.add("# Slot accessors\n")
   result.add("################################\n\n")
 
-  for slot in proto.slots:
+  for slot in cls.slots:
     if not slot.isInherited:
-      result.add(genSlotGetter(proto, slot))
-      result.add(genSlotSetter(proto, slot))
+      result.add(genSlotGetter(cls, slot))
+      result.add(genSlotSetter(cls, slot))
 
   return result
 
-proc genSlotIndexLookup*(proto: PrototypeInfo): string =
+proc genSlotIndexLookup*(cls: ClassInfo): string =
   ## Generate slot index lookup table for dynamic access
-  var slots = proto.getAllSlots()
+  var slots = cls.getAllSlots()
 
   var output = ""
-  output.add(fmt("const {manglePrototype(proto.name)}_slotNames*: array[{slots.len}, string] = [\n"))
+  output.add(fmt("const {mangleClass(cls.name)}_slotNames*: array[{slots.len}, string] = [\n"))
   for i, slot in slots:
     output.add(fmt("  \"{slot.name}\""))
     if i < slots.len - 1:
@@ -82,22 +82,22 @@ proc genSlotIndexLookup*(proto: PrototypeInfo): string =
   output.add("]\n\n")
   return output
 
-proc genSlotIndexConsts*(proto: PrototypeInfo): string =
+proc genSlotIndexConsts*(cls: ClassInfo): string =
   ## Generate constants for all slot indices
-  var slots = proto.getAllSlots()
+  var slots = cls.getAllSlots()
 
   var output = ""
-  output.add(fmt("# Slot indices for {proto.name}\n"))
+  output.add(fmt("# Slot indices for {cls.name}\n"))
   for i, slot in slots:
-    output.add(fmt("const {manglePrototype(proto.name)}_slot_{mangleSlot(slot.name)} = {i}\n"))
+    output.add(fmt("const {mangleClass(cls.name)}_slot_{mangleSlot(slot.name)} = {i}\n"))
   output.add("\n")
 
   return output
 
-proc genSlotAccessExpression*(proto: PrototypeInfo, slotName: string,
+proc genSlotAccessExpression*(cls: ClassInfo, slotName: string,
                               isRead: bool = true): string =
   ## Generate inline slot access expression
-  let idx = proto.getSlotIndex(slotName)
+  let idx = cls.getSlotIndex(slotName)
 
   if idx < 0:
     return if isRead: "NodeValue(kind: vkNil)" else: "NodeValue(kind: vkNil)"
