@@ -256,7 +256,7 @@ type
     destroyed*: bool  # Track if GTK widget was destroyed
 
 # Type-safe proxy extraction with validation
-proc asWidgetProxy*(obj: ProtoObject): GtkWidgetProxy =
+proc asWidgetProxy*(obj: RuntimeObject): GtkWidgetProxy =
   ## Safely extract GtkWidgetProxy with type checking
   if not obj.isNimProxy:
     raise newException(TypeError, "Expected GTK widget proxy")
@@ -273,7 +273,7 @@ proc createWidgetProxy*(widget: gtk4.Widget, interp: ptr Interpreter): NodeValue
   let proxy = GtkWidgetProxy(widget: widget, interp: interp, destroyed: false)
 
   # Create Nimtalk object
-  let obj = ProtoObject()
+  let obj = RuntimeObject()
   obj.isNimProxy = true
   obj.nimType = "GtkWidget"
   obj.nimValue = cast[pointer](proxy)
@@ -293,12 +293,12 @@ proc createWidgetProxy*(widget: gtk4.Widget, interp: ptr Interpreter): NodeValue
 
   return NodeValue(kind: vkObject, objVal: obj)
 
-proc showMethodImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc showMethodImpl(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   let proxy = self.asWidgetProxy()
   proxy.widget.show
   return nilValue()
 
-proc destroyMethodImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc destroyMethodImpl(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Explicitly destroy the GTK widget
   let proxy = self.asWidgetProxy()
   proxy.widget.destroy()
@@ -325,7 +325,7 @@ proc safeEvalBlock(interp: ptr Interpreter, blockNode: BlockNode,
     stderr.writeLine("Unexpected error in signal handler: ", e.msg)
     result = nilValue()
 
-proc connectDoImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc connectDoImpl(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Connect a GTK signal to a Nimtalk block
   ## args[0] = signal name (string)
   ## args[1] = block to execute
@@ -365,7 +365,7 @@ proc createWindowWrapper*(interp: ptr Interpreter, app: Application): NodeValue 
   let window = newApplicationWindow(app)
   let proxy = GtkWidgetProxy(widget: window, interp: interp)
 
-  let obj = ProtoObject()
+  let obj = RuntimeObject()
   obj.isNimProxy = true
   obj.nimType = "GtkWindow"
   obj.nimValue = cast[pointer](proxy)
@@ -378,20 +378,20 @@ proc createWindowWrapper*(interp: ptr Interpreter, app: Application): NodeValue 
 
   return NodeValue(kind: vkObject, objVal: obj)
 
-proc setChildImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc setChildImpl(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   let proxy = cast[GtkWidgetProxy](self.nimValue)
   let childProxy = cast[GtkWidgetProxy](args[0].objVal.nimValue)
   let window = cast[ApplicationWindow](proxy.widget)
   window.setChild(childProxy.widget)
   return nilValue()
 
-proc setTitleImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc setTitleImpl(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   let proxy = cast[GtkWidgetProxy](self.nimValue)
   let window = cast[ApplicationWindow](proxy.widget)
   window.title = args[0].toString()
   return nilValue()
 
-proc presentImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc presentImpl(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   let proxy = cast[GtkWidgetProxy](self.nimValue)
   let window = cast[ApplicationWindow](proxy.widget)
   window.present()
@@ -418,7 +418,7 @@ proc newButtonWrapper*(interp: ptr Interpreter, label: string): NodeValue =
   let button = newButton(label)
   let proxy = ButtonProxy(widget: button, interp: interp)
 
-  let obj = ProtoObject()
+  let obj = RuntimeObject()
   obj.isNimProxy = true
   obj.nimType = "GtkButton"
   obj.nimValue = cast[pointer](proxy)
@@ -429,18 +429,18 @@ proc newButtonWrapper*(interp: ptr Interpreter, label: string): NodeValue =
 
   return NodeValue(kind: vkObject, objVal: obj)
 
-proc setLabelImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc setLabelImpl(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   let proxy = cast[ButtonProxy](self.nimValue)
   let button = cast[gtk4.Button](proxy.widget)
   button.setLabel(args[0].toString())
   return nilValue()
 
-proc getLabelImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc getLabelImpl(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   let proxy = cast[ButtonProxy](self.nimValue)
   let button = cast[gtk4.Button](proxy.widget)
   return wrapString(button.getLabel())
 
-proc connectClickedImpl(self: ProtoObject, args: seq[NodeValue]): NodeValue =
+proc connectClickedImpl(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   ## Connect "clicked" signal to a Nimtalk block
   let proxy = cast[ButtonProxy](self.nimValue)
   let button = cast[gtk4.Button](proxy.widget)
@@ -1143,7 +1143,7 @@ proc initGtkBridge(interp: var Interpreter) =
   ## Register GTK wrapper functions with interpreter
 
   # Create GtkBridge object in Nimtalk globals
-  let bridgeObj = ProtoObject()
+  let bridgeObj = RuntimeObject()
   addMethod(bridgeObj, "createWindow", createWindowNative)
   addMethod(bridgeObj, "createButton:", createButtonNative)
   addMethod(bridgeObj, "createBoxOrientation:spacing:", createBoxNative)

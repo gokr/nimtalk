@@ -6,7 +6,7 @@ This document tracks current work items and future directions for Nimtalk develo
 
 **Core Language**: The interpreter is fully functional with:
 - Lexer, parser, AST interpreter
-- **Prototype object system with inheritance and merged method tables** ✅
+- **Class-based object system with inheritance and merged method tables** ✅
 - REPL with file execution
 - **Block closures with full lexical scoping, environment capture, and non-local returns** ✅
 - **Closure variable isolation and sibling block sharing** ✅
@@ -123,7 +123,7 @@ nimble clean       # Clean artifacts
 
 ### Object Model & Runtime Fixes
 - Fixed array indexing to use 1-based indexing (Smalltalk compatible)
-- Added `selectorPutImpl` for proper method storage on ProtoObjects with slots
+- Added `selectorPutImpl` for proper method storage on runtime objects with slots
 - Added slot variable access in methods (lookup and assignment)
 - Fixed array literal evaluation to handle pseudo-variables (true, false, nil)
 - Added `add:` alias for `primitiveAdd:` on arrays

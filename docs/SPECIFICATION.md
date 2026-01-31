@@ -296,7 +296,7 @@ This is the primitive that enables `extend:` and other DSL patterns.
 
 Method lookup uses merged tables for O(1) access:
 
-1. Look up selector in `instance.proto.allMethods`
+1. Look up selector in `instance.class.allMethods`
 2. If not found, trigger `doesNotUnderstand:`
 
 For class methods:

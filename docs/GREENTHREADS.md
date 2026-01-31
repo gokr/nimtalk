@@ -227,7 +227,7 @@ proc take*(q: NimtalkSharedQueue, sched: Scheduler, caller: Process): NodeValue 
 When a Nimtalk program calls `Processor fork: aBlock`, the following Nim-side code runs:
 
 ```nim
-proc forkProcess*(sched: var Scheduler, block: BlockNode, receiver: ProtoObject): Process =
+proc forkProcess*(sched: var Scheduler, block: BlockNode, receiver: RuntimeObject): Process =
   ## Create a new green process from a Nimtalk block
   let newInterp = newInterpreter()
   newInterp.globals = sched.sharedGlobals     # Share globals table

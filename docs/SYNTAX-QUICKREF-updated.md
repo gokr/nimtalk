@@ -317,35 +317,35 @@ See [NEWLINE_RULES.md](NEWLINE_RULES.md) for complete newline handling rules.
 
 ```smalltalk
 #=== Object Creation =========================
-proto := Object derive                        "Empty class
-obj   := proto derive initialize              "Create then init"
+cls := Object derive                          "Empty class
+obj := cls derive initialize                   "Create then init"
 
 #=== Instance Variables ======================
-Proto := Object derive: #(#ivar1 #ivar2)        "Declare ivars"
-obj   := Proto derive initialize.
+MyClass := Object derive: #(#ivar1 #ivar2)     "Declare ivars"
+obj   := MyClass derive initialize.
 obj ivar1: value                              "Accessor method" (direct slot access)
 
 #=== Methods (in files) ======================
-Proto>>method [ ^ result ]                    "Define unary"
-Proto>>method: arg [ ^ result ]               "Define keyword"
-Proto>>arg1: x arg2: y [ ^ x + y ]            "Multi-keyword"
+MyClass>>method [ ^ result ]                  "Define unary"
+MyClass>>method: arg [ ^ result ]             "Define keyword"
+MyClass>>arg1: x arg2: y [ ^ x + y ]          "Multi-keyword"
 
 #=== Methods (in REPL) =======================
-Proto at: #method put: [ ^ result ]          "Standard way"
-Proto perform: #method                       "Call dynamically"
+MyClass at: #method put: [ ^ result ]        "Standard way"
+MyClass perform: #method                      "Call dynamically"
 
 #=== Method Batching (extend:) ===============
-Proto extend: [
-  self >> method [ ^ result ]                # Batch instance methods
+MyClass extend: [
+  self >> method [ ^ result ]                 # Batch instance methods
 ].
 
-Proto extendClass: [
-  self >> new [ ^ self derive ]              # Batch class-side methods
+MyClass extendClass: [
+  self >> new [ ^ self derive ]               # Batch class-side methods
 ].
 
 #=== Combined Creation (derive:methods:) =====
-Proto := Object derive: #(#ivar) methods: [
-  self >> method [ ^ result ]                # Create class with methods
+MyClass := Object derive: #(#ivar) methods: [
+  self >> method [ ^ result ]                 # Create class with methods
 ].
 
 #=== Self-Rebinding (asSelfDo:) ==============
