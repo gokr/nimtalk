@@ -1,8 +1,0 @@
-#!/usr/bin/env ntalk
-#
-# Demo: 3 + 4 = 7
-# Currently just demonstrates basic literal evaluation
-# Arithmetic operators are not yet implemented
-#
-
-7

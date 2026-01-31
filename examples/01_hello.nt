@@ -1,0 +1,6 @@
+#!/usr/bin/env ntalk
+#
+# Hello World - The simplest Nimtalk program
+#
+
+'Hello, World!' println

@@ -1,0 +1,32 @@
+#!/usr/bin/env ntalk
+#
+# Variables and assignment
+#
+
+'=== Variable Assignment ===' println
+
+x := 42
+y := 'Hello'
+
+('x = ' , x asString) println
+('y = ' , y) println
+
+'' println
+'=== Variable Reassignment ===' println
+
+counter := 0
+counter := counter + 1
+counter := counter + 1
+
+('Counter after increments: ' , counter asString) println
+
+'' println
+'=== Multiple Variables ===' println
+
+a := 10
+b := 20
+sum := a + b
+product := a * b
+
+('Sum: ' , sum asString) println
+('Product: ' , product asString) println

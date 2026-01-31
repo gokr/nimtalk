@@ -1,0 +1,101 @@
+#!/usr/bin/env ntalk
+#
+# Standard Library Demonstration
+#
+
+'========================================' println
+'Nimtalk Standard Library Demo' println
+'========================================' println
+'' println
+
+'=== Numbers ===' println
+
+x := 10
+y := 3
+
+('10 + 3 = ' , (x + y) asString) println
+('10 - 3 = ' , (x - y) asString) println
+('10 * 3 = ' , (x * y) asString) println
+('10 / 3 = ' , (x / y) asString) println
+('10 // 3 = ' , (x // y) asString) println
+('10 \\ 3 = ' , (x \\ y) asString) println
+('10 max: 3 = ' , (x max: y) asString) println
+('10 min: 3 = ' , (x min: y) asString) println
+('10 between: 5 and: 15 = ' , (x between: 5 and: 15) asString) println
+'' println
+
+'=== Strings ===' println
+
+s := 'Hello, World!'
+('Original: ' , s) println
+('Size: ' , (s size asString)) println
+('Uppercase: ' , (s uppercase)) println
+('Lowercase: ' , (s lowercase)) println
+('Trim: ' , ('  spaces  ' trim)) println
+('Index of World: ' , (s indexOf: 'World') asString) println
+('Contains Hello: ' , (s includesSubString: 'Hello') asString) println
+('Replace: ' , (s replace: 'World' with: 'Nimtalk')) println
+
+'Split:' println
+parts := 'a,b,c,d' split: ','
+parts do: [ :part | ('  Part: ' , part) println ]
+'' println
+
+'=== Arrays ===' println
+
+arr := Array new
+arr add: 1
+arr add: 2
+arr add: 3
+('Array: ' , arr asString) println
+('Size: ' , (arr size asString)) println
+('First: ' , (arr first asString)) println
+('Last: ' , (arr last asString)) println
+
+'Collect (squares):' println
+squares := #(1 2 3 4 5) collect: [ :n | n * n ]
+('  ' , squares asString) println
+
+'Select (evens):' println
+evens := #(1 2 3 4 5 6) select: [ :n | n even ]
+('  ' , evens asString) println
+
+'Inject (sum):' println
+sum := #(1 2 3 4 5) inject: 0 into: [ :acc :n | acc + n ]
+('  Sum: ' , sum asString) println
+'' println
+
+'=== Tables ===' println
+
+table := Table new
+table at: 'name' put: 'Alice'
+table at: 'age' put: 30
+table at: 'city' put: 'Wonderland'
+
+('Name: ' , (table at: 'name')) println
+('Age: ' , (table at: 'age') asString) println
+('Size: ' , (table size asString)) println
+
+'Keys:' println
+table keys do: [ :key | ('  ' , key) println ]
+'' println
+
+'=== Loops ===' println
+
+'Counting with timesRepeat:' println
+3 timesRepeat: [ '  Hello!' println ]
+
+'Counting with to:do:' println
+1 to: 5 do: [ :i | ('  Count: ' , i asString) println ]
+
+'While loop:' println
+count := 0
+[ count < 3 ] whileTrue: [
+  ('  While: ' , count asString) println
+  count := count + 1
+]
+'' println
+
+'========================================' println
+'Demo complete!' println
+'========================================' println
