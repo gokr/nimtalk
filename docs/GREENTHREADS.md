@@ -294,17 +294,19 @@ Processor fork: [100 timesRepeat: [Transcript show: queue take]]
 
 ### Phase 1: Core Scheduler and Monitor (1‑2 weeks)
 
-- [ ] `nimtalk/core/process.nim`: Process, Scheduler types.
-- [ ] Basic round‑robin scheduler, with only explicit yields.
+- [x] `nimtalk/core/process.nim`: Process, Scheduler types.
+- [x] Basic round‑robin scheduler, with only explicit yields.
 - [ ] Monitor: Nim‑side re‑entrant lock + condition variable.
-- [ ] Simple yield and block/unblock operations.
+- [x] Simple yield and block/unblock operations.
+- [x] `nimtalk/core/scheduler.nim`: Scheduler-Interpreter integration.
+- [x] Process forking with shared globals and rootObject.
 
 ### Phase 2: Synchronisation Primitives (2‑3 weeks)
 
 - [ ] Semaphore (binary, counting).
 - [ ] SharedQueue (bounded buffer) atop Monitor.
 - [ ] Nimtalk‑side `Monitor` and `SharedQueue` objects.
-- [ ] Process spawning from Nimtalk: `Processor fork: aBlock`.
+- [x] Process spawning from Nimtalk: `Processor fork: aBlock`.
 - [ ] Debugger: inspection of process stack frames.
 
 ### Phase 3: GTK Bridge (2 weeks)
