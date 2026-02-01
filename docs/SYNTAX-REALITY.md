@@ -215,19 +215,19 @@ name := "Alice".
 -10
 
 # Strings
-'hello'
-'world'
+"hello"
+"world"
 
-"Symbols
+# Symbols
 #symbol
-#'symbol with spaces'
+#"symbol with spaces"
 
 # Arrays (use Nim's seq)
 #(1 2 3 "four")
 
 # Tables (use Nim's Table) - use -> for key-value pairs
-#{'key1' -> 'value1' 'key2' -> 42}
-#{#symbolKey -> 'value'}     "Symbol keys also supported
+#{"key1" -> "value1" "key2" -> 42}
+#{#symbolKey -> "value"}     # Symbol keys also supported
 ```
 
 ## Message Passing
@@ -280,8 +280,6 @@ The receiver is evaluated once, then each message in the cascade is sent to that
 
 ---
 
-**Note**: This reflects the syntax as of the current implementation (2026-01-30). Key features like slot-based instance variables and multiline keyword messages are fully implemented. Check [NEWLINE_RULES.md](NEWLINE_RULES.md) for newline handling details.
-
 ## Embedding Nim Code
 
 Use `<primitive>` tags for native Nim implementations:
@@ -302,4 +300,4 @@ Object at: #primitiveClone put: <primitive>
 
 ---
 
-**Note**: This reflects the syntax as of the current implementation (2026-01-28). Key features like slot-based instance variables are fully implemented. Check other documents for design decisions and future plans.
+**Note**: This reflects the syntax as of the current implementation (2026-02-01). Key features like slot-based instance variables and multiline keyword messages are fully implemented. Check [NEWLINE_RULES.md](NEWLINE_RULES.md) for newline handling details.
