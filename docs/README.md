@@ -13,11 +13,14 @@ These documents describe the current implementation and are kept up to date:
 - **[SYNTAX-QUICKREF-updated.md](SYNTAX-QUICKREF-updated.md)** - Quick reference for Nimtalk syntax
 - **[SYNTAX-REALITY.md](SYNTAX-REALITY.md)** - Current implemented syntax details
 - **[SPECIFICATION.md](SPECIFICATION.md)** - Language specification
+- **[GRAMMAR.md](GRAMMAR.md)** - Formal BNF grammar for the language
 - **[TOOLS_AND_DEBUGGING.md](TOOLS_AND_DEBUGGING.md)** - Guide for using ntalk and ntalkc tools
-- **[GREENTHREADS.md](GREENTHREADS.md)** - Green threads and concurrency
+- **[GREENTHREADS.md](GREENTHREADS.md)** - Green threads implementation and API
+- **[CONCURRENCY.md](CONCURRENCY.md)** - Concurrency design and comparisons
 - **[PRIMITIVES.md](PRIMITIVES.md)** - Primitive syntax and direct invocation
 - **[PERFORM.md](PERFORM.md)** - Dynamic message sending with perform:
 - **[closures.md](closures.md)** - Documentation of closure implementation
+- **[NIMTALK_FOR_SMALLTALKERS.md](NIMTALK_FOR_SMALLTALKERS.md)** - Guide for Smalltalk developers
 
 ### Research and Historical Documents
 
