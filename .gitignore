@@ -72,3 +72,4 @@ tests/test_class_model
 tests/test_super
 tests/test_process
 tests/test_scheduler
+*.vsix
