@@ -28,8 +28,8 @@ type
     globals*: ref Table[string, NodeValue]
     activationStack*: seq[Activation]
     currentActivation*: Activation
-    currentReceiver*: RuntimeObject
-    rootObject*: RootObject
+    currentReceiver*: Instance
+    rootObject*: RootObject  # Legacy - will be removed
     maxStackDepth*: int
     traceExecution*: bool
     lastResult*: NodeValue
@@ -44,8 +44,8 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue
 proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue
 proc evalCascade(interp: var Interpreter, cascadeNode: CascadeNode): NodeValue
 proc evalSuperSend(interp: var Interpreter, superNode: SuperSendNode): NodeValue
-proc asSelfDoImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue
-proc performWithImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue
+proc asSelfDoImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue
+proc performWithImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue
 
 # Initialize interpreter
 proc newInterpreter*(trace: bool = false): Interpreter =
@@ -63,9 +63,12 @@ proc newInterpreter*(trace: bool = false): Interpreter =
   # Initialize the heap-allocated globals table
   result.globals[] = initTable[string, NodeValue]()
 
-  # Initialize root object
+  # Initialize root object (legacy - will be removed after migration)
   result.rootObject = initRootObject()
-  result.currentReceiver = result.rootObject
+
+  # Initialize root class (new model)
+  let rootCls = initRootClass()
+  result.currentReceiver = newInstance(rootCls)
 
   # Add asSelfDo: method to root object (interpreter-aware)
   let asSelfDoMethod = createCoreMethod("asSelfDo:")
@@ -113,9 +116,12 @@ proc newInterpreterWithShared*(globals: ref Table[string, NodeValue],
     lastResult: nilValue()
   )
 
-  # Use the shared root object
+  # Use the shared root object (legacy - will be removed after migration)
   result.rootObject = root
-  result.currentReceiver = root
+
+  # Initialize root class (new model)
+  let rootCls = initRootClass()
+  result.currentReceiver = newInstance(rootCls)
 
 # Check stack depth to prevent infinite recursion
 proc checkStackDepth(interp: var Interpreter) =
@@ -123,12 +129,13 @@ proc checkStackDepth(interp: var Interpreter) =
     raise newException(EvalError, "Stack overflow: max depth " & $interp.maxStackDepth)
 
 # Helper to get method name from receiver
-proc getMethodName(receiver: RuntimeObject, blk: BlockNode): string =
+proc getMethodName(receiver: Instance, blk: BlockNode): string =
   ## Get a display name for a method
-  # Find method name by looking up in receiver
-  for selector, meth in receiver.methods:
-    if meth == blk:
-      return selector
+  # Find method name by looking up in receiver's class methods
+  if receiver != nil and receiver.class != nil:
+    for selector, meth in receiver.class.methods:
+      if meth == blk:
+        return selector
   return "<method>"
 
 # Context switching
@@ -227,20 +234,19 @@ proc lookupVariableWithStatus(interp: Interpreter, name: string): LookupResult =
     let val = interp.globals[][name]
     return (true, val)
 
-  # Check if it's a property on self (only for Dictionary objects)
-  if interp.currentReceiver != nil and interp.currentReceiver of DictionaryObj:
-    let dict = cast[DictionaryObj](interp.currentReceiver)
-    let prop = getProperty(dict, name)
-    if prop.kind != vkNil:
-      debug("Found property on self: ", name)
-      return (true, prop)
+  # Check if it's a property on self (legacy Dictionary objects - for backward compatibility)
+  if interp.currentReceiver != nil and interp.currentReceiver.kind == ikTable:
+    let val = getTableValue(interp.currentReceiver, name)
+    if val.kind != vkNil:
+      debug("Found table property on self: ", name)
+      return (true, val)
 
-  # Check if it's a slot on self (for objects with declared instance variables)
-  if interp.currentReceiver != nil and interp.currentReceiver.hasSlots:
-    if name in interp.currentReceiver.slotNames:
-      let idx = interp.currentReceiver.slotNames[name]
-      if idx < interp.currentReceiver.slots.len:
-        let val = interp.currentReceiver.slots[idx]
+  # Check if it's a slot on self (for ikObject instances with declared instance variables)
+  if interp.currentReceiver != nil and interp.currentReceiver.kind == ikObject:
+    let idx = getSlotIndex(interp.currentReceiver.class, name)
+    if idx >= 0:
+      let val = getSlot(interp.currentReceiver, idx)
+      if val.kind != vkNil:
         debug("Found slot on self: ", name, " = ", val.toString())
         return (true, val)
 
@@ -281,14 +287,13 @@ proc setVariable(interp: var Interpreter, name: string, value: NodeValue) =
       debug("Global updated: ", name, " = ", value.toString())
       return
 
-    # Check if it's a slot on self (for objects with declared instance variables)
-    if interp.currentReceiver != nil and interp.currentReceiver.hasSlots:
-      if name in interp.currentReceiver.slotNames:
-        let idx = interp.currentReceiver.slotNames[name]
-        if idx < interp.currentReceiver.slots.len:
-          interp.currentReceiver.slots[idx] = value
-          debug("Slot updated on self: ", name, " = ", value.toString())
-          return
+    # Check if it's a slot on self (for ikObject instances with declared instance variables)
+    if interp.currentReceiver != nil and interp.currentReceiver.kind == ikObject:
+      let idx = getSlotIndex(interp.currentReceiver.class, name)
+      if idx >= 0:
+        setSlot(interp.currentReceiver, idx, value)
+        debug("Slot updated on self: ", name, " = ", value.toString())
+        return
 
     # Create in current activation
     interp.currentActivation.locals[name] = value
@@ -363,6 +368,13 @@ proc invokeBlock*(interp: var Interpreter, blockNode: BlockNode, args: seq[NodeV
       "Wrong number of arguments to block: expected " & $blockNode.parameters.len &
       ", got " & $args.len)
 
+  # Update homeActivation for proper non-local returns
+  # When a block is passed to a method (like ifTrue:), its homeActivation should
+  # be set to the current method so non-local returns return from the current method
+  if not blockNode.isMethod and interp.currentActivation != nil:
+    blockNode.homeActivation = interp.currentActivation
+    debug("Updated block homeActivation to current activation")
+
   # Create activation for block execution
   # Use the block's home activation receiver for proper 'self' resolution
   # This ensures that 'self' inside a block refers to the receiver where
@@ -401,6 +413,9 @@ proc invokeBlock*(interp: var Interpreter, blockNode: BlockNode, args: seq[NodeV
   # Push the activation onto the stack
   interp.pushActivation(activation)
 
+  # Set currentReceiver for proper 'self' resolution in the block
+  interp.currentReceiver = blockReceiver
+
   # Execute block body
   var blockResult = nilValue()
   try:
@@ -429,62 +444,60 @@ proc invokeBlock*(interp: var Interpreter, blockNode: BlockNode, args: seq[NodeV
 type
   MethodResult* = object
     currentMethod*: BlockNode
-    receiver*: RuntimeObject
-    definingObject*: RuntimeObject  # where method was found (for super)
+    receiver*: Instance         # Instance that received the message
+    definingClass*: Class       # class where method was found (for super)
     found*: bool
 
-proc lookupMethod(interp: Interpreter, receiver: RuntimeObject, selector: string): MethodResult =
-  ## Look up method in receiver and class hierarchy using canonical symbol
-  let sym = getSymbol(selector)
-  let selectorKey = sym.symVal
-  debug("Looking up method: '", selectorKey, "' in receiver with tags: ", $receiver.tags)
-  var current = receiver
-  var depth = 0
-  while current != nil and depth < 100:
-    inc depth
-    if selectorKey in current.methods:
-      debug("Found method ", selectorKey, " in methods table")
-      let meth = current.methods[selectorKey]
-      return MethodResult(currentMethod: meth, receiver: receiver, definingObject: current, found: true)
+proc lookupMethod(interp: Interpreter, receiver: Instance, selector: string): MethodResult =
+  ## Look up method in receiver's class using O(1) class lookup
+  if receiver == nil or receiver.class == nil:
+    debug("Method not found: ", selector, " (receiver or class is nil)")
+    return MethodResult(currentMethod: nil, receiver: nil, definingClass: nil, found: false)
 
-    # Check Dictionary properties for block values (only for Dictionary objects)
-    if current of DictionaryObj:
-      let dict = cast[DictionaryObj](current)
-      if selector in dict.properties:
-        debug("Found property with selector: ", selector)
-        let prop = dict.properties[selector]
-        if prop.kind == vkBlock:
-          let blockNode = prop.blockVal
-          debug("Property is a block, returning as method")
-          # Mark block as method for non-local returns
-          blockNode.isMethod = true
-          # Return the block as a method
-          return MethodResult(currentMethod: blockNode, receiver: receiver, definingObject: current, found: true)
+  let cls = receiver.class
+  debug("Looking up method: '", selector, "' in class: ", cls.name)
 
-    # Search parent chain
-    if current.parents.len > 0:
-      current = current.parents[0]
-    else:
-      break
+  # Fast O(1) lookup in allMethods table (already flattened from parents)
+  if selector in cls.allMethods:
+    debug("Found method ", selector, " in class ", cls.name)
+    return MethodResult(
+      currentMethod: cls.allMethods[selector],
+      receiver: receiver,
+      definingClass: cls,
+      found: true
+    )
 
-  if depth >= 100:
-    warn("Lookup depth exceeded 100 for selector: ", selector)
   debug("Method not found: ", selector)
-  return MethodResult(currentMethod: nil, receiver: nil, definingObject: nil, found: false)
+  return MethodResult(currentMethod: nil, receiver: receiver, definingClass: nil, found: false)
+
+proc lookupClassMethod(cls: Class, selector: string): MethodResult =
+  ## Look up class method in class (fast O(1) lookup)
+  if cls == nil:
+    return MethodResult(currentMethod: nil, receiver: nil, definingClass: nil, found: false)
+
+  # Fast O(1) lookup in allClassMethods table (already flattened from parents)
+  if selector in cls.allClassMethods:
+    return MethodResult(
+      currentMethod: cls.allClassMethods[selector],
+      receiver: nil,  # Class methods don't have instance receiver
+      definingClass: cls,
+      found: true
+    )
+  return MethodResult(currentMethod: nil, receiver: nil, definingClass: nil, found: false)
 
 # Execute a currentMethod
 proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
-                  receiver: RuntimeObject, arguments: seq[Node],
-                  definingObject: RuntimeObject = nil): NodeValue =
+                  receiver: Instance, arguments: seq[Node],
+                  definingClass: Class = nil): NodeValue =
   ## Execute a currentMethod with given receiver and arguments
-  ## definingObject is where the method was found (for super sends)
+  ## definingClass is where the method was found (for super sends)
   interp.checkStackDepth()
 
   debug("Executing method with ", arguments.len, " arguments")
 
   # Check for native implementation first
   if currentMethod.nativeImpl != nil:
-    debug("Calling native implementation for " & $receiver.tags)
+    debug("Calling native implementation")
     # Evaluate arguments to get NodeValues
     var argValues = newSeq[NodeValue]()
     for argNode in arguments:
@@ -492,18 +505,25 @@ proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
 
     # Check if this is an interpreter-aware native method (has interp parameter)
     if currentMethod.hasInterpreterParam:
-      type NativeProcWithInterp = proc(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue {.nimcall.}
+      type NativeProcWithInterp = proc(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.}
       let nativeProc = cast[NativeProcWithInterp](currentMethod.nativeImpl)
       return nativeProc(interp, receiver, argValues)
     else:
       # Standard native method without interpreter
-      type NativeProc = proc(self: RuntimeObject, args: seq[NodeValue]): NodeValue {.nimcall.}
+      type NativeProc = proc(self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.}
       let nativeProc = cast[NativeProc](currentMethod.nativeImpl)
       return nativeProc(receiver, argValues)
 
-  # Create new activation with definingObject for super sends
+  # Create new activation with definingClass for super sends
   debug("Executing interpreted method with ", currentMethod.parameters.len, " parameters")
-  let activation = newActivation(currentMethod, receiver, interp.currentActivation, definingObject)
+
+  # Update homeActivation for proper non-local returns
+  # When a block is stored as a method (via >>), its homeActivation was set at creation time.
+  # We need to update it to the current activation so non-local returns work correctly.
+  if currentMethod.isMethod:
+    currentMethod.homeActivation = interp.currentActivation
+
+  let activation = newActivation(currentMethod, receiver, interp.currentActivation, definingClass)
 
   # Bind parameters
   if currentMethod.parameters.len != arguments.len:
@@ -544,7 +564,7 @@ proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
   debug("Method execution complete, hasReturned: ", activation.hasReturned)
   # Return result (or activation.returnValue if non-local return)
   if activation.hasReturned:
-    debug("Returning from method (non-local)")
+    debug("Returning from method (non-local), returnValue: ", activation.returnValue.toString())
     return activation.returnValue
   else:
     debug("Returning from method: ", retVal.toString())
@@ -577,8 +597,12 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
     debug("Pseudo-variable: ", pseudo.name)
     case pseudo.name
     of "self":
+      debug("currentReceiver is nil: ", interp.currentReceiver == nil)
       if interp.currentReceiver != nil:
-        return interp.currentReceiver.toValue()
+        debug("currentReceiver class: ", interp.currentReceiver.class.name)
+        let result = interp.currentReceiver.toValue()
+        debug("self returning: ", result.toString())
+        return result
       return nilValue()
     of "nil":
       return nilValue()
@@ -628,8 +652,10 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
     var value = nilValue()
     if ret.expression != nil:
       value = interp.eval(ret.expression)
+      debug("Non-local return value: ", value.toString())
     else:
       value = interp.currentReceiver.toValue()
+      debug("Non-local return self: ", value.toString())
 
     # Determine the target activation for return
     # If we're inside a block, use the block's home activation (non-local return)
@@ -701,9 +727,10 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
           else:
             elements.add(interp.globals[]["Object"])
         of "super":
-          # super refers to parent of current receiver
-          if interp.currentReceiver != nil and interp.currentReceiver.parents.len > 0:
-            elements.add(interp.currentReceiver.parents[0].toValue())
+          # super refers to parent of current receiver's class
+          if interp.currentReceiver != nil and interp.currentReceiver.class != nil and
+             interp.currentReceiver.class.parents.len > 0:
+            elements.add(interp.currentReceiver.class.parents[0].toValue())
           else:
             elements.add(interp.globals[]["Object"])
         else:
@@ -726,17 +753,20 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
           else:
             elements.add(interp.globals[]["Object"])
         of "super":
-          # super refers to parent of current receiver
-          if interp.currentReceiver != nil and interp.currentReceiver.parents.len > 0:
-            elements.add(interp.currentReceiver.parents[0].toValue())
+          # super refers to parent of current receiver's class
+          if interp.currentReceiver != nil and interp.currentReceiver.class != nil and
+             interp.currentReceiver.class.parents.len > 0:
+            elements.add(interp.currentReceiver.class.parents[0].toValue())
           else:
             elements.add(interp.globals[]["Object"])
         continue
       # Normal evaluation for other elements
       elements.add(interp.eval(elem))
     debug("Array result: ", elements.len, " elements")
-    # Wrap array in proxy object so it can receive messages like at:
-    return wrapArrayAsObject(elements)
+    # Return array as Instance (ikArray variant)
+    if arrayClass == nil:
+      raise newException(EvalError, "Array class not initialized")
+    return newArrayInstance(arrayClass, elements).toValue()
 
   of nkTable:
     # Table literal - evaluate each key-value pair
@@ -755,8 +785,10 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
         raise newException(EvalError, "Table key must be string or symbol, got: " & $keyVal.kind)
       let valueVal = interp.eval(entry.value)
       table[keyStr] = valueVal
-    # Wrap table in proxy object so it can receive messages like at:
-    return wrapTableAsObject(table)
+    # Return table as Instance (ikTable variant)
+    if tableClass == nil:
+      raise newException(EvalError, "Table class not initialized")
+    return newTableInstance(tableClass, table).toValue()
 
   of nkObjectLiteral:
     # Object literal - create new object with properties
@@ -785,14 +817,11 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
     # Slot access - O(1) direct instance variable access by index
     let slotNode = cast[SlotAccessNode](node)
     if interp.currentReceiver != nil:
-      # Check if receiver is an Instance (new class-based model)
-      if interp.currentReceiver of Instance:
-        let inst = cast[Instance](interp.currentReceiver)
+      # Check if receiver is an ikObject instance (new class-based model)
+      if interp.currentReceiver.kind == ikObject:
+        let inst = interp.currentReceiver
         if slotNode.slotIndex >= 0 and slotNode.slotIndex < inst.slots.len:
           return inst.slots[slotNode.slotIndex]
-      # Fall back to legacy RuntimeObject slot access by name
-      else:
-        return getSlot(interp.currentReceiver, slotNode.slotName)
     return nilValue()
 
   of nkSuperSend:
@@ -809,7 +838,10 @@ proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue =
   let receiverVal = if msgNode.receiver != nil:
                       interp.eval(msgNode.receiver)
                     else:
-                      interp.currentReceiver.toValue()
+                      if interp.currentReceiver == nil:
+                        nilValue()
+                      else:
+                        interp.currentReceiver.toValue()
 
   debug("Checking receiver kind: ", receiverVal.kind, " selector: ", msgNode.selector)
 
@@ -849,27 +881,122 @@ proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue =
 
   debug("Message receiver: ", receiverVal.toString())
 
-  # Wrap non-object receivers (like integers, booleans, strings, arrays, tables, blocks) in Nim proxy objects
-  let wrappedReceiver = case receiverVal.kind
-                        of vkInt:
-                          wrapIntAsObject(receiverVal.intVal)
-                        of vkBool:
-                          wrapBoolAsObject(receiverVal.boolVal)
-                        of vkString:
-                          wrapStringAsObject(receiverVal.strVal)
-                        of vkArray:
-                          wrapArrayAsObject(receiverVal.arrayVal)
-                        of vkTable:
-                          wrapTableAsObject(receiverVal.tableVal)
-                        of vkBlock:
-                          wrapBlockAsObject(receiverVal.blockVal)
-                        else:
-                          receiverVal
+  # Handle class method lookup (messages sent to Class objects)
+  if receiverVal.kind == vkClass:
+    let cls = receiverVal.classVal
 
-  if wrappedReceiver.kind != vkObject:
-    raise newException(EvalError, "Message send to non-object: " & receiverVal.toString())
+    # Evaluate arguments
+    var arguments = newSeq[NodeValue]()
+    for argNode in msgNode.arguments:
+      arguments.add(interp.eval(argNode))
 
-  let receiver = wrappedReceiver.toObject()
+    debug("Looking up class method: ", msgNode.selector, " on class: ", cls.name)
+
+    # Handle selector:put: - add instance method to class (for >> syntax)
+    if msgNode.selector == "selector:put:":
+      if arguments.len >= 2 and arguments[0].kind == vkSymbol and arguments[1].kind == vkBlock:
+        let methodName = arguments[0].symVal
+        let methodBlock = arguments[1].blockVal
+        methodBlock.isMethod = true
+        cls.methods[methodName] = methodBlock
+        cls.allMethods[methodName] = methodBlock
+        # Also add to all subclasses' allMethods for inheritance
+        # but only if they don't already have their own method defined
+        for subclass in cls.subclasses:
+          if methodName notin subclass.methods:
+            subclass.allMethods[methodName] = methodBlock
+        debug("Added instance method: ", methodName, " to class: ", cls.name)
+        return cls.toValue()
+      else:
+        raise newException(EvalError, "selector:put: expects symbol and block arguments")
+
+    # Handle classSelector:put: - add class method to class (for class>> syntax)
+    if msgNode.selector == "classSelector:put:":
+      if arguments.len >= 2 and arguments[0].kind == vkSymbol and arguments[1].kind == vkBlock:
+        let methodName = arguments[0].symVal
+        let methodBlock = arguments[1].blockVal
+        methodBlock.isMethod = true
+        cls.classMethods[methodName] = methodBlock
+        cls.allClassMethods[methodName] = methodBlock
+        debug("Added class method: ", methodName, " to class: ", cls.name)
+        return cls.toValue()
+      else:
+        raise newException(EvalError, "classSelector:put: expects symbol and block arguments")
+
+    # Look up class method
+    let lookup = lookupClassMethod(cls, msgNode.selector)
+
+    if lookup.found:
+      # Found class method - execute it
+      let currentMethodNode = lookup.currentMethod
+      debug("Found class method, executing")
+
+      # Convert arguments back to AST nodes
+      var argNodes = newSeq[Node]()
+      for argVal in arguments:
+        argNodes.add(LiteralNode(value: argVal))
+
+      # For class methods, pass the class wrapped in a minimal Instance as receiver
+      # This allows native methods to know which class they were called on
+      let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: nil)
+      return interp.executeMethod(currentMethodNode, classReceiver, argNodes, lookup.definingClass)
+    else:
+      raise newException(EvalError,
+        "Class method not found: " & msgNode.selector & " on class " & cls.name)
+
+  # Convert receiver to Instance - create Instance variants directly
+  var receiver: Instance
+  case receiverVal.kind
+  of vkInstance:
+    receiver = receiverVal.instVal
+  of vkInt:
+    if integerClass == nil:
+      raise newException(EvalError, "Integer class not initialized")
+    receiver = newIntInstance(integerClass, receiverVal.intVal)
+  of vkFloat:
+    if floatClass == nil:
+      raise newException(EvalError, "Float class not initialized")
+    receiver = newFloatInstance(floatClass, receiverVal.floatVal)
+  of vkString:
+    if stringClass == nil:
+      raise newException(EvalError, "String class not initialized")
+    receiver = newStringInstance(stringClass, receiverVal.strVal)
+  of vkArray:
+    if arrayClass == nil:
+      raise newException(EvalError, "Array class not initialized")
+    receiver = newArrayInstance(arrayClass, receiverVal.arrayVal)
+  of vkTable:
+    if tableClass == nil:
+      raise newException(EvalError, "Table class not initialized")
+    receiver = newTableInstance(tableClass, receiverVal.tableVal)
+  of vkBool:
+    # Boolean - create ikObject instance with nimValue
+    # Use True or False class based on value
+    let p = cast[pointer](alloc(sizeof(bool)))
+    cast[ptr bool](p)[] = receiverVal.boolVal
+    var boolInst: Instance
+    new(boolInst)
+    boolInst.kind = ikObject
+    boolInst.class = if receiverVal.boolVal: trueClassCache else: falseClassCache
+    boolInst.slots = @[]
+    boolInst.isNimProxy = true
+    boolInst.nimValue = p
+    receiver = boolInst
+  of vkBlock:
+    # Blocks - store in ikObject instance
+    var blockInst: Instance
+    new(blockInst)
+    blockInst.kind = ikObject
+    blockInst.class = blockClass
+    blockInst.slots = @[]
+    blockInst.isNimProxy = false
+    # Store block reference in nimValue temporarily
+    blockInst.nimValue = cast[pointer](receiverVal.blockVal)
+    receiver = blockInst
+  of vkNil:
+    raise newException(EvalError, "Cannot send message to nil")
+  else:
+    raise newException(EvalError, "Message send to unsupported value kind: " & $receiverVal.kind)
 
   # Evaluate arguments
   var arguments = newSeq[NodeValue]()
@@ -878,7 +1005,7 @@ proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue =
 
   debug("Looking up method: ", msgNode.selector)
 
-  # Look up currentMethod
+  # Look up currentMethod using new class-based lookup
   let lookup = lookupMethod(interp, receiver, msgNode.selector)
 
   if lookup.found:
@@ -891,7 +1018,7 @@ proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue =
     for argVal in arguments:
       argNodes.add(LiteralNode(value: argVal))
 
-    return interp.executeMethod(currentMethodNode, receiver, argNodes, lookup.definingObject)
+    return interp.executeMethod(currentMethodNode, receiver, argNodes, lookup.definingClass)
   else:
     # Method not found - send doesNotUnderstand:
     debug("Method not found, sending doesNotUnderstand:")
@@ -907,46 +1034,52 @@ proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue =
       for argVal in dnuArgs:
         let node: Node = LiteralNode(value: argVal)
         dnuArgNodes.add(node)
-      return interp.executeMethod(dnuLookup.currentMethod, receiver, dnuArgNodes, dnuLookup.definingObject)
+      return interp.executeMethod(dnuLookup.currentMethod, receiver, dnuArgNodes, dnuLookup.definingClass)
     else:
       raise newException(EvalError,
-        "Message not understood: " & msgNode.selector & " on " & $receiver.tags)
+        "Message not understood: " & msgNode.selector & " on " & receiver.class.name)
 
 # Evaluate a super send
 proc evalSuperSend(interp: var Interpreter, superNode: SuperSendNode): NodeValue =
   ## Evaluate super send - lookup method in parent class
-  ## Unqualified super: lookup in parents[0]
+  ## Unqualified super: lookup in parents[0] of the DEFINING class (not receiver's class)
   ## Qualified super<Parent>: lookup in specific parent
 
   if interp.currentReceiver == nil:
     raise newException(EvalError, "super send with no current receiver")
 
-  # Get the class of the current receiver
-  var cls: Class = nil
-  if interp.currentReceiver of Instance:
-    cls = cast[Instance](interp.currentReceiver).class
-  elif interp.currentReceiver of RuntimeObject:
-    # Legacy: try to find class from protoObject
-    # For now, raise error - super requires class-based model
-    raise newException(EvalError, "super requires class-based object model")
+  # Get the defining class from the current activation
+  # This is the class where the currently-executing method was defined
+  var definingClass: Class = nil
+  if interp.currentActivation != nil and interp.currentActivation.definingObject != nil:
+    definingClass = interp.currentActivation.definingObject
   else:
-    raise newException(EvalError, "super send on invalid receiver type")
+    # Fallback to receiver's class if no defining class (first super send)
+    if interp.currentReceiver of Instance:
+      definingClass = cast[Instance](interp.currentReceiver).class
+    elif interp.currentReceiver of RuntimeObject:
+      raise newException(EvalError, "super requires class-based object model")
+    else:
+      raise newException(EvalError, "super send on invalid receiver type")
+
+  if definingClass == nil:
+    raise newException(EvalError, "super send with no defining class")
 
   # Determine which parent to look in
   var targetParent: Class = nil
   if superNode.explicitParent.len > 0:
     # Qualified super<Parent>: find specific parent by name
-    for parent in cls.parents:
+    for parent in definingClass.parents:
       if parent.name == superNode.explicitParent:
         targetParent = parent
         break
     if targetParent == nil:
       raise newException(EvalError, "Parent class '" & superNode.explicitParent & "' not found in inheritance chain")
   else:
-    # Unqualified super: use first parent
-    if cls.parents.len == 0:
+    # Unqualified super: use first parent of the defining class
+    if definingClass.parents.len == 0:
       raise newException(EvalError, "super send in class with no parents")
-    targetParent = cls.parents[0]
+    targetParent = definingClass.parents[0]
 
   # Look up method in target parent's allMethods
   let methodBlock = lookupInstanceMethod(targetParent, superNode.selector)
@@ -963,8 +1096,9 @@ proc evalSuperSend(interp: var Interpreter, superNode: SuperSendNode): NodeValue
   for argVal in arguments:
     argNodes.add(LiteralNode(value: argVal))
 
-  # Execute the method with current receiver
-  return interp.executeMethod(methodBlock, interp.currentReceiver, argNodes, nil)
+  # Execute the method with current receiver, passing targetParent as the defining class
+  # This is crucial: the defining class for the super method execution is targetParent
+  return interp.executeMethod(methodBlock, interp.currentReceiver, argNodes, targetParent)
 
 # Evaluate a cascade of messages
 proc evalCascade(interp: var Interpreter, cascadeNode: CascadeNode): NodeValue =
@@ -975,21 +1109,63 @@ proc evalCascade(interp: var Interpreter, cascadeNode: CascadeNode): NodeValue =
   let receiverVal = interp.eval(cascadeNode.receiver)
   var cascadeResult = receiverVal
 
+  # Convert receiver to Instance - same logic as evalMessage
+  var receiver: Instance
+  case receiverVal.kind
+  of vkInstance:
+    receiver = receiverVal.instVal
+  of vkInt:
+    if integerClass == nil:
+      raise newException(EvalError, "Integer class not initialized")
+    receiver = newIntInstance(integerClass, receiverVal.intVal)
+  of vkFloat:
+    if floatClass == nil:
+      raise newException(EvalError, "Float class not initialized")
+    receiver = newFloatInstance(floatClass, receiverVal.floatVal)
+  of vkString:
+    if stringClass == nil:
+      raise newException(EvalError, "String class not initialized")
+    receiver = newStringInstance(stringClass, receiverVal.strVal)
+  of vkArray:
+    if arrayClass == nil:
+      raise newException(EvalError, "Array class not initialized")
+    receiver = newArrayInstance(arrayClass, receiverVal.arrayVal)
+  of vkTable:
+    if tableClass == nil:
+      raise newException(EvalError, "Table class not initialized")
+    receiver = newTableInstance(tableClass, receiverVal.tableVal)
+  of vkBool:
+    # Boolean - create ikObject instance with nimValue
+    # Use True or False class based on value
+    let p = cast[pointer](alloc(sizeof(bool)))
+    cast[ptr bool](p)[] = receiverVal.boolVal
+    var boolInst: Instance
+    new(boolInst)
+    boolInst.kind = ikObject
+    boolInst.class = if receiverVal.boolVal: trueClassCache else: falseClassCache
+    boolInst.slots = @[]
+    boolInst.isNimProxy = true
+    boolInst.nimValue = p
+    receiver = boolInst
+  of vkBlock:
+    var blockInst: Instance
+    new(blockInst)
+    blockInst.kind = ikObject
+    blockInst.class = blockClass
+    blockInst.slots = @[]
+    blockInst.isNimProxy = false
+    blockInst.nimValue = cast[pointer](receiverVal.blockVal)
+    receiver = blockInst
+  else:
+    raise newException(EvalError, "Cascade to unsupported value kind: " & $receiverVal.kind)
+
+  # Save original receiver
+  let savedReceiver = interp.currentReceiver
+
   # Send each message to the receiver
   for msgNode in cascadeNode.messages:
-    # Temporarily set receiver for this message
-    let savedReceiver = interp.currentReceiver
-
-    # Wrap non-object receivers if needed
-    let wrappedReceiver = if receiverVal.kind == vkInt:
-                            wrapIntAsObject(receiverVal.intVal)
-                          else:
-                            receiverVal
-
-    if wrappedReceiver.kind != vkObject:
-      raise newException(EvalError, "Cascade to non-object: " & receiverVal.toString())
-
-    interp.currentReceiver = wrappedReceiver.toObject()
+    # Update current receiver for this message
+    interp.currentReceiver = receiver
 
     # Evaluate message - messages in cascade have receiver set to nil
     # so they use currentReceiver
@@ -1001,14 +1177,14 @@ proc evalCascade(interp: var Interpreter, cascadeNode: CascadeNode): NodeValue =
     )
     cascadeResult = interp.evalMessage(msgWithNilReceiver)
 
-    # Restore previous receiver
-    interp.currentReceiver = savedReceiver
+  # Restore previous receiver
+  interp.currentReceiver = savedReceiver
 
   # Return result of last message
   return cascadeResult
 
 # Special form for sending messages directly without AST
-proc sendMessage*(interp: var Interpreter, receiver: RuntimeObject,
+proc sendMessage*(interp: var Interpreter, receiver: Instance,
                  selector: string, args: varargs[NodeValue]): NodeValue =
   ## Direct message send for internal use
   var argNodes = newSeq[Node]()
@@ -1016,20 +1192,10 @@ proc sendMessage*(interp: var Interpreter, receiver: RuntimeObject,
     let node: Node = LiteralNode(value: argVal)
     argNodes.add(node)
 
-  # Look up method in receiver
-  var current = receiver
-  var foundMethod: BlockNode = nil
-  while current != nil:
-    if selector in current.methods:
-      foundMethod = current.methods[selector]
-      break
-    if current.parents.len > 0:
-      current = current.parents[0]
-    else:
-      break
-
-  if foundMethod != nil:
-    return interp.executeMethod(foundMethod, receiver, argNodes)
+  # Look up method in receiver's class (O(1) lookup)
+  let lookup = lookupMethod(interp, receiver, selector)
+  if lookup.found:
+    return interp.executeMethod(lookup.currentMethod, receiver, argNodes, lookup.definingClass)
   else:
     raise newException(EvalError,
       "Message not understood: " & selector)
@@ -1100,14 +1266,15 @@ proc evalStatements*(interp: var Interpreter, source: string): (seq[NodeValue], 
     return (@[], "Error: " & e.msg)
 
 # Block evaluation helper
-proc evalBlock(interp: var Interpreter, receiver: RuntimeObject, blockNode: BlockNode): NodeValue =
+proc evalBlock(interp: var Interpreter, receiver: Instance, blockNode: BlockNode): NodeValue =
   ## Evaluate a block in the context of the given receiver
   ## Creates a proper activation to allow access to outer scope
 
   # Use the block's home activation receiver for proper 'self' resolution
   # This ensures that 'self' inside a block refers to the receiver where
   # the block was created, not the caller-provided receiver
-  let blockReceiver = if blockNode.homeActivation != nil:
+  let blockReceiver = if blockNode.homeActivation != nil and
+                        blockNode.homeActivation.receiver != nil:
                         blockNode.homeActivation.receiver
                       else:
                         receiver
@@ -1138,10 +1305,11 @@ proc evalBlock(interp: var Interpreter, receiver: RuntimeObject, blockNode: Bloc
 
   return blockResult
 
-proc evalBlockWithArg(interp: var Interpreter, receiver: RuntimeObject, blockNode: BlockNode, arg: NodeValue): NodeValue =
+proc evalBlockWithArg(interp: var Interpreter, receiver: Instance, blockNode: BlockNode, arg: NodeValue): NodeValue =
   ## Evaluate a block with one argument
   # Use the block's home activation receiver for proper 'self' resolution
-  let blockReceiver = if blockNode.homeActivation != nil:
+  let blockReceiver = if blockNode.homeActivation != nil and
+                        blockNode.homeActivation.receiver != nil:
                         blockNode.homeActivation.receiver
                       else:
                         receiver
@@ -1172,7 +1340,7 @@ proc evalBlockWithArg(interp: var Interpreter, receiver: RuntimeObject, blockNod
   return blockResult
 
 # asSelfDo: implementation (interpreter-aware)
-proc asSelfDoImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+proc asSelfDoImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Evaluate a block with self temporarily bound to the receiver
   ## Usage: someObject asSelfDo: [ ... self ... ]
   ## Inside the block, 'self' refers to someObject
@@ -1186,7 +1354,7 @@ proc asSelfDoImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeVa
   return evalBlock(interp, self, blockNode)
 
 # perform:with: implementation (interpreter-aware)
-proc performWithImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+proc performWithImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Send a message to self with arguments: self perform: #selector with: arg
   if args.len < 1:
     return nilValue()
@@ -1214,10 +1382,10 @@ proc performWithImpl(interp: var Interpreter, self: RuntimeObject, args: seq[Nod
     messageArgs.add(LiteralNode(value: args[2]))
 
   # Execute the method
-  return executeMethod(interp, methodResult.currentMethod, self, messageArgs, methodResult.definingObject)
+  return executeMethod(interp, methodResult.currentMethod, self, messageArgs, methodResult.definingClass)
 
 # Collection iteration method (interpreter-aware)
-proc doCollectionImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+proc doCollectionImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Iterate over collection: collection do: [:item | ... ]
   ## Returns the collection (like Smalltalk)
   if args.len < 1 or args[0].kind != vkBlock:
@@ -1226,9 +1394,8 @@ proc doCollectionImpl(interp: var Interpreter, self: RuntimeObject, args: seq[No
   let blockNode = args[0].blockVal
 
   # Handle array iteration
-  if self.isNimProxy and self.nimType == "array":
-    let arr = cast[ptr seq[NodeValue]](self.nimValue)[]
-    for elem in arr:
+  if self.kind == ikArray:
+    for elem in self.elements:
       # Create activation for block with element as parameter
       let activation = newActivation(blockNode, interp.currentReceiver, interp.currentActivation)
       # Bind the block parameter to the element
@@ -1244,9 +1411,8 @@ proc doCollectionImpl(interp: var Interpreter, self: RuntimeObject, args: seq[No
     return self.toValue()
 
   # Handle table iteration (key-value pairs)
-  if self.isNimProxy and self.nimType == "table":
-    let tab = cast[ptr Table[string, NodeValue]](self.nimValue)[]
-    for key, val in tab:
+  if self.kind == ikTable:
+    for key, val in self.entries:
       let activation = newActivation(blockNode, interp.currentReceiver, interp.currentActivation)
       # Bind block parameters
       if blockNode.parameters.len > 0:
@@ -1265,13 +1431,13 @@ proc doCollectionImpl(interp: var Interpreter, self: RuntimeObject, args: seq[No
   return nilValue()
 
 # Conditional method implementations (need to be defined before initGlobals)
-proc ifTrueImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+proc ifTrueImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Execute block if receiver is true: true ifTrue: [code]
   if args.len < 1 or args[0].kind != vkBlock:
     return nilValue()
 
-  # Check if this is a true boolean
-  if self.isNimProxy and self.nimType == "bool":
+  # Check if this is a true boolean (nimProxy indicates wrapped primitive)
+  if self.isNimProxy and self.kind == ikObject:
     let boolVal = cast[ptr bool](self.nimValue)[]
     if boolVal:
       # Execute the block with proper context
@@ -1279,13 +1445,13 @@ proc ifTrueImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValu
       return evalBlock(interp, interp.currentReceiver, blockNode)
   return nilValue()
 
-proc ifFalseImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+proc ifFalseImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Execute block if receiver is false: false ifFalse: [code]
   if args.len < 1 or args[0].kind != vkBlock:
     return nilValue()
 
-  # Check if this is a boolean
-  if self.isNimProxy and self.nimType == "bool":
+  # Check if this is a boolean (nimProxy indicates wrapped primitive)
+  if self.isNimProxy and self.kind == ikObject:
     let boolVal = cast[ptr bool](self.nimValue)[]
     if not boolVal:
       # Execute the block with proper context
@@ -1294,7 +1460,7 @@ proc ifFalseImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeVal
   return nilValue()
 
 # Loop method implementations (interpreter-aware)
-proc whileTrueImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+proc whileTrueImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Execute bodyBlock while conditionBlock evaluates to true: [cond] whileTrue: [body]
   ## self is the condition block (receiver), args[0] is the body block
   if args.len < 1 or args[0].kind != vkBlock:
@@ -1338,7 +1504,7 @@ proc whileTrueImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeV
 
   return lastResult
 
-proc whileFalseImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+proc whileFalseImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Execute bodyBlock while conditionBlock evaluates to false: [cond] whileFalse: [body]
   ## self is the condition block (receiver), args[0] is the body block
   if args.len < 1 or args[0].kind != vkBlock:
@@ -1383,7 +1549,7 @@ proc whileFalseImpl(interp: var Interpreter, self: RuntimeObject, args: seq[Node
   return lastResult
 
 # Exception handling methods
-proc onDoImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+proc onDoImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Install exception handler: [ protectedBlock ] on: ExceptionClass do: [ :ex | handler ]
   ## self is the protected block (receiver), args[0] is exception class, args[1] is handler block
   if args.len < 2 or args[1].kind != vkBlock:
@@ -1455,7 +1621,7 @@ proc onDoImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]
 
   return blockResult
 
-proc signalImpl(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+proc signalImpl(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Signal an exception: exception signal
   ## self is the exception object
   var message = "Unknown error"
@@ -1467,7 +1633,7 @@ proc signalImpl(self: RuntimeObject, args: seq[NodeValue]): NodeValue =
   raise newException(ValueError, message)
 
 # Global namespace methods - using shared table reference
-proc globalAtImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+proc globalAtImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Global at: key - lookup global by name
   if args.len < 1 or args[0].kind != vkString:
     return nilValue()
@@ -1476,7 +1642,7 @@ proc globalAtImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeVa
     return interp.globals[][key]
   return nilValue()
 
-proc globalAtPutImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+proc globalAtPutImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Global at: key put: value - set global
   if args.len < 2 or args[0].kind != vkString:
     return nilValue()
@@ -1485,7 +1651,7 @@ proc globalAtPutImpl(interp: var Interpreter, self: RuntimeObject, args: seq[Nod
   interp.globals[][key] = val
   return val
 
-proc globalAtIfAbsentImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+proc globalAtIfAbsentImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Global at: key ifAbsent: block - lookup or execute block
   if args.len < 2 or args[0].kind != vkString or args[1].kind != vkBlock:
     return nilValue()
@@ -1496,7 +1662,7 @@ proc globalAtIfAbsentImpl(interp: var Interpreter, self: RuntimeObject, args: se
   return evalBlock(interp, self, args[1].blockVal)
 
 # Array iteration method
-proc arrayDoImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeValue]): NodeValue =
+proc arrayDoImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Iterate over array elements: arr do: [ :elem | code ]
   ## self is the array, args[0] is the block to execute for each element
   if args.len < 1 or args[0].kind != vkBlock:
@@ -1523,414 +1689,418 @@ proc arrayDoImpl(interp: var Interpreter, self: RuntimeObject, args: seq[NodeVal
   return lastResult
 
 # Built-in globals
+# Built-in globals - NEW Class-based implementation
 proc initGlobals*(interp: var Interpreter) =
-  ## Initialize built-in global variables
+  ## Initialize built-in global variables using new Class-based model
 
-  # Add some useful constants
-  interp.globals[]["Object"] = interp.rootObject.toValue()
-  interp.globals[]["root"] = interp.rootObject.toValue()
+  # Set rootClass and create the basic class hierarchy from Root
+  let rootCls = initRootClass()
 
-  # Add Dictionary to globals
-  if dictionaryPrototype != nil:
-    interp.globals[]["Dictionary"] = dictionaryPrototype.RuntimeObject.toValue()
+  # Register derive: class method on Root (inherited by all classes)
+  # This allows creating subclasses: Object derive: #(slotNames)
+  proc deriveClassImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+    # self.class is the class we're deriving from (the receiver of derive:)
+    if args.len < 1:
+      raise newException(ValueError, "derive: requires array of slot names")
 
-  # Create Float class
-  let floatProto = RuntimeObject()
-  floatProto.methods = initTable[string, BlockNode]()
-  floatProto.parents = @[interp.rootObject.RuntimeObject]
-  floatProto.tags = @["Float", "Number"]
-  floatProto.isNimProxy = false
-  floatProto.nimValue = nil
-  floatProto.nimType = ""
-  floatProto.hasSlots = false
-  floatProto.slots = @[]
-  floatProto.slotNames = initTable[string, int]()
-  interp.globals[]["Float"] = floatProto.toValue()
+    # Get the array from the argument (could be vkArray or ikArray Instance)
+    var slotNames: seq[string] = @[]
 
-  # Create Array class
-  let arrayProto = RuntimeObject()
-  arrayProto.methods = initTable[string, BlockNode]()
-  arrayProto.parents = @[interp.rootObject.RuntimeObject]
-  arrayProto.tags = @["Array", "Collection"]
-  arrayProto.isNimProxy = false
-  arrayProto.nimValue = nil
-  arrayProto.nimType = ""
-  arrayProto.hasSlots = false
-  arrayProto.slots = @[]
-  arrayProto.slotNames = initTable[string, int]()
+    if args[0].kind == vkArray:
+      # Direct array value
+      for item in args[0].arrayVal:
+        if item.kind == vkSymbol:
+          slotNames.add(item.symVal)
+        elif item.kind == vkString:
+          slotNames.add(item.strVal)
+        else:
+          raise newException(ValueError, "Slot names must be symbols or strings, got: " & $item.kind)
+    elif args[0].kind == vkInstance and args[0].instVal.kind == ikArray:
+      # Array wrapped in Instance
+      for item in args[0].instVal.elements:
+        if item.kind == vkSymbol:
+          slotNames.add(item.symVal)
+        elif item.kind == vkString:
+          slotNames.add(item.strVal)
+        else:
+          raise newException(ValueError, "Slot names must be symbols or strings, got: " & $item.kind)
+    else:
+      raise newException(ValueError, "derive: requires array of slot names, got: " & $args[0].kind)
 
-  # Add Array primitive methods
-  let arrayNewMethod = createCoreMethod("primitiveNew:")
-  arrayNewMethod.nativeImpl = cast[pointer](arrayNewImpl)
-  addMethod(arrayProto, "primitiveNew:", arrayNewMethod)
+    # Get the parent class from self (the class that received the derive: message)
+    let parentClass = self.class
 
+    # Create new class with parent and slot names
+    let newClass = newClass(parents = @[parentClass], slotNames = slotNames, name = "")
+    return newClass.toValue()
+
+  let deriveMethod = createCoreMethod("derive:")
+  deriveMethod.nativeImpl = cast[pointer](deriveClassImpl)
+  deriveMethod.hasInterpreterParam = true
+  rootCls.classMethods["derive:"] = deriveMethod
+  rootCls.allClassMethods["derive:"] = deriveMethod
+
+  # Register derive class method (no arguments - creates subclass without slots)
+  proc deriveNoArgsImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+    let parentClass = self.class
+    let newClass = newClass(parents = @[parentClass], slotNames = @[], name = "")
+    return newClass.toValue()
+
+  let deriveNoArgsMethod = createCoreMethod("derive")
+  deriveNoArgsMethod.nativeImpl = cast[pointer](deriveNoArgsImpl)
+  deriveNoArgsMethod.hasInterpreterParam = true
+  rootCls.classMethods["derive"] = deriveNoArgsMethod
+  rootCls.allClassMethods["derive"] = deriveNoArgsMethod
+
+  # Create Object class (derives from Root)
+  let objectCls = newClass(parents = @[rootCls], name = "Object")
+  objectCls.tags = @["Object"]
+  objectClass = objectCls
+
+  # Register Object class methods (Object new)
+  proc objectClassNewImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+    # self.class is the class receiving the message (e.g., Table for Table new)
+    if self != nil and self.class != nil:
+      return newInstance(self.class).toValue()
+    return newInstance(objectClass).toValue()
+
+  let classNewMethod = createCoreMethod("new")
+  classNewMethod.nativeImpl = cast[pointer](objectClassNewImpl)
+  classNewMethod.hasInterpreterParam = true
+  objectCls.classMethods["new"] = classNewMethod
+  objectCls.allClassMethods["new"] = classNewMethod
+
+  # Add perform: methods to Object class (for primitive dispatch from Smalltalk)
+  let objPerformMethod = createCoreMethod("perform:")
+  objPerformMethod.nativeImpl = cast[pointer](performWithImpl)
+  objPerformMethod.hasInterpreterParam = true
+  objectCls.methods["perform:"] = objPerformMethod
+  objectCls.allMethods["perform:"] = objPerformMethod
+
+  let objPerformWithMethod = createCoreMethod("perform:with:")
+  objPerformWithMethod.nativeImpl = cast[pointer](performWithImpl)
+  objPerformWithMethod.hasInterpreterParam = true
+  objectCls.methods["perform:with:"] = objPerformWithMethod
+  objectCls.allMethods["perform:with:"] = objPerformWithMethod
+
+  let objPerformWithWithMethod = createCoreMethod("perform:with:with:")
+  objPerformWithWithMethod.nativeImpl = cast[pointer](performWithImpl)
+  objPerformWithWithMethod.hasInterpreterParam = true
+  objectCls.methods["perform:with:with:"] = objPerformWithWithMethod
+  objectCls.allMethods["perform:with:with:"] = objPerformWithWithMethod
+
+  # Add primitiveIdentity: for == comparison
+  let objIdentityMethod = createCoreMethod("primitiveIdentity:")
+  objIdentityMethod.nativeImpl = cast[pointer](instIdentityImpl)
+  objectCls.methods["primitiveIdentity:"] = objIdentityMethod
+  objectCls.allMethods["primitiveIdentity:"] = objIdentityMethod
+
+  # Create Number class (derives from Object)
+  let numberCls = newClass(parents = @[objectCls], name = "Number")
+  numberCls.tags = @["Number"]
+
+  # Create Integer class (derives from Number)
+  let intCls = newClass(parents = @[numberCls], name = "Integer")
+  intCls.tags = @["Integer", "Number"]
+  integerClass = intCls
+
+  # Register Integer arithmetic methods
+  let plusMethod = createCoreMethod("+")
+  plusMethod.nativeImpl = cast[pointer](plusImpl)
+  intCls.methods["+"] = plusMethod
+  intCls.allMethods["+"] = plusMethod
+
+  let minusMethod = createCoreMethod("-")
+  minusMethod.nativeImpl = cast[pointer](minusImpl)
+  intCls.methods["-"] = minusMethod
+  intCls.allMethods["-"] = minusMethod
+
+  let starMethod = createCoreMethod("*")
+  starMethod.nativeImpl = cast[pointer](starImpl)
+  intCls.methods["*"] = starMethod
+  intCls.allMethods["*"] = starMethod
+
+  let slashMethod = createCoreMethod("/")
+  slashMethod.nativeImpl = cast[pointer](slashImpl)
+  intCls.methods["/"] = slashMethod
+  intCls.allMethods["/"] = slashMethod
+
+  # Register Integer comparison methods
+  let ltMethod = createCoreMethod("<")
+  ltMethod.nativeImpl = cast[pointer](ltImpl)
+  intCls.methods["<"] = ltMethod
+  intCls.allMethods["<"] = ltMethod
+
+  let gtMethod = createCoreMethod(">")
+  gtMethod.nativeImpl = cast[pointer](gtImpl)
+  intCls.methods[">"] = gtMethod
+  intCls.allMethods[">"] = gtMethod
+
+  let eqMethod = createCoreMethod("=")
+  eqMethod.nativeImpl = cast[pointer](eqImpl)
+  intCls.methods["="] = eqMethod
+  intCls.allMethods["="] = eqMethod
+
+  let leMethod = createCoreMethod("<=")
+  leMethod.nativeImpl = cast[pointer](leImpl)
+  intCls.methods["<="] = leMethod
+  intCls.allMethods["<="] = leMethod
+
+  let geMethod = createCoreMethod(">=")
+  geMethod.nativeImpl = cast[pointer](geImpl)
+  intCls.methods[">="] = geMethod
+  intCls.allMethods[">="] = geMethod
+
+  let neMethod = createCoreMethod("<>")
+  neMethod.nativeImpl = cast[pointer](neImpl)
+  intCls.methods["<>"] = neMethod
+  intCls.allMethods["<>"] = neMethod
+
+  # Register printString on Integer
+  let intPrintStringMethod = createCoreMethod("printString")
+  intPrintStringMethod.nativeImpl = cast[pointer](printStringImpl)
+  intCls.methods["printString"] = intPrintStringMethod
+  intCls.allMethods["printString"] = intPrintStringMethod
+
+  # Register additional Integer methods
+  let intDivMethod = createCoreMethod("//")
+  intDivMethod.nativeImpl = cast[pointer](intDivImpl)
+  intCls.methods["//"] = intDivMethod
+  intCls.allMethods["//"] = intDivMethod
+
+  let backslashModuloMethod = createCoreMethod("\\")
+  backslashModuloMethod.nativeImpl = cast[pointer](backslashModuloImpl)
+  intCls.methods["\\"] = backslashModuloMethod
+  intCls.allMethods["\\"] = backslashModuloMethod
+
+  let moduloMethod = createCoreMethod("%")
+  moduloMethod.nativeImpl = cast[pointer](moduloImpl)
+  intCls.methods["%"] = moduloMethod
+  intCls.allMethods["%"] = moduloMethod
+
+  # Create Float class (derives from Number)
+  let floatCls = newClass(parents = @[numberCls], name = "Float")
+  floatCls.tags = @["Float", "Number"]
+  floatClass = floatCls
+
+  # Copy arithmetic methods to Float
+  floatCls.allMethods = intCls.allMethods
+
+  # Add Float-specific methods
+  let sqrtMethod = createCoreMethod("sqrt")
+  sqrtMethod.nativeImpl = cast[pointer](sqrtImpl)
+  floatCls.methods["sqrt"] = sqrtMethod
+  floatCls.allMethods["sqrt"] = sqrtMethod
+
+  # Create String class (derives from Object)
+  let stringCls = newClass(parents = @[objectCls], name = "String")
+  stringCls.tags = @["String", "Text"]
+  stringClass = stringCls
+
+  # Register String primitive methods
+  let stringConcatMethod = createCoreMethod("primitiveConcat:")
+  stringConcatMethod.nativeImpl = cast[pointer](instStringConcatImpl)
+  stringCls.methods["primitiveConcat:"] = stringConcatMethod
+  stringCls.allMethods["primitiveConcat:"] = stringConcatMethod
+
+  let stringSizeMethod = createCoreMethod("primitiveStringSize")
+  stringSizeMethod.nativeImpl = cast[pointer](instStringSizeImpl)
+  stringCls.methods["primitiveStringSize"] = stringSizeMethod
+  stringCls.allMethods["primitiveStringSize"] = stringSizeMethod
+
+  let stringAtMethod = createCoreMethod("primitiveStringAt:")
+  stringAtMethod.nativeImpl = cast[pointer](instStringAtImpl)
+  stringCls.methods["primitiveStringAt:"] = stringAtMethod
+  stringCls.allMethods["primitiveStringAt:"] = stringAtMethod
+
+  let stringSplitMethod = createCoreMethod("primitiveSplit:")
+  stringSplitMethod.nativeImpl = cast[pointer](instStringSplitImpl)
+  stringCls.methods["primitiveSplit:"] = stringSplitMethod
+  stringCls.allMethods["primitiveSplit:"] = stringSplitMethod
+
+  # Register Instance-based String primitives
+  let stringLowercaseMethod = createCoreMethod("primitiveLowercase")
+  stringLowercaseMethod.nativeImpl = cast[pointer](instStringLowercaseImpl)
+  stringCls.methods["primitiveLowercase"] = stringLowercaseMethod
+  stringCls.allMethods["primitiveLowercase"] = stringLowercaseMethod
+
+  let stringUppercaseMethod = createCoreMethod("primitiveUppercase")
+  stringUppercaseMethod.nativeImpl = cast[pointer](instStringUppercaseImpl)
+  stringCls.methods["primitiveUppercase"] = stringUppercaseMethod
+  stringCls.allMethods["primitiveUppercase"] = stringUppercaseMethod
+
+  let stringTrimMethod = createCoreMethod("primitiveTrim")
+  stringTrimMethod.nativeImpl = cast[pointer](instStringTrimImpl)
+  stringCls.methods["primitiveTrim"] = stringTrimMethod
+  stringCls.allMethods["primitiveTrim"] = stringTrimMethod
+
+  let stringFromToMethod = createCoreMethod("primitiveFromTo:")
+  stringFromToMethod.nativeImpl = cast[pointer](instStringFromToImpl)
+  stringCls.methods["primitiveFromTo:"] = stringFromToMethod
+  stringCls.allMethods["primitiveFromTo:"] = stringFromToMethod
+
+  let stringIndexOfMethod = createCoreMethod("primitiveIndexOf:")
+  stringIndexOfMethod.nativeImpl = cast[pointer](instStringIndexOfImpl)
+  stringCls.methods["primitiveIndexOf:"] = stringIndexOfMethod
+  stringCls.allMethods["primitiveIndexOf:"] = stringIndexOfMethod
+
+  let stringIncludesSubStringMethod = createCoreMethod("primitiveIncludesSubString:")
+  stringIncludesSubStringMethod.nativeImpl = cast[pointer](instStringIncludesSubStringImpl)
+  stringCls.methods["primitiveIncludesSubString:"] = stringIncludesSubStringMethod
+  stringCls.allMethods["primitiveIncludesSubString:"] = stringIncludesSubStringMethod
+
+  let stringReplaceWithMethod = createCoreMethod("primitiveReplaceWith:")
+  stringReplaceWithMethod.nativeImpl = cast[pointer](instStringReplaceWithImpl)
+  stringCls.methods["primitiveReplaceWith:"] = stringReplaceWithMethod
+  stringCls.allMethods["primitiveReplaceWith:"] = stringReplaceWithMethod
+
+  let stringAsIntegerMethod = createCoreMethod("primitiveAsInteger")
+  stringAsIntegerMethod.nativeImpl = cast[pointer](instStringAsIntegerImpl)
+  stringCls.methods["primitiveAsInteger"] = stringAsIntegerMethod
+  stringCls.allMethods["primitiveAsInteger"] = stringAsIntegerMethod
+
+  let stringAsSymbolMethod = createCoreMethod("primitiveAsSymbol")
+  stringAsSymbolMethod.nativeImpl = cast[pointer](instStringAsSymbolImpl)
+  stringCls.methods["primitiveAsSymbol"] = stringAsSymbolMethod
+  stringCls.allMethods["primitiveAsSymbol"] = stringAsSymbolMethod
+
+  # Create Array class (derives from Object)
+  let arrayCls = newClass(parents = @[objectCls], name = "Array")
+  arrayCls.tags = @["Array", "Collection"]
+  arrayClass = arrayCls
+
+  # Register Array primitive methods
   let arraySizeMethod = createCoreMethod("primitiveSize")
   arraySizeMethod.nativeImpl = cast[pointer](arraySizeImpl)
-  addMethod(arrayProto, "primitiveSize", arraySizeMethod)
+  arrayCls.methods["primitiveSize"] = arraySizeMethod
+  arrayCls.allMethods["primitiveSize"] = arraySizeMethod
 
   let arrayAddMethod = createCoreMethod("primitiveAdd:")
   arrayAddMethod.nativeImpl = cast[pointer](arrayAddImpl)
-  addMethod(arrayProto, "primitiveAdd:", arrayAddMethod)
-
-  let arrayAddAliasMethod = createCoreMethod("add:")
-  arrayAddAliasMethod.nativeImpl = cast[pointer](arrayAddImpl)
-  addMethod(arrayProto, "add:", arrayAddAliasMethod)
+  arrayCls.methods["primitiveAdd:"] = arrayAddMethod
+  arrayCls.allMethods["primitiveAdd:"] = arrayAddMethod
 
   let arrayAtMethod = createCoreMethod("at:")
   arrayAtMethod.nativeImpl = cast[pointer](arrayAtImpl)
-  addMethod(arrayProto, "at:", arrayAtMethod)
+  arrayCls.methods["at:"] = arrayAtMethod
+  arrayCls.allMethods["at:"] = arrayAtMethod
 
   let arrayAtPutMethod = createCoreMethod("at:put:")
   arrayAtPutMethod.nativeImpl = cast[pointer](arrayAtPutImpl)
-  addMethod(arrayProto, "at:put:", arrayAtPutMethod)
-
-  let arrayRemoveAtMethod = createCoreMethod("primitiveRemoveAt:")
-  arrayRemoveAtMethod.nativeImpl = cast[pointer](arrayRemoveAtImpl)
-  addMethod(arrayProto, "primitiveRemoveAt:", arrayRemoveAtMethod)
+  arrayCls.methods["at:put:"] = arrayAtPutMethod
+  arrayCls.allMethods["at:put:"] = arrayAtPutMethod
 
   let arrayIncludesMethod = createCoreMethod("primitiveIncludes:")
   arrayIncludesMethod.nativeImpl = cast[pointer](arrayIncludesImpl)
-  addMethod(arrayProto, "primitiveIncludes:", arrayIncludesMethod)
+  arrayCls.methods["primitiveIncludes:"] = arrayIncludesMethod
+  arrayCls.allMethods["primitiveIncludes:"] = arrayIncludesMethod
 
   let arrayReverseMethod = createCoreMethod("primitiveReverse")
   arrayReverseMethod.nativeImpl = cast[pointer](arrayReverseImpl)
-  addMethod(arrayProto, "primitiveReverse", arrayReverseMethod)
+  arrayCls.methods["primitiveReverse"] = arrayReverseMethod
+  arrayCls.allMethods["primitiveReverse"] = arrayReverseMethod
 
-  let arrayDoMethod = createCoreMethod("do:")
-  arrayDoMethod.nativeImpl = cast[pointer](arrayDoImpl)
-  arrayDoMethod.hasInterpreterParam = true
-  addMethod(arrayProto, "do:", arrayDoMethod)
+  # Create Table class (derives from Object) - exposed as Dictionary for compatibility
+  let tableCls = newClass(parents = @[objectCls], name = "Table")
+  tableCls.tags = @["Table", "Dictionary", "Collection"]
+  tableClass = tableCls
 
-  interp.globals[]["Array"] = arrayProto.toValue()
-  arrayClassCache = arrayProto  # Set cache for array literals
-
-  # Create Table class
-  let tableProto = RuntimeObject()
-  tableProto.methods = initTable[string, BlockNode]()
-  tableProto.parents = @[interp.rootObject.RuntimeObject]
-  tableProto.tags = @["Table", "Collection", "Dictionary"]
-  tableProto.isNimProxy = false
-  tableProto.nimValue = nil
-  tableProto.nimType = ""
-  tableProto.hasSlots = false
-  tableProto.slots = @[]
-  tableProto.slotNames = initTable[string, int]()
-
-  # Add Table primitive methods
-  let tableNewMethod = createCoreMethod("primitiveTableNew")
-  tableNewMethod.nativeImpl = cast[pointer](tableNewImpl)
-  addMethod(tableProto, "primitiveTableNew", tableNewMethod)
-
+  # Register Table primitive methods
   let tableAtMethod = createCoreMethod("at:")
   tableAtMethod.nativeImpl = cast[pointer](tableAtImpl)
-  addMethod(tableProto, "at:", tableAtMethod)
+  tableCls.methods["at:"] = tableAtMethod
+  tableCls.allMethods["at:"] = tableAtMethod
 
   let tableAtPutMethod = createCoreMethod("at:put:")
   tableAtPutMethod.nativeImpl = cast[pointer](tableAtPutImpl)
-  addMethod(tableProto, "at:put:", tableAtPutMethod)
+  tableCls.methods["at:put:"] = tableAtPutMethod
+  tableCls.allMethods["at:put:"] = tableAtPutMethod
 
   let tableKeysMethod = createCoreMethod("primitiveKeys")
   tableKeysMethod.nativeImpl = cast[pointer](tableKeysImpl)
-  addMethod(tableProto, "primitiveKeys", tableKeysMethod)
+  tableCls.methods["primitiveKeys"] = tableKeysMethod
+  tableCls.allMethods["primitiveKeys"] = tableKeysMethod
 
-  let tableIncludesKeyMethod = createCoreMethod("primitiveIncludesKey:")
-  tableIncludesKeyMethod.nativeImpl = cast[pointer](tableIncludesKeyImpl)
-  addMethod(tableProto, "primitiveIncludesKey:", tableIncludesKeyMethod)
+  # Register Table class new method (creates ikTable instance)
+  proc tableClassNewImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+    # Create a Table instance with ikTable kind (not ikObject)
+    # self.class is the class receiving the message (e.g., Table or a subclass)
+    let targetClass = if self != nil and self.class != nil: self.class else: tableClass
+    return newTableInstance(targetClass, initTable[string, NodeValue]()).toValue()
 
-  let tableRemoveKeyMethod = createCoreMethod("primitiveRemoveKey:")
-  tableRemoveKeyMethod.nativeImpl = cast[pointer](tableRemoveKeyImpl)
-  addMethod(tableProto, "primitiveRemoveKey:", tableRemoveKeyMethod)
+  let tableNewMethod = createCoreMethod("new")
+  tableNewMethod.nativeImpl = cast[pointer](tableClassNewImpl)
+  tableNewMethod.hasInterpreterParam = true
+  tableCls.classMethods["new"] = tableNewMethod
+  tableCls.allClassMethods["new"] = tableNewMethod
 
-  interp.globals[]["Table"] = tableProto.toValue()
+  # Create Boolean class (derives from Object)
+  let booleanCls = newClass(parents = @[objectCls], name = "Boolean")
+  booleanCls.tags = @["Boolean"]
+  booleanClass = booleanCls
 
-  # Create String class
-  let stringProto = RuntimeObject()
-  stringProto.methods = initTable[string, BlockNode]()
-  stringProto.parents = @[interp.rootObject.RuntimeObject]
-  stringProto.tags = @["String", "Text"]
-  stringProto.isNimProxy = false
-  stringProto.nimValue = nil
-  stringProto.nimType = ""
-  stringProto.hasSlots = false
-  stringProto.slots = @[]
-  stringProto.slotNames = initTable[string, int]()
-
-  # Add String primitive methods
-  let stringConcatMethod = createCoreMethod("primitiveConcat:")
-  stringConcatMethod.nativeImpl = cast[pointer](stringConcatImpl)
-  addMethod(stringProto, "primitiveConcat:", stringConcatMethod)
-
-  let stringSizeMethod = createCoreMethod("primitiveStringSize")
-  stringSizeMethod.nativeImpl = cast[pointer](stringSizeImpl)
-  addMethod(stringProto, "primitiveStringSize", stringSizeMethod)
-
-  let stringAtMethod = createCoreMethod("primitiveStringAt:")
-  stringAtMethod.nativeImpl = cast[pointer](stringAtImpl)
-  addMethod(stringProto, "primitiveStringAt:", stringAtMethod)
-
-  let stringFromToMethod = createCoreMethod("primitiveFromTo:")
-  stringFromToMethod.nativeImpl = cast[pointer](stringFromToImpl)
-  addMethod(stringProto, "primitiveFromTo:", stringFromToMethod)
-
-  let stringIndexOfMethod = createCoreMethod("primitiveIndexOf:")
-  stringIndexOfMethod.nativeImpl = cast[pointer](stringIndexOfImpl)
-  addMethod(stringProto, "primitiveIndexOf:", stringIndexOfMethod)
-
-  let stringIncludesSubStringMethod = createCoreMethod("primitiveIncludesSubString:")
-  stringIncludesSubStringMethod.nativeImpl = cast[pointer](stringIncludesSubStringImpl)
-  addMethod(stringProto, "primitiveIncludesSubString:", stringIncludesSubStringMethod)
-
-  let stringReplaceWithMethod = createCoreMethod("primitiveReplaceWith:")
-  stringReplaceWithMethod.nativeImpl = cast[pointer](stringReplaceWithImpl)
-  addMethod(stringProto, "primitiveReplaceWith:", stringReplaceWithMethod)
-
-  let stringUppercaseMethod = createCoreMethod("primitiveUppercase")
-  stringUppercaseMethod.nativeImpl = cast[pointer](stringUppercaseImpl)
-  addMethod(stringProto, "primitiveUppercase", stringUppercaseMethod)
-
-  let stringLowercaseMethod = createCoreMethod("primitiveLowercase")
-  stringLowercaseMethod.nativeImpl = cast[pointer](stringLowercaseImpl)
-  addMethod(stringProto, "primitiveLowercase", stringLowercaseMethod)
-
-  let stringTrimMethod = createCoreMethod("primitiveTrim")
-  stringTrimMethod.nativeImpl = cast[pointer](stringTrimImpl)
-  addMethod(stringProto, "primitiveTrim", stringTrimMethod)
-
-  let stringSplitMethod = createCoreMethod("primitiveSplit:")
-  stringSplitMethod.nativeImpl = cast[pointer](stringSplitImpl)
-  addMethod(stringProto, "primitiveSplit:", stringSplitMethod)
-
-  interp.globals[]["String"] = stringProto.toValue()
-
-  # Create FileStream class
-  let fileStreamProto = FileStreamObj()
-  fileStreamProto.methods = initTable[string, BlockNode]()
-  fileStreamProto.parents = @[interp.rootObject.RuntimeObject]
-  fileStreamProto.tags = @["FileStream", "IO"]
-  fileStreamProto.isNimProxy = false
-  fileStreamProto.nimValue = nil
-  fileStreamProto.nimType = ""
-  fileStreamProto.hasSlots = false
-  fileStreamProto.slots = @[]
-  fileStreamProto.slotNames = initTable[string, int]()
-  fileStreamProto.file = nil
-  fileStreamProto.mode = ""
-  fileStreamProto.isOpen = false
-
-  # Add FileStream primitive methods
-  let fileOpenMethod = createCoreMethod("primitiveFileOpen:mode:")
-  fileOpenMethod.nativeImpl = cast[pointer](fileOpenImpl)
-  addMethod(fileStreamProto.RuntimeObject, "primitiveFileOpen:mode:", fileOpenMethod)
-
-  let fileCloseMethod = createCoreMethod("primitiveFileClose")
-  fileCloseMethod.nativeImpl = cast[pointer](fileCloseImpl)
-  addMethod(fileStreamProto.RuntimeObject, "primitiveFileClose", fileCloseMethod)
-
-  let fileReadLineMethod = createCoreMethod("primitiveFileReadLine")
-  fileReadLineMethod.nativeImpl = cast[pointer](fileReadLineImpl)
-  addMethod(fileStreamProto.RuntimeObject, "primitiveFileReadLine", fileReadLineMethod)
-
-  let fileWriteMethod = createCoreMethod("primitiveFileWrite:")
-  fileWriteMethod.nativeImpl = cast[pointer](fileWriteImpl)
-  addMethod(fileStreamProto.RuntimeObject, "primitiveFileWrite:", fileWriteMethod)
-
-  let fileAtEndMethod = createCoreMethod("primitiveFileAtEnd")
-  fileAtEndMethod.nativeImpl = cast[pointer](fileAtEndImpl)
-  addMethod(fileStreamProto.RuntimeObject, "primitiveFileAtEnd", fileAtEndMethod)
-
-  let fileReadAllMethod = createCoreMethod("primitiveFileReadAll")
-  fileReadAllMethod.nativeImpl = cast[pointer](fileReadAllImpl)
-  addMethod(fileStreamProto.RuntimeObject, "primitiveFileReadAll", fileReadAllMethod)
-
-  interp.globals[]["FileStream"] = fileStreamProto.RuntimeObject.toValue()
-
-  # Add Random to globals
-  if randomPrototype != nil:
-    interp.globals[]["Random"] = randomPrototype.RuntimeObject.toValue()
-
-  # Create and register Stdout object
-  let stdoutObj = RuntimeObject()
-  stdoutObj.methods = initTable[string, BlockNode]()
-  stdoutObj.parents = @[interp.rootObject.RuntimeObject]
-  stdoutObj.tags = @["Stdio", "Stdout"]
-  stdoutObj.isNimProxy = false
-  stdoutObj.nimValue = nil
-  stdoutObj.nimType = ""
-  stdoutObj.hasSlots = false
-  stdoutObj.slotNames = initTable[string, int]()
-
-  let writeMethod = createCoreMethod("write:")
-  writeMethod.nativeImpl = cast[pointer](writeImpl)
-  addMethod(stdoutObj, "write:", writeMethod)
-
-  let writelineMethod = createCoreMethod("writeline:")
-  writelineMethod.nativeImpl = cast[pointer](writelineImpl)
-  addMethod(stdoutObj, "writeline:", writelineMethod)
-
-  interp.globals[]["Stdout"] = stdoutObj.toValue()
-  interp.globals[]["stdout"] = stdoutObj.toValue()
-
-  # Create Transcript object for logging/output
-  let transcriptObj = RuntimeObject()
-  transcriptObj.methods = initTable[string, BlockNode]()
-  transcriptObj.parents = @[interp.rootObject.RuntimeObject]
-  transcriptObj.tags = @["Transcript"]
-  transcriptObj.isNimProxy = false
-  transcriptObj.nimValue = nil
-  transcriptObj.nimType = ""
-  transcriptObj.hasSlots = false
-  transcriptObj.slotNames = initTable[string, int]()
-
-  let showMethod = createCoreMethod("show:")
-  showMethod.nativeImpl = cast[pointer](writeImpl)
-  addMethod(transcriptObj, "show:", showMethod)
-
-  let crMethod = createCoreMethod("cr")
-  crMethod.nativeImpl = cast[pointer](writelineImpl)
-  addMethod(transcriptObj, "cr", crMethod)
-
-  let showCrMethod = createCoreMethod("show:cr:")
-  showCrMethod.nativeImpl = cast[pointer](writelineImpl)
-  addMethod(transcriptObj, "show:cr:", showCrMethod)
-
-  interp.globals[]["Transcript"] = transcriptObj.toValue()
-
-  # Create Global namespace object with shared table reference
-  let globalObj = GlobalObj()
-  globalObj.methods = initTable[string, BlockNode]()
-  globalObj.parents = @[interp.rootObject.RuntimeObject]
-  globalObj.tags = @["Global", "Registry"]
-  globalObj.isNimProxy = false
-  globalObj.nimValue = nil
-  globalObj.nimType = ""
-  globalObj.hasSlots = false
-  globalObj.slots = @[]
-  globalObj.slotNames = initTable[string, int]()
-  globalObj.tableRef = interp.globals  # Share the heap-allocated table!
-  globalObj.categories = initTable[string, seq[string]]()
-
-  # Add at: and at:put: methods to Global
-  let globalAtMethod = createCoreMethod("at:")
-  globalAtMethod.nativeImpl = cast[pointer](globalAtImpl)
-  globalAtMethod.hasInterpreterParam = true
-  addMethod(globalObj.RuntimeObject, "at:", globalAtMethod)
-
-  let globalAtPutMethod = createCoreMethod("at:put:")
-  globalAtPutMethod.nativeImpl = cast[pointer](globalAtPutImpl)
-  globalAtPutMethod.hasInterpreterParam = true
-  addMethod(globalObj.RuntimeObject, "at:put:", globalAtPutMethod)
-
-  let globalAtIfAbsentMethod = createCoreMethod("at:ifAbsent:")
-  globalAtIfAbsentMethod.nativeImpl = cast[pointer](globalAtIfAbsentImpl)
-  globalAtIfAbsentMethod.hasInterpreterParam = true
-  addMethod(globalObj.RuntimeObject, "at:ifAbsent:", globalAtIfAbsentMethod)
-
-  interp.globals[]["Global"] = globalObj.RuntimeObject.toValue()
-
-  # Create true and false as objects with ifTrue: and ifFalse: methods
-  let trueObj = RuntimeObject()
-  trueObj.methods = initTable[string, BlockNode]()
-  trueObj.parents = @[interp.rootObject.RuntimeObject]
-  trueObj.tags = @["Boolean", "True"]
-  trueObj.isNimProxy = true
-  trueObj.nimValue = cast[pointer](alloc(sizeof(bool)))
-  cast[ptr bool](trueObj.nimValue)[] = true
-  trueObj.nimType = "bool"
-  trueObj.hasSlots = false
-  trueObj.slotNames = initTable[string, int]()
-
-  let falseObj = RuntimeObject()
-  falseObj.methods = initTable[string, BlockNode]()
-  falseObj.parents = @[interp.rootObject.RuntimeObject]
-  falseObj.tags = @["Boolean", "False"]
-  falseObj.isNimProxy = true
-  falseObj.nimValue = cast[pointer](alloc(sizeof(bool)))
-  cast[ptr bool](falseObj.nimValue)[] = false
-  falseObj.nimType = "bool"
-  falseObj.hasSlots = false
-  falseObj.slotNames = initTable[string, int]()
-
-  # Add ifTrue: and ifFalse: methods to both true and false
+  # Register Boolean methods
   let ifTrueMethod = createCoreMethod("ifTrue:")
   ifTrueMethod.nativeImpl = cast[pointer](ifTrueImpl)
   ifTrueMethod.hasInterpreterParam = true
-  addMethod(trueObj, "ifTrue:", ifTrueMethod)
-  addMethod(falseObj, "ifTrue:", ifTrueMethod)
+  booleanCls.methods["ifTrue:"] = ifTrueMethod
+  booleanCls.allMethods["ifTrue:"] = ifTrueMethod
 
   let ifFalseMethod = createCoreMethod("ifFalse:")
   ifFalseMethod.nativeImpl = cast[pointer](ifFalseImpl)
   ifFalseMethod.hasInterpreterParam = true
-  addMethod(trueObj, "ifFalse:", ifFalseMethod)
-  addMethod(falseObj, "ifFalse:", ifFalseMethod)
+  booleanCls.methods["ifFalse:"] = ifFalseMethod
+  booleanCls.allMethods["ifFalse:"] = ifFalseMethod
 
-  # Create Block class with loop methods
-  let blockProto = RuntimeObject()
-  blockProto.methods = initTable[string, BlockNode]()
-  blockProto.parents = @[interp.rootObject.RuntimeObject]
-  blockProto.tags = @["Block", "Closure"]
-  blockProto.isNimProxy = false
-  blockProto.nimValue = nil
-  blockProto.nimType = ""
-  blockProto.hasSlots = false
-  blockProto.slots = @[]
-  blockProto.slotNames = initTable[string, int]()
+  # Create True class (singleton class for true value)
+  let trueCls = newClass(parents = @[booleanCls], name = "True")
+  trueCls.tags = @["True", "Boolean"]
+  trueClassCache = trueCls
 
+  # Create False class (singleton class for false value)
+  let falseCls = newClass(parents = @[booleanCls], name = "False")
+  falseCls.tags = @["False", "Boolean"]
+  falseClassCache = falseCls
+
+  # Create Block class (derives from Object)
+  let blockCls = newClass(parents = @[objectCls], name = "Block")
+  blockCls.tags = @["Block", "Closure"]
+  blockClass = blockCls
+
+  # Register Block loop methods
   let whileTrueMethod = createCoreMethod("whileTrue:")
   whileTrueMethod.nativeImpl = cast[pointer](whileTrueImpl)
   whileTrueMethod.hasInterpreterParam = true
-  addMethod(blockProto, "whileTrue:", whileTrueMethod)
+  blockCls.methods["whileTrue:"] = whileTrueMethod
+  blockCls.allMethods["whileTrue:"] = whileTrueMethod
 
   let whileFalseMethod = createCoreMethod("whileFalse:")
   whileFalseMethod.nativeImpl = cast[pointer](whileFalseImpl)
   whileFalseMethod.hasInterpreterParam = true
-  addMethod(blockProto, "whileFalse:", whileFalseMethod)
+  blockCls.methods["whileFalse:"] = whileFalseMethod
+  blockCls.allMethods["whileFalse:"] = whileFalseMethod
 
-  let onDoMethod = createCoreMethod("on:do:")
-  onDoMethod.nativeImpl = cast[pointer](onDoImpl)
-  onDoMethod.hasInterpreterParam = true
-  addMethod(blockProto, "on:do:", onDoMethod)
+  # Create Class instance for each class so it can be stored as a value
+  # Add global bindings for classes
+  interp.globals[]["Root"] = rootCls.toValue()
+  interp.globals[]["Object"] = objectCls.toValue()
+  interp.globals[]["Number"] = numberCls.toValue()
+  interp.globals[]["Integer"] = intCls.toValue()
+  interp.globals[]["Float"] = floatCls.toValue()
+  interp.globals[]["String"] = stringCls.toValue()
+  interp.globals[]["Array"] = arrayCls.toValue()
+  interp.globals[]["Table"] = tableCls.toValue()
+  interp.globals[]["Boolean"] = booleanCls.toValue()
+  interp.globals[]["True"] = trueCls.toValue()
+  interp.globals[]["False"] = falseCls.toValue()
+  interp.globals[]["Block"] = blockCls.toValue()
 
-  interp.globals[]["Block"] = blockProto.toValue()
-
-  interp.globals[]["true"] = trueObj.toValue()
-  interp.globals[]["false"] = falseObj.toValue()
+  # Add primitive values
+  interp.globals[]["true"] = NodeValue(kind: vkBool, boolVal: true)
+  interp.globals[]["false"] = NodeValue(kind: vkBool, boolVal: false)
   interp.globals[]["nil"] = nilValue()
 
-  # Set global true/false values for comparison operators
-  trueValue = trueObj.toValue()
-  falseValue = falseObj.toValue()
 
-  # Create Exception class
-  let exceptionProto = ExceptionObj()
-  exceptionProto.methods = initTable[string, BlockNode]()
-  exceptionProto.parents = @[interp.rootObject.RuntimeObject]
-  exceptionProto.tags = @["Exception", "Error"]
-  exceptionProto.isNimProxy = false
-  exceptionProto.nimValue = nil
-  exceptionProto.nimType = ""
-  exceptionProto.hasSlots = false
-  exceptionProto.slots = @[]
-  exceptionProto.slotNames = initTable[string, int]()
-  exceptionProto.message = ""
-  exceptionProto.stackTrace = ""
-  exceptionProto.signaler = nil
-
-  let signalMethod = createCoreMethod("signal:")
-  signalMethod.nativeImpl = cast[pointer](signalImpl)
-  addMethod(exceptionProto.RuntimeObject, "signal:", signalMethod)
-
-  let signalNoArgMethod = createCoreMethod("signal")
-  signalNoArgMethod.nativeImpl = cast[pointer](signalImpl)
-  addMethod(exceptionProto.RuntimeObject, "signal", signalNoArgMethod)
-
-  interp.globals[]["Exception"] = exceptionProto.RuntimeObject.toValue()
-  interp.globals[]["Error"] = exceptionProto.RuntimeObject.toValue()
-
-  # Note: do: method is registered on array and table proxy objects dynamically
-  # It would be better to have a Collection class, but for now we rely on
-  # the atCollectionImpl method registered on rootObject for at: access
-
-# Load standard library files
 proc loadStdlib*(interp: var Interpreter, basePath: string = "") =
   ## Load core library files from lib/core/
   ## basePath allows specifying a different root (e.g., for tests or installed location)
@@ -1967,45 +2137,45 @@ proc loadStdlib*(interp: var Interpreter, basePath: string = "") =
   # Number hierarchy: Number -> Integer, Float
   if "Number" in interp.globals[]:
     let numVal = interp.globals[]["Number"]
-    if numVal.kind == vkObject:
-      numberClassCache = numVal.objVal
+    if numVal.kind == vkClass:
+      numberClassCache = numVal.classVal
       debug("Set numberClassCache from Number global")
 
   if "Integer" in interp.globals[]:
     let intVal = interp.globals[]["Integer"]
-    if intVal.kind == vkObject:
-      integerClassCache = intVal.objVal
+    if intVal.kind == vkClass:
+      integerClassCache = intVal.classVal
       debug("Set integerClassCache from Integer global")
 
   if "String" in interp.globals[]:
     let strVal = interp.globals[]["String"]
-    if strVal.kind == vkObject:
-      stringClassCache = strVal.objVal
+    if strVal.kind == vkClass:
+      stringClassCache = strVal.classVal
       debug("Set stringClassCache from String global")
 
   # Boolean hierarchy: Boolean -> True, False
   if "Boolean" in interp.globals[]:
     let boolVal = interp.globals[]["Boolean"]
-    if boolVal.kind == vkObject:
-      booleanClassCache = boolVal.objVal
+    if boolVal.kind == vkClass:
+      booleanClassCache = boolVal.classVal
       debug("Set booleanClassCache from Boolean global")
 
   if "True" in interp.globals[]:
     let trueVal = interp.globals[]["True"]
-    if trueVal.kind == vkObject:
-      trueClassCache = trueVal.objVal
+    if trueVal.kind == vkClass:
+      trueClassCache = trueVal.classVal
       debug("Set trueClassCache from True global")
 
   if "False" in interp.globals[]:
     let falseVal = interp.globals[]["False"]
-    if falseVal.kind == vkObject:
-      falseClassCache = falseVal.objVal
+    if falseVal.kind == vkClass:
+      falseClassCache = falseVal.classVal
       debug("Set falseClassCache from False global")
 
   if "Block" in interp.globals[]:
     let blockVal = interp.globals[]["Block"]
-    if blockVal.kind == vkObject:
-      blockClassCache = blockVal.objVal
+    if blockVal.kind == vkClass:
+      blockClassCache = blockVal.classVal
       debug("Set blockClassCache from Block global")
 
 # Simple test function (incomplete - commented out)
