@@ -2,43 +2,44 @@
 #
 # Block.nt - Block (closure) methods
 # Provides Smalltalk-style iteration and control flow
+#
+# Note: The Block class is defined in the interpreter.
+# This file extends it with additional methods using >> syntax.
 
 #====================================================================
 # Block control flow
 #====================================================================
 
-Block := Object derive
-
 # Block value methods for evaluating blocks
 Block>>value [
   # Evaluate this block with no arguments
-  ^ self perform: "primitiveValue"
+  ^ self perform: #primitiveValue
 ]
 
 Block>>value: arg [
   # Evaluate this block with one argument
-  ^ self perform: "primitiveValue:" with: arg
+  ^ self perform: #primitiveValue: with: arg
 ]
 
 Block>>value: arg1 value: arg2 [
   # Evaluate this block with two arguments
-  ^ self perform: "primitiveValue:value:" with: arg1 with: arg2
+  ^ self perform: #primitiveValue:value: with: arg1 with: arg2
 ]
 
 Block>>value: arg1 value: arg2 value: arg3 [
   # Evaluate this block with three arguments
-  ^ self perform: "primitiveValue:value:value:" with: arg1 with: arg2 with: arg3
+  ^ self perform: #primitiveValue:value:value: with: arg1 with: arg2 with: arg3
 ]
 
 # while loops - receiver is condition block, argument is body block
 Block>>whileTrue: bodyBlock [
   # Execute bodyBlock while receiver evaluates to true
-  ^ self perform: "primitiveWhileTrue:" with: bodyBlock
+  ^ self perform: #primitiveWhileTrue: with: bodyBlock
 ]
 
 Block>>whileFalse: bodyBlock [
   # Execute bodyBlock while receiver evaluates to false
-  ^ self perform: "primitiveWhileFalse:" with: bodyBlock
+  ^ self perform: #primitiveWhileFalse: with: bodyBlock
 ]
 
 # repeat loops
