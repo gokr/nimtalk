@@ -19,37 +19,35 @@ Nimtalk combines Smalltalk's message-passing semantics with Nim's compilation an
 
 ### Literals
 
-```nimtalk
+```smalltalk
 42              # Integer literal
 3.14            # Float literal
-'hello'         # String literal (single quotes)
-'\n'            # Escape sequences (\n, \t, \r, \', \\\)
+"hello"         # String literal (double quotes)
+"\n"            # Escape sequences (\n, \t, \r, \", \\)
 ```
-
-**Note**: Double quotes are used for comments.
 
 ### Symbols
 
-```nimtalk
+```smalltalk
 #symbol         # Symbol literal
-#'with spaces'  # Symbol with spaces (single quotes)
+#"with spaces"  # Symbol with spaces (double quotes)
 ```
 
 ### Comments
 
-```nimtalk
-"This is a comment - double quotes for comments"
-"==== Section header
-"---------- Also works with dashes
+```smalltalk
+# This is a comment
+#==== Section header
+#---------- Also works with dashes
 ```
 
-**Note**: Double quotes mark comments. Hash `#` followed by whitespace or special characters (`=`, `-`, `*`, `/`, `.`, `|`, `&`, `@`, `!`) also marks a comment for section headers.
+**Note**: Hash `#` followed by whitespace or special characters marks a comment.
 
 ### Arrays and Tables
 
 ```smalltalk
 #(1 2 3)                    # Array literal (ordered collection)
-#{'key' -> 'value'}        # Table literal (key-value pairs)
+#{"key" -> "value"}         # Table literal (key-value pairs)
 ```
 
 ### Identifiers
@@ -153,7 +151,7 @@ Person := Object derive: #(name age address)
 
 # Access via automatically generated accessors
 person := Person new.
-person name: 'Alice'.       # Generated setter
+person name: "Alice".       # Generated setter
 result := person name       # Generated getter
 ```
 
@@ -177,7 +175,7 @@ Employee := Person derive: #(salary) withParents: #(Enumerable)
 
 ```smalltalk
 # Unary method
-Person>>greet [ ^ 'Hello, ' , name ]
+Person>>greet [ ^ "Hello, " , name ]
 
 # Method with one parameter
 Person>>name: aName [ name := aName ]
@@ -261,7 +259,7 @@ Person extendClass: [
 ]
 
 # Usage
-p := Person newNamed: 'Alice' aged: 30
+p := Person newNamed: "Alice" aged: 30
 ```
 
 ### Dynamic Message Sending (perform:)
@@ -363,7 +361,7 @@ Employee>>greet [
 
 **Temporary Variables**:
 - Must be declared at the BEGINNING of a block: `| temp1 temp2 |`
-- Come BEFORE any statements or comment strings
+- Come BEFORE any statements
 - Provide local variable scope within the block
 
 ### Lexical Scoping
@@ -382,7 +380,7 @@ Conditional execution via message sends:
 
 ```smalltalk
 # If-then-else
-(x > 0) ifTrue: [ 'positive' ] ifFalse: [ 'negative' ]
+(x > 0) ifTrue: [ "positive" ] ifFalse: [ "negative" ]
 
 # While loop
 [ x < 10 ] whileTrue: [ x := x + 1 ]
@@ -395,7 +393,7 @@ Conditional execution via message sends:
 
 ```smalltalk
 tags isNil
-  ifTrue: [ ^ 'Object' ]
+  ifTrue: [ ^ "Object" ]
   ifFalse: [ ^ tags first ]
 ```
 
@@ -405,7 +403,7 @@ See [NEWLINE_RULES.md](NEWLINE_RULES.md) for complete newline handling rules.
 
 ```smalltalk
 x := 42
-name := 'Alice'
+name := "Alice"
 obj := Object derive
 ```
 
@@ -415,8 +413,8 @@ obj := Object derive
 
 - `derive` - Create a new class
 - `derive: #(ivar1 ivar2)` - Create with declared instance variables
-- `at: "key"` - Get property
-- `at: "key" put: value` - Set property (only on Dictionary)
+- `at: #key` - Get property
+- `at: #key put: value` - Set property
 
 ### Boolean
 
@@ -440,7 +438,7 @@ AST-based interpreter for REPL and development:
 - Evaluates AST nodes dynamically
 - Provides live programming experience
 
-### Compiler
+### Compiler (In Development)
 
 Translates Nimtalk to Nim source:
 - Generates Nim procedures for methods
@@ -461,11 +459,15 @@ ntalk --loglevel DEBUG # Debug output
 
 ### Logging
 
-Both `ntalk` and `ntalkc` support `--loglevel`:
+Both `ntalk` supports `--loglevel`:
 - `DEBUG` - Detailed execution trace
 - `INFO` - General information
 - `WARN` - Warnings only
 - `ERROR` - Errors only (default)
+
+### VSCode Extension
+
+Syntax highlighting for `.nt` files is available via the included VSCode extension. See [VSCODE.md](VSCODE.md) for installation instructions.
 
 ## Performance
 
@@ -483,8 +485,8 @@ Slot-based access is **149x faster** than property bag access.
 
 - `NEWLINE_RULES.md` - Newline handling and statement separation
 - `SYNTAX-QUICKREF-updated.md` - Syntax quick reference
-- `NIMTALK-NEW-OBJECT-MODEL.md` - Object model design
-- `IMPLEMENTATION-PLAN.md` - Implementation roadmap
 - `TOOLS_AND_DEBUGGING.md` - Debugging guide
-
-*Last updated: 2026-01-30 (Complete specification of implemented language features)*
+- `VSCODE.md` - VSCode extension documentation
+- `GREENTHREADS.md` - Green threads and concurrency
+- `PRIMITIVES.md` - Primitive syntax and direct invocation
+- `PERFORM.md` - Dynamic message sending with perform:
