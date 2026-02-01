@@ -169,12 +169,12 @@ dictionary
 **Nimtalk:** Classes are objects, but there are no metaclasses. Class methods are stored directly on the class object.
 
 ```nimtalk
-* Instance method
+# Instance method
 Person>>greet [ ^ "Hello" ].
 
-* Class method (no metaclass needed)
+# Class method (no metaclass needed)
 Person class>>newPerson [ ^ self new ].
-* Or equivalently:
+# Or equivalently:
 Person at: #newPerson put: [ ^ self new ].
 ```
 
@@ -189,13 +189,13 @@ The `class` message returns the class object itself, and methods can be stored t
 ```nimtalk
 Person := Object derive: #(#name #age).
 
-* Inside methods, access by name (converted to slot index at compile time)
+# Inside methods, access by name (converted to slot index at compile time)
 Person>>name: aName [
-    name := aName   "Direct slot access - O(1)"
+    name := aName   # Direct slot access - O(1)
 ].
 
 Person>>name [
-    ^ name           "Direct slot read - O(1)"
+    ^ name           # Direct slot read - O(1)
 ].
 ```
 
@@ -211,10 +211,10 @@ Performance comparison (per 100k ops):
 **Nimtalk:** Multiple inheritance is supported:
 
 ```nimtalk
-* Single inheritance (default)
+# Single inheritance (default)
 Employee := Person derive: #(salary).
 
-* Multiple inheritance
+# Multiple inheritance
 Enumerable := Object derive: #().
 Employee := Person derive: #(salary) withParents: #(Enumerable).
 ```
@@ -228,13 +228,13 @@ Method lookup uses merged method tables (`allMethods`, `allClassMethods`) for O(
 **Nimtalk:** `super` works similarly, but supports qualified super for multiple inheritance:
 
 ```nimtalk
-* Unqualified super (uses first parent)
+# Unqualified super (uses first parent)
 Employee>>calculatePay [
     base := super calculatePay.
     ^ base + bonus
 ].
 
-* Qualified super (explicit parent selection)
+# Qualified super (explicit parent selection)
 Employee>>calculatePay [
     base := super<Person> calculatePay.
     ^ base + bonus
@@ -272,14 +272,14 @@ Object subclass: #MyClass
 **Nimtalk:** Not implemented. Use class methods with captured state or global objects:
 
 ```nimtalk
-* Workaround: Store in class method closure
+# Workaround: Store in class method closure
 MyClass>>sharedCounter [
     | count |
     count := 0.
     ^ [ count := count + 1. count ]
 ].
 
-* Or use a global registry
+# Or use a global registry
 Registry at: #MyClassCounter put: 0.
 ```
 
