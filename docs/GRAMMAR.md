@@ -84,7 +84,7 @@ Keywords are identifiers followed by a colon. Multi-part keywords like `at:put:`
 ### Collection Literals
 
 ```bnf
-<array-start>  ::= "#(" | "#["
+<array-start>  ::= "#("
 <table-start>  ::= "#{"
 <object-start> ::= "{|"
 ```
@@ -201,7 +201,6 @@ Block syntax variations:
 
 ```bnf
 <array-literal> ::= "#(" <expression>* ")"
-                  | "#[" <expression>* "]"
 
 <table-literal> ::= "#{" <table-entry>* "}"
 <table-entry>   ::= <expression> "->" <expression> ","?
