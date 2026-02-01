@@ -123,25 +123,25 @@ Employee>>calculatePay [
 
 ### Current Way (Works Everywhere)
 ```smalltalk
-"Property bag access (deprecated for declared classs)
-obj at: "property"                        # Get
-obj at: "property" put: value             # Set
+# Property bag access (deprecated for declared classs)
+obj at: #property                          # Get
+obj at: #property put: value               # Set
 
 # Dynamic method invocation
-obj perform: "methodName"                 # Call method
-obj perform: "method:with:" with: args     # Call with args
+obj perform: #methodName                   # Call method
+obj perform: #method:with: with: args      # Call with args
 ```
 
 ### New Way (Declared Classs)
 ```smalltalk
-"Generated accessor methods (compile to direct slot access)"
+# Generated accessor methods (compile to direct slot access)
 person name                                 # Getter - direct read
-person name: 'Alice'                      # Setter - direct write
+person name: "Alice"                        # Setter - direct write
 
-"Standard message sending (always available)"
-person greet                              "Unary" message
-3 + 4                                     "Binary" message
-person at: #key put: "value"           "Keyword" (for collections)
+# Standard message sending (always available)
+person greet                                # Unary message
+3 + 4                                       # Binary message
+person at: #key put: "value"                # Keyword (for collections)
 ```
 
 ### Direct Ivar Access (Inside Methods)
