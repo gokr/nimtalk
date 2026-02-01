@@ -1,0 +1,32 @@
+{
+  "displayName": "Nimtalk Language Support",
+  "name": "nimtalk-lang",
+  "description": "Syntax highlighting for Nimtalk (.nt) files",
+  "version": "0.1.0",
+  "publisher": "gokr",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gokr/nimtalk.git"
+   },
+  "engines": {
+    "vscode": "^1.0.0"
+  },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "nimtalk",
+        "aliases": ["Nimtalk", "nimtalk"],
+        "extensions": [".nt"],
+        "configuration": "./.vscode/language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "nimtalk",
+        "scopeName": "source.nimtalk",
+        "path": "./.vscode/syntaxes/nt.tmLanguage.json"
+      }
+    ]
+  }
+}
