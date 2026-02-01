@@ -11,22 +11,22 @@ FileStream := Object derive: #(file mode isOpen)
 
 FileStream>>open: filename mode: mode [
   # Open file with mode ("r", "w", "a", 'r+', 'w+')
-  ^ self perform: "primitiveFileOpen:mode:" with: filename with: mode
+  ^ self perform: #primitiveFileOpen:mode: with: filename with: mode
 ]
 
 FileStream>>close [
   # Close the file
-  ^ self perform: "primitiveFileClose"
+  ^ self perform: #primitiveFileClose
 ]
 
 FileStream>>readLine [
   # Read one line from file
-  ^ self perform: "primitiveFileReadLine"
+  ^ self perform: #primitiveFileReadLine
 ]
 
 FileStream>>write: string [
   # Write string to file
-  ^ self perform: "primitiveFileWrite:" with: string
+  ^ self perform: #primitiveFileWrite: with: string
 ]
 
 FileStream>>writeline: string [
@@ -38,12 +38,12 @@ FileStream>>writeline: string [
 
 FileStream>>atEnd [
   # Check if at end of file
-  ^ self perform: "primitiveFileAtEnd"
+  ^ self perform: #primitiveFileAtEnd
 ]
 
 FileStream>>readAll [
   # Read entire file contents
-  ^ self perform: "primitiveFileReadAll"
+  ^ self perform: #primitiveFileReadAll
 ]
 
 FileStream>>isOpen [

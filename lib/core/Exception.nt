@@ -11,7 +11,7 @@ Exception := Object derive: #(message stackTrace signaler)
 
 Exception>>signal [
   # Signal this exception (raise it)
-  ^ self perform: "primitiveSignal"
+  ^ self perform: #primitiveSignal
 ]
 
 Exception>>signal: messageText [
@@ -62,7 +62,7 @@ DivisionByZero := Exception derive
 Block>>on: exceptionClass do: handlerBlock [
   # Execute this block with exception handler installed
   # Usage: [ protected code ] on: Error do: [ :ex | handler code ]
-  ^ self perform: "primitiveOnDo:" with: exceptionClass with: handlerBlock
+  ^ self perform: #primitiveOnDo: with: exceptionClass with: handlerBlock
 ]
 
 #====================================================================

@@ -91,6 +91,13 @@ Object>>doesNotUnderstand: selector with: arg1 with: arg2 [
 # Identity and comparison
 #====================================================================
 
+Object>>= other [
+  # Test if this object equals other (value equality).
+  # Default implementation uses identity (==).
+  # Subclasses like String, Number should override for value comparison.
+  ^ self == other
+]
+
 Object>>== other [
   # Test if this object is the same object as other (identity).
   ^ self perform: #primitiveEquals: with: other
@@ -224,7 +231,7 @@ Object>>~= other [
 
 Object>>== other [
   # Identity comparison - true if same object
-  ^ self perform: "primitiveIdentity:" with: other
+  ^ self perform: #primitiveIdentity: with: other
 ]
 
 Object>>~~ other [
