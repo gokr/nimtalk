@@ -1,13 +1,15 @@
 #!/usr/bin/env ntalk
 #
-# Boolean.nt - Boolean class hierarchy with True and False
+# Boolean.nt - Boolean class hierarchy extensions
+# Adds methods to the existing Boolean, True, and False classes
+#
+# Note: Boolean, True, and False classes are defined in the interpreter.
+# This file extends them with additional methods using >> syntax.
 #
 
 #====================================================================
-# Boolean class - abstract base class for True and False
+# Boolean class extensions
 #====================================================================
-
-Boolean := Object derive: #().
 
 Boolean>>printString [
   # Subclasses should override
@@ -19,10 +21,8 @@ Boolean>>asString [
 ].
 
 #====================================================================
-# True class - represents boolean true value
+# True class extensions
 #====================================================================
-
-True := Boolean derive: #().
 
 True>>ifTrue: block [
   # Evaluate the block and return its value.
@@ -74,10 +74,8 @@ True>>printString [
 ].
 
 #====================================================================
-# False class - represents boolean false value
+# False class extensions
 #====================================================================
-
-False := Boolean derive: #().
 
 False>>ifTrue: block [
   # Return nil - don't evaluate the block.
@@ -127,10 +125,3 @@ False>>= other [
 False>>printString [
   ^ "false"
 ].
-
-#====================================================================
-# Notes on the interpreter integration
-#====================================================================
-# The interpreter provides primitive true/false objects that inherit
-# from the True/False classes defined here. This allows boolean
-# literals (true, false) to receive messages defined in this file.
