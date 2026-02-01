@@ -8,11 +8,15 @@ This directory contains documentation for the Nimtalk programming language.
 
 These documents describe the current implementation and are kept up to date:
 
+- **[VSCODE.md](VSCODE.md)** - VSCode syntax highlighting extension
 - **[NEWLINE_RULES.md](NEWLINE_RULES.md)** - Newline handling and statement separation rules
 - **[SYNTAX-QUICKREF-updated.md](SYNTAX-QUICKREF-updated.md)** - Quick reference for Nimtalk syntax
 - **[SYNTAX-REALITY.md](SYNTAX-REALITY.md)** - Current implemented syntax details
 - **[SPECIFICATION.md](SPECIFICATION.md)** - Language specification
 - **[TOOLS_AND_DEBUGGING.md](TOOLS_AND_DEBUGGING.md)** - Guide for using ntalk and ntalkc tools
+- **[GREENTHREADS.md](GREENTHREADS.md)** - Green threads and concurrency
+- **[PRIMITIVES.md](PRIMITIVES.md)** - Primitive syntax and direct invocation
+- **[PERFORM.md](PERFORM.md)** - Dynamic message sending with perform:
 - **[closures.md](closures.md)** - Documentation of closure implementation
 
 ### Research and Historical Documents
