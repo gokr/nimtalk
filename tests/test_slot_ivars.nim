@@ -1,50 +1,80 @@
 # Nimtalk Slot-based Instance Variables Tests
 #
-# Tests for the new object model with declared instance variables
+# Tests for the new class-based object model with declared instance variables
 #
 
-import std/[unittest, tables, sequtils, strutils, algorithm]
-import ../src/nimtalk/core/types
+import std/[unittest, tables]
 import ../src/nimtalk/interpreter/objects
+import ../src/nimtalk/core/types
 
-suite "Slot-based Instance Variables (derive: message)":
+suite "Slot-based Instance Variables (class-based model)":
   setup:
-    # Initialize root object before each test
+    # Clean state before each test - reinitialize globals
+    initGlobals()  # This will only reset if empty, but needed for clean slate
+    if globals.len > 0:
+      globals.clear()
+    clearSymbolTable()
+
+  test "Root class has no slots":
+    let root = initRootClass()
+
+    check root.hasSlots == false
+    check root.slotNames.len == 0
+    check root.allSlotNames.len == 0
+
+  test "Object class has no slots by default":
     discard initRootClass()
+    let obj = initObjectClass()
 
-  test "can create object with instance variables":
-    let person = initSlotObject(@["name", "age"])
+    check obj.hasSlots == false
+    check obj.slotNames.len == 0
+    check obj.allSlotNames.len == 0
 
-    check person.hasSlotIVars()
-    check person.hasSlots == true
+  test "can create class with instance variables":
+    discard initRootClass()
+    let personClass = newClass(parents = @[rootClass], slotNames = @["name", "age"], name = "Person")
+
+    check personClass.hasSlots == true
+    check personClass.slotNames.len == 2
+    check personClass.allSlotNames.len == 2
+    check "name" in personClass.slotNames
+    check "age" in personClass.slotNames
+
+  test "can create instance with slots":
+    discard initRootClass()
+    let personClass = newClass(parents = @[rootClass], slotNames = @["name", "age"], name = "Person")
+    let person = newInstance(personClass)
+
+    check person.kind == ikObject
     check person.slots.len == 2
-    check person.slotNames.len == 2
-    check person.slotNames.hasKey("name")
-    check person.slotNames.hasKey("age")
-    check person.slotNames["name"] == 0
-    check person.slotNames["age"] == 1
+    check person.slots[0].kind == vkNil
+    check person.slots[1].kind == vkNil
 
   test "instance variables initialize to nil":
-    let person = initSlotObject(@["name", "age"])
+    discard initRootClass()
+    let personClass = newClass(parents = @[rootClass], slotNames = @["name", "age"], name = "Person")
+    let person = newInstance(personClass)
 
     check person.slots[0].kind == vkNil
     check person.slots[1].kind == vkNil
 
   test "can get and set slot values":
-    var person = initSlotObject(@["name", "age"])
+    discard initRootClass()
+    let personClass = newClass(parents = @[rootClass], slotNames = @["name", "age"], name = "Person")
+    var person = newInstance(personClass)
 
     # Initially nil
-    check person.getSlot("name").kind == vkNil
+    check person.slots[0].kind == vkNil
 
     # Set values
-    person.setSlot("name", NodeValue(kind: vkString, strVal: "Alice"))
-    person.setSlot("age", NodeValue(kind: vkInt, intVal: 30))
+    person.slots[0] = NodeValue(kind: vkString, strVal: "Alice")
+    person.slots[1] = NodeValue(kind: vkInt, intVal: 30)
 
     # Verify values
-    check person.getSlot("name").kind == vkString
-    check person.getSlot("name").strVal == "Alice"
-    check person.getSlot("age").kind == vkInt
-    check person.getSlot("age").intVal == 30
+    check person.slots[0].kind == vkString
+    check person.slots[0].strVal == "Alice"
+    check person.slots[1].kind == vkInt
+    check person.slots[1].intVal == 30
 
   test "symbol canonicalization works":
     # Clear symbol table first
@@ -88,189 +118,71 @@ suite "Slot-based Instance Variables (derive: message)":
     check symbolTable.hasKey("age")
     check symbolTable.hasKey("address")
 
-  test "getSlot returns nil for non-existent slots":
-    let person = initSlotObject(@["name", "age"])
-
-    check person.getSlot("nonexistent").kind == vkNil
-
-  test "getSlotNames returns all ivar names in order":
-    let person = initSlotObject(@["name", "age", "address"])
-    let names = person.getSlotNames()
-
-    check names.len == 3
-    check names[0] == "name"
-    check names[1] == "age"
-    check names[2] == "address"
-
-  test "RootObject has slots initialized correctly":
-    let root = initRootObject()
-
-    check root.hasSlots == false
-    check root.slots.len == 0
-    check root.slotNames.len == 0
-
-  test "derive creates object without slots":
-    let root = initRootObject()
-    let child = deriveImpl(root, @[]).objVal
-
-    check child.hasSlots == false
-    check child.slots.len == 0
-
-  test "derive: creates object with slots":
-    let root = initRootObject()
-    let ivars = @[NodeValue(kind: vkSymbol, symVal: "name"), NodeValue(kind: vkSymbol, symVal: "age")]
-    let result = deriveWithIVarsImpl(root, @[NodeValue(kind: vkArray, arrayVal: ivars)])
-    let child = result.objVal
-
-    check child.hasSlots == true
-    check child.slots.len == 2
-    check child.slotNames.hasKey("name")
-    check child.slotNames.hasKey("age")
-    check child.parents.len == 1
-    check child.parents[0] == root
-
-  test "deriveinherits parent slots":
-    let root = initRootObject()
-
-    # Create parent with slots
-    let parentIvars = @[NodeValue(kind: vkSymbol, symVal: "name")]
-    let parentResult = deriveWithIVarsImpl(root, @[NodeValue(kind: vkArray, arrayVal: parentIvars)])
-    let parent = parentResult.objVal
-
-    # Create child with additional slots
-    let childIvars = @[NodeValue(kind: vkSymbol, symVal: "age")]
-    let childResult = deriveWithIVarsImpl(parent, @[NodeValue(kind: vkArray, arrayVal: childIvars)])
-    let child = childResult.objVal
-
-    # Child should have both parent and child ivars
-    check child.hasSlots == true
-    check child.slots.len == 2
-    check child.slotNames.hasKey("name")
-    check child.slotNames.hasKey("age")
-    check child.slotNames["name"] == 0
-    check child.slotNames["age"] == 1
-    check child.parents.len == 1
-    check child.parents[0] == parent
-
-  test "derivedetects duplicate ivar names":
-    let root = initRootObject()
-
-    # Create parent with "name"
-    let parentIvars = @[NodeValue(kind: vkSymbol, symVal: "name")]
-    let parentResult = deriveWithIVarsImpl(root, @[NodeValue(kind: vkArray, arrayVal: parentIvars)])
-    let parent = parentResult.objVal
-
-    # Try to create child with same "name"
-    let childIvars = @[NodeValue(kind: vkSymbol, symVal: "name")]
-    expect(ValueError):
-      discard deriveWithIVarsImpl(parent, @[NodeValue(kind: vkArray, arrayVal: childIvars)])
-
-  test "clone preserves slots":
-    var person = initSlotObject(@["name", "age"])
-    person.setSlot("name", NodeValue(kind: vkString, strVal: "Alice"))
-    person.setSlot("age", NodeValue(kind: vkInt, intVal: 30))
-
-    let cloned = clone(person).objVal
-
-    check cloned.hasSlots == true
-    check cloned.slots.len == 2
-    check cloned.slotNames.hasKey("name")
-    check cloned.slotNames.hasKey("age")
-    check cloned.getSlot("name").strVal == "Alice"
-    check cloned.getSlot("age").intVal == 30
-
-  test "clone creates independent copy":
-    var person = initSlotObject(@["name"])
-    person.setSlot("name", NodeValue(kind: vkString, strVal: "Alice"))
-
-    var cloned = clone(person).objVal
-    cloned.setSlot("name", NodeValue(kind: vkString, strVal: "Bob"))
-
-    # Original should be unchanged
-    check person.getSlot("name").strVal == "Alice"
-    check cloned.getSlot("name").strVal == "Bob"
-
   test "multi-level inheritance of slots":
-    let root = initRootObject()
+    discard initRootClass()
 
     # Level 1: Animal
-    let animalIvars = @[NodeValue(kind: vkSymbol, symVal: "species")]
-    let animalResult = deriveWithIVarsImpl(root, @[NodeValue(kind: vkArray, arrayVal: animalIvars)])
-    let animal = animalResult.objVal
+    let animalClass = newClass(parents = @[rootClass], slotNames = @["species"], name = "Animal")
 
     # Level 2: Person extends Animal
-    let personIvars = @[NodeValue(kind: vkSymbol, symVal: "name")]
-    let personResult = deriveWithIVarsImpl(animal, @[NodeValue(kind: vkArray, arrayVal: personIvars)])
-    let person = personResult.objVal
+    let personClass = newClass(parents = @[animalClass], slotNames = @["name"], name = "Person")
 
     # Level 3: Employee extends Person
-    let employeeIvars = @[NodeValue(kind: vkSymbol, symVal: "employeeID")]
-    let employeeResult = deriveWithIVarsImpl(person, @[NodeValue(kind: vkArray, arrayVal: employeeIvars)])
-    let employee = employeeResult.objVal
+    let employeeClass = newClass(parents = @[personClass], slotNames = @["employeeID"], name = "Employee")
 
-    # Verify all ivars present
+    # Verify all ivars present in Employee
+    check employeeClass.slotNames.len == 1
+    check employeeClass.allSlotNames.len == 3
+    check "species" in employeeClass.allSlotNames
+    check "name" in employeeClass.allSlotNames
+    check "employeeID" in employeeClass.allSlotNames
+
+    # Verify instance has 3 slots
+    let employee = newInstance(employeeClass)
     check employee.slots.len == 3
-    check employee.getSlotNames().len == 3
-    check employee.slotNames.hasKey("species")
-    check employee.slotNames.hasKey("name")
-    check employee.slotNames.hasKey("employeeID")
 
-  test "derivewith empty array creates non-slotted object":
-    let root = initRootObject()
-    let emptyIvars: seq[NodeValue] = @[]
-    let result = deriveWithIVarsImpl(root, @[NodeValue(kind: vkArray, arrayVal: emptyIvars)])
-    let child = result.objVal
+  test "class without slots creates instance without slots":
+    discard initRootClass()
+    let simpleClass = newClass(parents = @[rootClass], slotNames = @[], name = "Simple")
 
-    check child.hasSlots == false
-    check child.slots.len == 0
+    check simpleClass.hasSlots == false
+    check simpleClass.slotNames.len == 0
+    check simpleClass.allSlotNames.len == 0
 
-  test "can mix slotted and non-slotted in prototype chain":
-    let root = initRootObject()
+  test "can mix slotted and non-slotted in inheritance chain":
+    discard initRootClass()
 
     # Create non-slotted parent
-    let parent = deriveImpl(root, @[]).objVal
+    let parentClass = newClass(parents = @[rootClass], slotNames = @[], name = "Parent")
+    check parentClass.hasSlots == false
 
     # Create slotted child
-    let childIvars = @[NodeValue(kind: vkSymbol, symVal: "value")]
-    let childResult = deriveWithIVarsImpl(parent, @[NodeValue(kind: vkArray, arrayVal: childIvars)])
-    let child = childResult.objVal
+    let childClass = newClass(parents = @[parentClass], slotNames = @["value"], name = "Child")
+    check childClass.hasSlots == true
+    check childClass.slotNames.len == 1
+    check childClass.allSlotNames.len == 1
 
-    check parent.hasSlots == false
-    check child.hasSlots == true
+    # Verify instance
+    let child = newInstance(childClass)
     check child.slots.len == 1
-    check child.parents[0] == parent
 
-  test "property bag operations don't affect slots":
-    # DictionaryObj has both slots and properties
-    var person = initDictionaryObject()
-    person.slotNames = {"name": 0, "age": 1}.toTable
-    person.slots = @[nilValue(), nilValue()]
-    person.hasSlots = true
+  test "slot access works by index position":
+    discard initRootClass()
+    let personClass = newClass(parents = @[rootClass], slotNames = @["name", "age", "address"], name = "Person")
+    var person = newInstance(personClass)
 
-    # Set properties (should not affect slots)
-    person.properties["extra"] = NodeValue(kind: vkString, strVal: "data")
+    person.slots[0] = NodeValue(kind: vkString, strVal: "Alice")
+    person.slots[1] = NodeValue(kind: vkInt, intVal: 30)
+    person.slots[2] = NodeValue(kind: vkString, strVal: "Monaco")
 
-    # Verify slots unchanged
-    check person.slots.len == 2
-    check person.properties.len == 1
-    check person.getSlot("name").kind == vkNil
-
-  test "slot operations don't affect properties":
-    var person = initDictionaryObject()
-    person.slotNames = {"name": 0}.toTable
-    person.slots = @[nilValue()]
-    person.hasSlots = true
-    person.properties["extra"] = NodeValue(kind: vkString, strVal: "data")
-
-    # Set slot (should not affect properties)
-    person.setSlot("name", NodeValue(kind: vkString, strVal: "Alice"))
-
-    check person.properties.len == 1
-    check person.properties["extra"].strVal == "data"
+    check person.slots[0].strVal == "Alice"
+    check person.slots[1].intVal == 30
+    check person.slots[2].strVal == "Monaco"
 
   test "slot initialization values":
-    let ivars = @["name", "age", "active"]
-    let person = initSlotObject(ivars)
+    discard initRootClass()
+    let personClass = newClass(parents = @[rootClass], slotNames = @["name", "age", "active"], name = "Person")
+    var person = newInstance(personClass)
 
     # All slots should start as nil
     for i in 0..<person.slots.len:
@@ -281,13 +193,56 @@ suite "Slot-based Instance Variables (derive: message)":
     person.slots[1] = NodeValue(kind: vkInt, intVal: 25)
     person.slots[2] = NodeValue(kind: vkBool, boolVal: true)
 
-    check person.getSlot("name").strVal == "Bob"
-    check person.getSlot("age").intVal == 25
-    check person.getSlot("active").boolVal == true
+    check person.slots[0].strVal == "Bob"
+    check person.slots[1].intVal == 25
+    check person.slots[2].boolVal == true
 
-  test "slot access is case-sensitive":
-    let person = initSlotObject(@["name", "Name"])
+  test "slot names are case-sensitive":
+    discard initRootClass()
+    let testClass = newClass(parents = @[rootClass], slotNames = @["name", "Name"], name = "Test")
 
-    check person.slotNames.hasKey("name")
-    check person.slotNames.hasKey("Name")
-    check person.slotNames["name"] != person.slotNames["Name"]
+    # Both should be distinct slot names
+    check testClass.slotNames[0] == "name"
+    check testClass.slotNames[1] == "Name"
+    check testClass.slotNames.len == 2
+    check testClass.allSlotNames.len == 2
+
+  test "instance can store any NodeValue type in slots":
+    discard initRootClass()
+    let flexibleClass = newClass(parents = @[rootClass], slotNames = @["intValue", "boolValue", "strValue", "nilValue"], name = "Flexible")
+    var inst = newInstance(flexibleClass)
+
+    inst.slots[0] = NodeValue(kind: vkInt, intVal: 42)
+    inst.slots[1] = NodeValue(kind: vkBool, boolVal: true)
+    inst.slots[2] = NodeValue(kind: vkString, strVal: "hello")
+    inst.slots[3] = NodeValue(kind: vkNil)
+
+    check inst.slots[0].intVal == 42
+    check inst.slots[1].boolVal == true
+    check inst.slots[2].strVal == "hello"
+    check inst.slots[3].kind == vkNil
+
+  test "class knows if it has slots":
+    discard initRootClass()
+
+    let emptyClass = newClass(parents = @[rootClass], slotNames = @[], name = "Empty")
+    let slottedClass = newClass(parents = @[rootClass], slotNames = @["value"], name = "Slotted")
+
+    check emptyClass.hasSlots == false
+    check slottedClass.hasSlots == true
+
+  test "class maintains slot name order":
+    discard initRootClass()
+    let orderedClass = newClass(parents = @[rootClass], slotNames = @["c", "b", "a"], name = "Ordered")
+
+    check orderedClass.slotNames[0] == "c"
+    check orderedClass.slotNames[1] == "b"
+    check orderedClass.slotNames[2] == "a"
+
+  test "instance class reference is correct":
+    discard initRootClass()
+    let myClass = newClass(parents = @[rootClass], slotNames = @["x"], name = "MyClass")
+    let inst = newInstance(myClass)
+
+    check inst.class == myClass
+    check inst.class.name == "MyClass"
