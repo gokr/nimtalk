@@ -30,6 +30,7 @@ type
     currentActivation*: Activation
     currentReceiver*: Instance
     rootClass*: Class  # The root class for exception handling
+    rootObject*: Instance  # The root object instance
     maxStackDepth*: int
     traceExecution*: bool
     lastResult*: NodeValue
@@ -219,7 +220,8 @@ proc newInterpreter*(trace: bool = false, maxStackDepth: int = 10000): Interpret
     currentReceiver: nil,
     maxStackDepth: maxStackDepth,
     traceExecution: trace,
-    lastResult: nilValue()
+    lastResult: nilValue(),
+    rootObject: nil
   )
 
   # Initialize the heap-allocated globals table
@@ -230,11 +232,13 @@ proc newInterpreter*(trace: bool = false, maxStackDepth: int = 10000): Interpret
   let objCls = initCoreClasses()
   result.rootClass = objCls
   result.currentReceiver = newInstance(objCls)
+  result.rootObject = result.currentReceiver
 
-# Create interpreter with shared globals and rootClass (for green threads)
+# Create interpreter with shared globals and rootObject (for green threads)
 proc newInterpreterWithShared*(globals: ref Table[string, NodeValue],
-                                root: Class,
-                                trace: bool = false): Interpreter =
+                                rootObject: Instance,
+                                trace: bool = false,
+                                maxStackDepth: int = 10000): Interpreter =
   ## Create a new interpreter that shares globals and rootClass with others
   ## Used for green threads where multiple interpreters share state
   result = Interpreter(
@@ -242,18 +246,15 @@ proc newInterpreterWithShared*(globals: ref Table[string, NodeValue],
     activationStack: @[],
     currentActivation: nil,
     currentReceiver: nil,
-    maxStackDepth: 1000,
+    maxStackDepth: maxStackDepth,
     traceExecution: trace,
-    lastResult: nilValue()
+    lastResult: nilValue(),
+    rootObject: rootObject
   )
 
-  # Use the shared root class
-  result.rootClass = root
-
-  # Initialize core classes if not already done (new model)
-  # This sets up: Root -> Object -> (Integer, Float, String, Array, Table, Block, Boolean)
-  let objCls = initCoreClasses()
-  result.currentReceiver = newInstance(objCls)
+  # Use the shared root class and root object
+  result.rootClass = rootObject.class
+  result.currentReceiver = rootObject
 
 # Check stack depth to prevent infinite recursion
 proc checkStackDepth(interp: var Interpreter) =

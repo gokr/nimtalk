@@ -23,7 +23,6 @@ type
     ikInt          # Integer instance (optimized)
     ikFloat        # Float instance (optimized)
     ikString       # String instance (optimized)
-    ikMixin        # Mixin instance - no slots, only shared methods (can mix with any type)
 
   Class* {.acyclic.} = ref object of RootObj
     ## Class object - defines structure and behavior for instances
@@ -55,8 +54,8 @@ type
     ## Using case object variant for memory efficiency - only allocate fields needed
     class*: Class                           # Reference to class
     case kind*: InstanceKind
-    of ikObject, ikMixin:
-      slots*: seq[NodeValue]                # Instance variables (always empty for ikMixin)
+    of ikObject:
+      slots*: seq[NodeValue]                # Instance variables (size = class.allSlotNames.len)
     of ikArray:
       elements*: seq[NodeValue]             # Array elements
     of ikTable:
@@ -243,7 +242,6 @@ proc toString*(val: NodeValue): string =
       of ikArray: "#(" & $val.instVal.elements.len & ")"
       of ikTable: "#{" & $val.instVal.entries.len & "}"
       of ikObject: "<instance of " & val.instVal.class.name & ">"
-      of ikMixin: "<mixin " & val.instVal.class.name & ">"
   of vkBlock: "<block>"
   of vkArray: "#(" & $val.arrayVal.len & ")"
   of vkTable: "#{" & $val.tableVal.len & "}"
@@ -422,7 +420,6 @@ proc newClass*(parents: seq[Class] = @[], slotNames: seq[string] = @[], name: st
   result = Class()
   result.methods = initTable[string, BlockNode]()
   result.allMethods = initTable[string, BlockNode]()
-  result.classMethods = initTable[string, BlockNode]()
   result.classMethods = initTable[string, BlockNode]()
   result.allClassMethods = initTable[string, BlockNode]()
   result.slotNames = slotNames

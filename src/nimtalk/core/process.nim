@@ -44,7 +44,7 @@ type
     currentProcess*: Process
     nextPid: uint64
     sharedGlobals*: ref Table[string, NodeValue]
-    rootObject*: RootObject
+    rootObject*: Instance
     running*: bool
     yieldEveryNSends*: int  ## 0 = yield only on explicit yield/block
 
@@ -53,7 +53,7 @@ type
 # ============================================================================
 
 proc newScheduler*(globals: ref Table[string, NodeValue] = nil,
-                   root: RootObject = nil): Scheduler =
+                   root: Instance = nil): Scheduler =
   ## Create a new scheduler
   result = Scheduler(
     readyQueue: initDeque[Process](),

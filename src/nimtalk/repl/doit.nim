@@ -38,37 +38,18 @@ proc newDoitContext*(trace: bool = false, maxStackDepth: int = 10000): DoitConte
 
 # Print welcome message
 proc printWelcomeRepl() =
-  echo "========================================"
-  echo "  Nimtalk - REPL"
-  echo "  A modern Smalltalk in Nim"
-  echo "========================================"
-  echo ""
-  echo "Type expressions and press Enter to evaluate."
-  echo "Examples:"
-  echo "  3 + 4                    ;; arithmetic (when + defined)"
-  echo "  'hello'                  ;; string literal"
-  echo "  42                       ;; integer literal"
-  echo "  Object clone             ;; create clone"
-  echo "  obj := Object derive     ;; create derived object"
-  echo "  obj at: 'key' put: 'value'  ;; set property"
-  echo "  obj at: 'key'            ;; get property"
-  echo ""
-  echo "Commands:"
-  echo "  :help         ;; Show this help"
-  echo "  :globals      ;; Show global variables"
-  echo "  :quit or ^D   ;; Exit REPL"
-  echo ""
+  echo "Nimtalk REPL (:help for commands, :quit to exit)"
 
 # Print help
 proc printHelp() =
-  printWelcomeRepl()
+  echo "Commands: :help, :globals, :trace, :clear, :quit"
 
 # Show global variables
 proc showGlobals(ctx: DoitContext) =
-  echo "\nGlobal Variables:"
+  echo ""
+  echo "Global Variables:"
   for key, val in ctx.globals[]:
     echo "  " & key & " = " & val.toString()
-  echo ""
 
 # Handle REPL commands (starting with :)
 proc handleCommand(ctx: DoitContext, line: string): bool =
@@ -129,14 +110,12 @@ proc runREPL*(ctx: DoitContext = nil) =
 
   # Main REPL loop
   while true:
-    # Show prompt
-    stdout.write(replCtx.prompt)
-    flushFile(stdout)
-
-    # Read input
+    # Read input (includes prompt display)
     var line = ""
     when defined(windows):
       # Windows doesn't have readline readily available
+      stdout.write(replCtx.prompt)
+      flushFile(stdout)
       if not stdin.readLine(line):
         break  # EOF
     else:

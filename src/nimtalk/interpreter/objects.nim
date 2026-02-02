@@ -503,6 +503,11 @@ proc initCoreClasses*(): Class =
     newMethod.nativeImpl = cast[pointer](arrayNewImpl)
     addMethodToClass(arrayClass, "new", newMethod, isClassMethod = true)
 
+    # Array new: with size argument
+    let newSizeMethod = createCoreMethod("new:")
+    newSizeMethod.nativeImpl = cast[pointer](arrayNewImpl)
+    addMethodToClass(arrayClass, "new:", newSizeMethod, isClassMethod = true)
+
     addGlobal("Array", NodeValue(kind: vkClass, classVal: arrayClass))
 
   # Create Table class
@@ -702,17 +707,17 @@ proc printStringImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   of ikArray: toValue("#(" & $self.elements.len & ")")
   of ikTable: toValue("#{" & $self.entries.len & "}")
   of ikObject: toValue("<instance of " & self.class.name & ">")
-  of ikMixin: toValue("<mixin " & self.class.name & ">")
 
 proc classDeriveImpl*(self: Class, args: seq[NodeValue]): NodeValue =
   ## Create a new subclass with slot names
-  ## Note: For now use at:/at:put: for slot access; later we can generate SlotAccessNode at parse time
-  let newClass = newClass(parents = @[self], name = "Derived")
+  ## Extract slot names first so newClass() can properly populate allSlotNames
+  var slotNames: seq[string] = @[]
   if args.len > 0 and args[0].kind == vkInstance and args[0].instVal.kind == ikArray:
-    let slotNames = args[0].instVal.elements
-    for slot in slotNames:
+    let slotNameValues = args[0].instVal.elements
+    for slot in slotNameValues:
       if slot.kind == vkSymbol:
-        newClass.slotNames.add(slot.symVal)
+        slotNames.add(slot.symVal)
+  let newClass = newClass(parents = @[self], slotNames = slotNames, name = "Derived")
   return NodeValue(kind: vkClass, classVal: newClass)
 
 proc classDeriveParentsIvarArrayMethodsImpl*(self: Class, args: seq[NodeValue]): NodeValue =
@@ -807,10 +812,12 @@ proc atCollectionImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   case self.kind
   of ikString:
     let (ok, val) = args[0].tryGetInt()
+    # Convert 1-based to 0-based
     if ok and val >= 1 and val <= self.strVal.len:
       return toValue($self.strVal[val - 1])
   of ikArray:
     let (ok, val) = args[0].tryGetInt()
+    # Convert 1-based to 0-based
     if ok and val >= 1 and val <= self.elements.len:
       return self.elements[val - 1]
   of ikTable:
@@ -839,6 +846,7 @@ proc atCollectionPutImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   case self.kind
   of ikArray:
     let (ok, val) = args[0].tryGetInt()
+    # Convert 1-based to 0-based
     if ok and val >= 1 and val <= self.elements.len:
       self.elements[val - 1] = args[1]
   of ikTable:
@@ -877,11 +885,12 @@ proc instStringSizeImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   return toValue(0)
 
 proc instStringAtImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
-  ## String character at index
+  ## String character at index (1-based)
   if self.kind == ikString and args.len > 0:
     let (ok, val) = args[0].tryGetInt()
+    # Convert 1-based to 0-based
     if ok and val >= 1 and val <= self.strVal.len:
-      return toValue($self.strVal[val-1])
+      return toValue($self.strVal[val - 1])
   return toValue("")
 
 proc concatImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
@@ -894,12 +903,12 @@ proc concatImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   return NodeValue(kind: vkInstance, instVal: newStringInstance(self.class, self.strVal))
 
 proc instStringFromToImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
-  ## Substring from:to:
+  ## Substring from:to: (0-based, inclusive)
   if self.kind == ikString and args.len >= 2:
     let (ok1, fromIdx) = args[0].tryGetInt()
     let (ok2, toIdx) = args[1].tryGetInt()
-    if ok1 and ok2 and fromIdx >= 1 and toIdx <= self.strVal.len and fromIdx <= toIdx:
-      return NodeValue(kind: vkInstance, instVal: newStringInstance(self.class, self.strVal[fromIdx-1..<toIdx]))
+    if ok1 and ok2 and fromIdx >= 0 and toIdx < self.strVal.len and fromIdx <= toIdx:
+      return NodeValue(kind: vkInstance, instVal: newStringInstance(self.class, self.strVal[fromIdx..toIdx]))
   return toValue("")
 
 proc instStringIndexOfImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
@@ -1128,9 +1137,9 @@ proc rebuildAllTables*(cls: Class) =
 proc instanceCloneImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Clone an instance - creates a new instance with same class and copied slots
   case self.kind
-  of ikObject, ikMixin:
-    let clone = Instance(kind: self.kind, class: self.class)
-    clone.slots = self.slots  # Copy slot values (mixin slots are empty)
+  of ikObject:
+    let clone = Instance(kind: ikObject, class: self.class)
+    clone.slots = self.slots
     clone.isNimProxy = self.isNimProxy
     clone.nimValue = self.nimValue
     return NodeValue(kind: vkInstance, instVal: clone)
@@ -1207,3 +1216,121 @@ proc registerPrimitivesOnObjectClass*(objCls: Class) =
   let primAtPut = createCoreMethod("primitiveAt:put:")
   primAtPut.nativeImpl = cast[pointer](primitiveAtPutImpl)
   addMethodToClass(objCls, "primitiveAt:put:", primAtPut)
+
+# ============================================================================
+# Slot-based Instance Variable Helpers (for test_slot_ivars.nim)
+# ============================================================================
+
+type
+  # Dictionary object type for slot-based objects with properties
+  # properties field is inherited from Instance
+  DictionaryObj = ref object of Instance
+
+proc initDictionaryObject*(): DictionaryObj =
+  ## Create an empty dictionary-based object for testing
+  result = DictionaryObj()
+  result.class = objectClass
+  result.kind = ikObject
+  result.slots = newSeq[NodeValue]()
+  result.isNimProxy = false
+  result.nimValue = nil
+
+proc initSlotObject*(slotNames: seq[string]): DictionaryObj =
+  ## Create an object with slot-based instance variables with a new Class
+  result = DictionaryObj()
+  result.kind = ikObject
+  result.isNimProxy = false
+  result.nimValue = nil
+  # Create a new class with given slot names
+  result.class = newClass(parents = @[objectClass], slotNames = slotNames, name = "TestObject")
+  result.slots = newSeq[NodeValue](slotNames.len)
+  for i in 0..<slotNames.len:
+    result.slots[i] = nilValue()
+
+proc hasSlotIVars*(obj: Instance): bool =
+  ## Check if object has slot-based instance variables
+  obj.class != nil and obj.class.hasSlots
+
+proc getSlot*(obj: Instance, name: string): NodeValue =
+  ## Get slot value by name
+  if obj.class != nil:
+    for i, slotName in obj.class.allSlotNames:
+      if slotName == name and i < obj.slots.len:
+        return obj.slots[i]
+  return nilValue()
+
+proc setSlot*(obj: Instance, name: string, value: NodeValue) =
+  ## Set slot value by name
+  if obj.class != nil:
+    for i, slotName in obj.class.allSlotNames:
+      if slotName == name and i < obj.slots.len:
+        obj.slots[i] = value
+        return
+
+proc getSlotNames*(obj: Instance): seq[string] =
+  ## Get all slot names
+  if obj.class != nil:
+    return obj.class.allSlotNames
+  return @[]
+
+proc initRootObject*(): Instance =
+  ## Create a root object without slots
+  result = Instance(kind: ikObject, class: rootClass)
+  result.slots = newSeq[NodeValue]()
+  result.isNimProxy = false
+  result.nimValue = nil
+
+proc deriveImpl*(parent: Instance, args: seq[NodeValue]): NodeValue =
+  ## Derive a new object from parent without new instance variables
+  let newObj = Instance(kind: ikObject, class: parent.class)
+  newObj.slots = newSeq[NodeValue](parent.slots.len)
+  for i in 0..<parent.slots.len:
+    newObj.slots[i] = parent.slots[i]
+  newObj.isNimProxy = parent.isNimProxy
+  newObj.nimValue = parent.nimValue
+  return NodeValue(kind: vkInstance, instVal: newObj)
+
+proc deriveWithIVarsImpl*(parent: Instance, args: seq[NodeValue]): NodeValue =
+  ## Derive a new object with additional instance variables
+  let newObj = Instance(kind: ikObject, class: parent.class)
+  var parentSlotCount = parent.slots.len
+  var newSlotCount = 0
+
+  # Extract new slot names from args
+  if args.len > 0 and args[0].kind == vkArray:
+    for slot in args[0].arrayVal:
+      if slot.kind == vkSymbol:
+        inc newSlotCount
+
+  # Create slots from parent + new slots
+  newObj.slots = newSeq[NodeValue](parentSlotCount + newSlotCount)
+  for i in 0..<parentSlotCount:
+    newObj.slots[i] = parent.slots[i]
+  for i in 0..<newSlotCount:
+    newObj.slots[parentSlotCount + i] = nilValue()
+
+  newObj.isNimProxy = parent.isNimProxy
+  newObj.nimValue = parent.nimValue
+  return NodeValue(kind: vkInstance, instVal: newObj)
+
+proc clone*(obj: Instance): NodeValue =
+  ## Clone an instance
+  let newObj = Instance(kind: obj.kind, class: obj.class)
+  newObj.slots = obj.slots
+  newObj.isNimProxy = obj.isNimProxy
+  newObj.nimValue = obj.nimValue
+  when defined(nimPreviewSlimSystem):
+    newObj.elements = when obj.kind == ikArray: obj.elements else: default(seq[NodeValue])
+    newObj.entries = when obj.kind == ikTable: obj.entries else: default(Table[string, NodeValue])
+    newObj.intVal = when obj.kind == ikInt: obj.intVal else: default(int)
+    newObj.floatVal = when obj.kind == ikFloat: obj.floatVal else: default(float)
+    newObj.strVal = when obj.kind == ikString: obj.strVal else: default(string)
+  else:
+    case obj.kind
+    of ikArray: newObj.elements = obj.elements
+    of ikTable: newObj.entries = obj.entries
+    of ikInt: newObj.intVal = obj.intVal
+    of ikFloat: newObj.floatVal = obj.floatVal
+    of ikString: newObj.strVal = obj.strVal
+    else: discard
+  return NodeValue(kind: vkInstance, instVal: newObj)
