@@ -27,8 +27,6 @@ type
     pos*: int
     line*, col*: int
     state*: LexState
-    startCol*: int
-    escapeNext*: bool
 # Character classification
 proc isAlpha(c: char): bool = c in {'a'..'z', 'A'..'Z'}
 proc isDigit(c: char): bool = c in {'0'..'9'}
@@ -42,8 +40,7 @@ proc initLexer*(input: string, filename: string = ""): Lexer =
     pos: 0,
     line: 1,
     col: 1,
-    state: lsNormal,
-    startCol: 1
+    state: lsNormal
   )
 # Peek at next character without advancing
 proc peek(lexer: Lexer): char =
