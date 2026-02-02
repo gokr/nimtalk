@@ -255,6 +255,9 @@ proc toString*(val: NodeValue): string =
   of vkInstance:
     if val.instVal == nil or val.instVal.class == nil:
       "<instance nil>"
+    elif val.instVal == nilInstance or val.instVal.class == undefinedObjectClass:
+      # The nil singleton instance - display as "nil"
+      "nil"
     else:
       case val.instVal.kind
       of ikInt: $(val.instVal.intVal)
@@ -283,7 +286,27 @@ proc toValue*(b: bool): NodeValue =
   NodeValue(kind: vkBool, boolVal: b)
 
 proc nilValue*(): NodeValue =
-  NodeValue(kind: vkNil)
+  ## Return the nil value (singleton instance of UndefinedObject)
+  ## During early bootstrap, nilInstance may not be set yet,
+  ## so we fall back to vkNil temporarily
+  if nilInstance != nil:
+    return NodeValue(kind: vkInstance, instVal: nilInstance)
+  else:
+    # Fallback during early bootstrap before UndefinedObject is created
+    return NodeValue(kind: vkNil)
+
+proc isNilValue*(val: NodeValue): bool =
+  ## Check if a value is nil (either vkNil or the nil instance)
+  if val.kind == vkNil:
+    return true
+  if val.kind == vkInstance and val.instVal != nil:
+    # Check if this is the singleton nil instance
+    if val.instVal == nilInstance:
+      return true
+    # Also check by class - if it's an instance of UndefinedObject, it's nil
+    if val.instVal.class != nil and val.instVal.class == undefinedObjectClass:
+      return true
+  return false
 
 proc toValue*(arr: seq[NodeValue]): NodeValue =
   NodeValue(kind: vkArray, arrayVal: arr)
@@ -404,6 +427,7 @@ var
   rootClass*: Class = nil                      # Root class (zero methods)
   objectClass*: Class = nil                     # Object class, derives from Root
   mixinClass*: Class = nil                      # Mixin class, sibling to Object (slotless, can mix with any type)
+  undefinedObjectClass*: Class = nil            # UndefinedObject class, inherits from Object (for nil)
   booleanClass*: Class = nil
   integerClass*: Class = nil
   floatClass*: Class = nil
@@ -411,6 +435,10 @@ var
   arrayClass*: Class = nil
   tableClass*: Class = nil
   blockClass*: Class = nil
+
+# nil instance - singleton instance of UndefinedObject
+# Initialized during initCoreClasses, used by nilValue()
+var nilInstance*: Instance = nil
 
 # SchedulerContext forward declaration (defined in scheduler.nim)
 type SchedulerContext* = ref object

@@ -25,7 +25,7 @@
 
 Object>>clone [
   # Create a shallow copy of this object without class/superclass links.
-  # The copy has no parents and shares property/method dictionaries.
+  # The copy has no superclasses and shares property/method dictionaries.
   ^ self perform: #primitiveClone
 ]
 
@@ -107,7 +107,7 @@ Object>>at: key put: value [
 ]
 
 Object>>hasProperty: key [
-  # Check if this object directly has a property (not in parents).
+  # Check if this object directly has a property (not in superclasses).
   ^ self perform: #primitiveHasProperty: with: key
 ]
 

@@ -2492,6 +2492,15 @@ proc initGlobals*(interp: var Interpreter) =
   blockCls.methods["primitiveValue:value:value:"] = primitiveValueWithThreeArgsMethod
   blockCls.allMethods["primitiveValue:value:value:"] = primitiveValueWithThreeArgsMethod
 
+  # Create UndefinedObject class (derives from Object) - the class of nil
+  let undefinedObjCls = newClass(superclasses = @[objectCls], name = "UndefinedObject")
+  undefinedObjCls.tags = @["UndefinedObject", "Object"]
+  undefinedObjectClass = undefinedObjCls  # Set global variable in types module
+
+  # Create the singleton nil instance (instance of UndefinedObject)
+  let nilInst = Instance(kind: ikObject, class: undefinedObjCls, slots: @[])
+  nilInstance = nilInst  # Set global variable in types module
+
   # Create FileStream class (derives from Object) - minimal version for stdout
   let fileStreamCls = newClass(superclasses = @[objectCls], name = "FileStream")
   fileStreamCls.tags = @["FileStream"]
@@ -2528,6 +2537,7 @@ proc initGlobals*(interp: var Interpreter) =
   interp.globals[]["False"] = falseCls.toValue()
   interp.globals[]["Block"] = blockCls.toValue()
   interp.globals[]["FileStream"] = fileStreamCls.toValue()
+  interp.globals[]["UndefinedObject"] = undefinedObjCls.toValue()
 
   # Add primitive values
   interp.globals[]["true"] = NodeValue(kind: vkBool, boolVal: true)
