@@ -17,10 +17,10 @@ type
     showResults*: bool
 
 # Create a REPL context
-proc newDoitContext*(trace: bool = false): DoitContext =
+proc newDoitContext*(trace: bool = false, maxStackDepth: int = 10000): DoitContext =
   ## Create new REPL context
   result = DoitContext(
-    interpreter: newInterpreter(trace),
+    interpreter: newInterpreter(trace, maxStackDepth),
     globals: new(Table[string, NodeValue]),
     history: @["-- Nimtalk REPL History --"],
     prompt: "nt> ",
@@ -174,9 +174,9 @@ proc main*() =
   runREPL(ctx)
 
 # File-based script execution
-proc runScript*(filename: string, ctx: DoitContext = nil, dumpAst = false): (string, string) =
+proc runScript*(filename: string, ctx: DoitContext = nil, dumpAst = false, maxStackDepth: int = 10000): (string, string) =
   ## Run a Nimtalk script file
-  var scriptCtx = if ctx != nil: ctx else: newDoitContext()
+  var scriptCtx = if ctx != nil: ctx else: newDoitContext(maxStackDepth = maxStackDepth)
 
   if not fileExists(filename):
     return ("", "File not found: " & filename)
@@ -211,9 +211,9 @@ proc runScript*(filename: string, ctx: DoitContext = nil, dumpAst = false): (str
       return ("", "")
 
 # Convenience function to run script and print result
-proc execScript*(filename: string, dumpAst = false) =
+proc execScript*(filename: string, dumpAst = false, maxStackDepth: int = 10000) =
   ## Execute script and print result
-  let (output, err) = runScript(filename, dumpAst = dumpAst)
+  let (output, err) = runScript(filename, dumpAst = dumpAst, maxStackDepth = maxStackDepth)
   if err.len > 0:
     stderr.writeLine(err)
     quit(1)

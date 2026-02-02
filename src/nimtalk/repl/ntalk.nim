@@ -57,6 +57,7 @@ proc showUsage() =
   echo "Options:"
   echo "  --ast              Dump AST after parsing and continue execution"
   echo "  --loglevel <level> Set log level: DEBUG, INFO, WARN, ERROR (default: ERROR)"
+  echo "  --stack-depth <n>  Set maximum stack depth (default: 10000)"
   echo ""
   echo "Examples:"
   echo "  ntalk                              # Start REPL interactively"
@@ -64,6 +65,7 @@ proc showUsage() =
   echo "  ntalk -e \"3 + 4\"                 # Evaluate expression (prints: 7)"
   echo "  ntalk --ast examples/test.nt       # Show AST then execute"
   echo "  ntalk --loglevel DEBUG script.nt   # Run with debug logging"
+  echo "  ntalk --stack-depth 50000 deep.nt  # Run with increased stack limit"
   echo ""
 
 proc main() =
@@ -73,6 +75,7 @@ proc main() =
   # Configure logging (default to ERROR level)
   var logLevel = lvlError
   var dumpAst = false
+  var maxStackDepth = 10000
   var positionalArgs: seq[string] = @[]
 
   # Parse flags and collect positional arguments
@@ -85,6 +88,20 @@ proc main() =
         inc i  # Skip the value
       else:
         echo "Error: --loglevel requires a value"
+        quit(1)
+    of "--stack-depth":
+      if i + 1 < allArgs.len:
+        try:
+          maxStackDepth = parseInt(allArgs[i + 1])
+          if maxStackDepth < 100:
+            echo "Error: --stack-depth must be at least 100"
+            quit(1)
+        except ValueError:
+          echo "Error: --stack-depth requires an integer value"
+          quit(1)
+        inc i  # Skip the value
+      else:
+        echo "Error: --stack-depth requires a value"
         quit(1)
     of "--ast":
       dumpAst = true
@@ -104,7 +121,7 @@ proc main() =
   # Now handle commands based on positional arguments
   if positionalArgs.len == 0:
     # Start REPL
-    var ctx = newDoitContext()
+    var ctx = newDoitContext(maxStackDepth = maxStackDepth)
     runREPL(ctx)
   elif positionalArgs.len == 1:
     case positionalArgs[0]:
@@ -128,7 +145,7 @@ proc main() =
 
       # Test 2: Expression evaluation
       try:
-        var ctx = newDoitContext()
+        var ctx = newDoitContext(maxStackDepth = maxStackDepth)
         let (result, err) = ctx.doit("42")
         if err.len == 0 and result.kind == vkInt and result.intVal == 42:
           inc passed
@@ -142,7 +159,7 @@ proc main() =
 
       # Test 3: Object creation
       try:
-        var ctx = newDoitContext()
+        var ctx = newDoitContext(maxStackDepth = maxStackDepth)
         discard ctx.doit("obj := Object clone")
         let (name, err) = ctx.doit("obj printString")
         if err.len == 0:
@@ -168,7 +185,7 @@ proc main() =
       # Check if it's a file (any extension, not just .nt)
       if fileExists(positionalArgs[0]):
         # Run script file
-        execScript(positionalArgs[0], dumpAst)
+        execScript(positionalArgs[0], dumpAst, maxStackDepth)
       else:
         # Unrecognized argument
         echo "Unknown option or file not found: " & positionalArgs[0]
@@ -176,7 +193,7 @@ proc main() =
         quit(1)
   elif positionalArgs.len == 2 and positionalArgs[0] == "-e":
     # Evaluate expression
-    var ctx = newDoitContext()
+    var ctx = newDoitContext(maxStackDepth = maxStackDepth)
     let (result, err) = ctx.doit(positionalArgs[1], dumpAst)
     if err.len > 0:
       stderr.writeLine("Error: " & err)

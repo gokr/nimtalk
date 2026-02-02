@@ -210,14 +210,14 @@ proc rewriteMethodForSlotAccess*(blk: BlockNode, cls: Class) =
   debug("rewriteMethodForSlotAccess: done")
 
 # Initialize interpreter
-proc newInterpreter*(trace: bool = false): Interpreter =
+proc newInterpreter*(trace: bool = false, maxStackDepth: int = 10000): Interpreter =
   ## Create a new interpreter instance
   result = Interpreter(
     globals: new(Table[string, NodeValue]),
     activationStack: @[],
     currentActivation: nil,
     currentReceiver: nil,
-    maxStackDepth: 1000,
+    maxStackDepth: maxStackDepth,
     traceExecution: trace,
     lastResult: nilValue()
   )
