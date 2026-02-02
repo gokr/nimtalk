@@ -346,7 +346,9 @@ proc lookupVariableWithStatus(interp: Interpreter, name: string): LookupResult =
   ## Returns (found: true, value: ...) if found, (found: false, value: nil) if not found
   debug("Looking up variable: ", name)
   var activation = interp.currentActivation
-  while activation != nil:
+
+  # First check current activation (for block execution or method locals)
+  if activation != nil:
     # Check captured environment FIRST - captured variables from outer lexical scope
     # should take precedence over local temporaries in the current activation
     # This is the key difference: blocks capture variables from where they were defined,
@@ -360,6 +362,32 @@ proc lookupVariableWithStatus(interp: Interpreter, name: string): LookupResult =
     # Then check locals (temporaries defined in this activation)
     if name in activation.locals:
       debug("Found variable in activation: ", name)
+      return (true, activation.locals[name])
+
+    # If this is a block activation and variable not found yet, check globals BEFORE
+    # walking up the chain. This prevents blocks from inadvertently capturing variables
+    # from the calling method's local scope, which would break lexical scoping.
+    if activation.currentMethod != nil and activation.currentMethod.isMethod == false:
+      # This is a block - check globals first
+      if name in interp.globals[]:
+        debug("Found variable in globals (in block): ", name, " = ", interp.globals[][name].toString())
+        let val = interp.globals[][name]
+        return (true, val)
+
+  # Walk up the activation chain (for nested scopes)
+  if activation != nil:
+    activation = activation.sender
+  while activation != nil:
+    # Check captured environment
+    if activation.currentMethod != nil and activation.currentMethod.capturedEnv.len > 0:
+      if name in activation.currentMethod.capturedEnv:
+        let value = activation.currentMethod.capturedEnv[name].value
+        debug("Found variable in captured environment (parent): ", name, " = ", value.toString())
+        return (true, value)
+
+    # Check locals
+    if name in activation.locals:
+      debug("Found variable in activation (parent): ", name)
       return (true, activation.locals[name])
 
     activation = activation.sender
