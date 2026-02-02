@@ -1,4 +1,4 @@
-import std/[tables, strutils, math, strformat, logging, os]
+import std/[tables, strutils, math, strformat, logging, os, hashes]
 import ../core/types
 import ../parser/lexer
 import ../parser/parser
@@ -400,7 +400,7 @@ proc lookupVariableWithStatus(interp: Interpreter, name: string): LookupResult =
 
   # Check if it's a property on self (legacy Dictionary objects - for backward compatibility)
   if interp.currentReceiver != nil and interp.currentReceiver.kind == ikTable:
-    let val = getTableValue(interp.currentReceiver, name)
+    let val = getTableValue(interp.currentReceiver, toValue(name))
     if val.kind != vkNil:
       debug("Found table property on self: ", name)
       return (true, val)
@@ -954,20 +954,12 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
   of nkTable:
     # Table literal - evaluate each key-value pair
     let tab = node.TableNode
-    var table = initTable[string, NodeValue]()
+    var table = initTable[NodeValue, NodeValue]()
     for entry in tab.entries:
-      # Keys must evaluate to strings or symbols
+      # Keys can be any NodeValue (int, string, symbol, instance, etc.)
       let keyVal = interp.eval(entry.key)
-      var keyStr: string
-      case keyVal.kind
-      of vkString:
-        keyStr = keyVal.strVal
-      of vkSymbol:
-        keyStr = keyVal.symVal
-      else:
-        raise newException(EvalError, "Table key must be string or symbol, got: " & $keyVal.kind)
       let valueVal = interp.eval(entry.value)
-      table[keyStr] = valueVal
+      table[keyVal] = valueVal
     # Return table as Instance (ikTable variant)
     if tableClass == nil:
       raise newException(EvalError, "Table class not initialized")
@@ -978,10 +970,11 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
     let objLit = node.ObjectLiteralNode
     # Create new object derived from root object
     # Create a Table instance instead of Dictionary object
-    var entries = initTable[string, NodeValue]()
+    # Property names are strings, convert to NodeValue for table keys
+    var entries = initTable[NodeValue, NodeValue]()
     for prop in objLit.properties:
       let valueVal = interp.eval(prop.value)
-      entries[prop.name] = valueVal
+      entries[toValue(prop.name)] = valueVal
     return toValue(newTableInstance(tableClass, entries))
 
   of nkPrimitive:
@@ -1714,8 +1707,9 @@ proc doCollectionImpl(interp: var Interpreter, self: Instance, args: seq[NodeVal
     for key, val in self.entries:
       let activation = newActivation(blockNode, interp.currentReceiver, interp.currentActivation)
       # Bind block parameters
+      # Key is now NodeValue (can be any type: string, int, instance, etc.)
       if blockNode.parameters.len > 0:
-        activation.locals[blockNode.parameters[0]] = NodeValue(kind: vkString, strVal: key)
+        activation.locals[blockNode.parameters[0]] = key
       if blockNode.parameters.len > 1:
         activation.locals[blockNode.parameters[1]] = val
       # Execute block body
@@ -2340,7 +2334,7 @@ proc initGlobals*(interp: var Interpreter) =
     # Create a Table instance with ikTable kind (not ikObject)
     # self.class is the class receiving the message (e.g., Table or a subclass)
     let targetClass = if self != nil and self.class != nil: self.class else: tableClass
-    return newTableInstance(targetClass, initTable[string, NodeValue]()).toValue()
+    return newTableInstance(targetClass, initTable[NodeValue, NodeValue]()).toValue()
 
   let tableNewMethod = createCoreMethod("new")
   tableNewMethod.nativeImpl = cast[pointer](tableClassNewImpl)
