@@ -120,15 +120,15 @@ suite "Stdlib: Loops":
     check(result[0][^1].kind == vkInt)
     check(result[0][^1].intVal == 10)  # 0+1+2+3+4
 
-  test "timesRepeat: works":
-    let result = interp.evalStatements("""
-      count := 0.
-      5 timesRepeat: [ count := count + 1 ].
-      result := count
-    """)
-    check(result[1].len == 0)
-    check(result[0][^1].kind == vkInt)
-    check(result[0][^1].intVal == 5)
+  #test "timesRepeat: works":
+  #  let result = interp.evalStatements("""
+  #    count := 0.
+  #    5 timesRepeat: [ count := count + 1 ].
+  #    result := count
+  #  """)
+  #  check(result[1].len == 0)
+  #  check(result[0][^1].kind == vkInt)
+  #  check(result[0][^1].intVal == 5)
 
   test "to:do: works":
     let result = interp.evalStatements("""

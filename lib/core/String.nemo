@@ -9,8 +9,8 @@
 # String primitives
 #====================================================================
 
-String>>concat: other [
-  # Concatenate strings (called via , operator)
+String>>, other [
+  # Concatenate strings (comma operator)
   ^ self perform: #primitiveConcat: with: other
 ]
 
@@ -72,6 +72,11 @@ String>>asInteger [
 String>>asSymbol [
   # Convert to symbol.
   ^ self perform: #primitiveAsSymbol
+]
+
+String>>repeat: count [
+  # Repeat string count times (e.g., "ab" repeat: 3 -> "ababab").
+  ^ self perform: #primitiveRepeat: with: count
 ]
 
 #====================================================================

@@ -23,11 +23,7 @@
 #        point := Point new.
 #        point x: 10.
 
-Object>>clone [
-  # Create a shallow copy of this object without class/superclass links.
-  # The copy has no superclasses and shares property/method dictionaries.
-  <primitive: #primitiveClone>
-]
+Object>>clone <primitive: #primitiveClone>
 
 #====================================================================
 # Class-side methods (using class>> syntax)
@@ -45,7 +41,7 @@ Object class>>derive: ivarArray methods: methodBlock [
   ^ newClass
 ]
 
-Object class>>derive: slotArray superclasses: superclassList methods: methodBlock [
+Object class>>derive: slotArray superclasses: superclassArray methods: methodBlock [
   # Create a subclass with instance variables, additional superclasses and define methods in one expression.
   # The receiver class determines the instance type (Integer, Float, String, Array, Table, etc.).
   # Other superclasses must be compatible (usually Mixin subclasses with only methods, no conflicting slots).
@@ -79,56 +75,89 @@ Object class>>derive: slotArray superclasses: superclassList methods: methodBloc
   newClass extend: methodBlock.
 
   # Then add each additional superclass (this performs conflict detection)
-  superclassList do: [:superclass |
+  superclassArray do: [:superclass |
     newClass addSuperclass: superclass
   ].
 
   ^ newClass
 ]
 
-Object class>>derive: superclassList methods: methodBlock [
-  # Simplified form: derive from multiple superclasses with no new slots.
-  # The first superclass determines the instance type.
-  ^ self derive: superclassList ivarArray: #() methods: methodBlock
+Object class>>printHierarchy [
+  # Print an indented class hierarchy with slots as Nemo code
+  self printHierarchyIndent: 0
+]
+
+Object class>>printHierarchyIndent: level [
+  # Print this class and its superclasses recursively with indentation
+  # Usage: MyClass printHierarchyIndent: 0  # Start with 0 indentation
+  self printClassIndent: level.
+
+  # Recursively print superclasses with increased indentation
+  self superclassNames do: [:superclassName |
+    | superclass |
+    superclass := Global at: superclassName ifAbsent: [ nil ].
+    superclass isNil ifFalse: [
+      superclass printHierarchyIndent: (level + 1)
+    ]
+  ]
+]
+
+Object class>>printClassIndent: level [
+  # Print this class definition with indentation
+  | indent slotsString |
+  indent := "    " repeat: level
+
+  # Build slots part
+  slotsString := self slotNames isNil
+    ifTrue: [ "#()" ]
+    ifFalse: [
+      self slotNames size = 0
+        ifTrue: [ "#()" ]
+        ifFalse: [
+          "#(" , ((self slotNames collect: [:name | name asString]) join: ", ") , ")"
+        ]
+    ]
+
+  # Build superclasses part
+  self superclassNames isNil
+    ifTrue: [ slotsString println ]
+    ifFalse: [
+      self superclassNames size = 0
+        ifTrue: [ slotsString println ]
+        ifFalse: [
+          (slotsString , " superclasses: #(" , (self superclassNames join: ", ") , ")") println
+        ]
+    ]
 ]
 
 #====================================================================
 # Property access
 #====================================================================
 
-Object>>at: key [
-  # Get the value of a property. Searches the object and its class hierarchy.
-  <primitive: #primitiveAt:>
-]
+Object>>at: key <primitive: #primitiveAt:>
 
-Object>>at: key put: value [
-  # Set a property value on this object (not on superclass).
-  <primitive: #primitiveAt:put:>
-]
+Object>>at: key put: value <primitive: #primitiveAt:put:>
 
-Object>>hasProperty: key [
-  # Check if this object directly has a property (not in superclasses).
-  <primitive: #primitiveHasProperty:>
-]
+Object>>hasProperty: key <primitive: #primitiveHasProperty:>
 
-Object>>properties [
-  # Return a collection of all property keys on this object.
-  <primitive: #primitiveProperties>
-]
+Object>>properties <primitive: #primitiveProperties>
+
+#====================================================================
+# Class reflection
+#====================================================================
+
+Object>>slotNames <primitive: #primitiveSlotNames>
+
+Object>>superclassNames <primitive: #primitiveSuperclassNames>
+
 
 #====================================================================
 # Method management
 #====================================================================
 
-Object>>respondsTo: selector [
-  # Check if this object or its class hierarchy responds to a message.
-  <primitive: #primitiveRespondsTo:>
-]
+Object>>respondsTo: selector <primitive: #primitiveRespondsTo:>
 
-Object>>methods [
-  # Return a collection of all method selectors on this object.
-  <primitive: #primitiveMethods>
-]
+Object>>methods <primitive: #primitiveMethods>
 
 Object>>doesNotUnderstand: selector with: arg1 with: arg2 [
   # Default handler for unrecognized messages.
@@ -149,33 +178,22 @@ Object>>= other [
   ^ self == other
 ]
 
-Object>>== other [
-  # Test if this object is the same object as other (identity).
-  <primitive: #primitiveIdentity:>
-]
+Object>>== other <primitive: #primitiveIdentity:>
 
 Object>>printString [
   # Return a string representation of this object.
-  ^ "<" , self className , ">"
+  ^ "<" , self class name , ">"
 ]
 
-Object>>className [
-  # Return the class name of this object.
-  | tags |
-  tags := self at: "tags"
-  tags isNil
-    ifTrue: [ ^ "Object" ]
-    ifFalse: [ ^ tags first ]
-]
+Object>>className <primitive: #primitiveClassName>
+
+Object>>class <primitive: #primitiveClass>
 
 #====================================================================
 # Error handling
 #====================================================================
 
-Object>>error: message [
-  # Signal an error with the given message.
-  <primitive: #primitiveError:>
-]
+Object>>error: message <primitive: #primitiveError:>
 
 #====================================================================
 # Testing and debugging
@@ -214,33 +232,17 @@ Object>>notNil [
   ^ self isNil not
 ]
 
-Object>>class [
-  # Return the class of this object
-  | tags |
-  tags := self at: "tags"
-  tags isNil ifTrue: [ ^ Object ]
-  ^ Global at: (tags first) ifAbsent: [ Object ]
-]
-
-Object>>isKindOf: aClass [
-  # Check if object is kind of aClass (in class hierarchy)
-  <primitive: #primitiveIsKindOf:>
-]
+Object>>isKindOf: aClass <primitive: #primitiveIsKindOf:>
 
 Object>>asString [
   # Return string representation
   ^ self printString
 ]
 
-Object>>asSelfDo: aBlock [
-  # Evaluate aBlock with self temporarily bound to this object.
-  # This allows executing code in the context of any object.
-  # Usage: someObject asSelfDo: [ self doSomething ]
-  <primitive: #primitiveAsSelfDo:>
-]
+Object>>asSelfDo: aBlock <primitive: #primitiveAsSelfDo:>
 
-Object>>extend: aBlock [
-  # Extend this object with instance methods defined in aBlock.
+Object class>>extend: aBlock [
+  # Extend this class with instance methods defined in aBlock.
   # The block is evaluated with self bound to this object.
   # Usage: Person extend: [
   #   self >> greet [ "Hello!" println ]
@@ -249,17 +251,17 @@ Object>>extend: aBlock [
   ^ self asSelfDo: aBlock
 ]
 
-Object>>extendClass: aBlock [
+Object class>>extendClass: aBlock [
   # Extend the class-side (metaclass) with methods defined in aBlock.
   # These are methods on the class object itself, not instances.
   # Usage: Person extendClass: [
   #   self >> newNamed: name [ ... create and return instance ... ]
   #   self >> withName: name age: age [ ... factory method ... ]
   # ]
-  # For now, this is equivalent to extend: since in the class model
-  # the class IS the factory object. Methods added here are factory methods.
   ^ self asSelfDo: aBlock
 ]
+
+Object class>>name <primitive: #primitiveClassName>
 
 Object>>print [
   # Print to stdout without newline
@@ -280,10 +282,7 @@ Object>>~= other [
   ^ (self = other) not
 ]
 
-Object>>== other [
-  # Identity comparison - true if same object
-  <primitive: #primitiveIdentity:>
-]
+Object>>== other <primitive: #primitiveIdentity:>
 
 Object>>~~ other [
   # Not identity - true if different objects

@@ -21,12 +21,12 @@ Array>>do: block [
 
 Array>>add: element [
   # Add element to end of array.
-  ^ self perform: #primitiveAdd: with: element
+  <primitive: #add:>
 ]
 
 Array>>size [
   # Return number of elements.
-  ^ self perform: #primitiveSize
+  <primitive: #size>
 ]
 
 Array>>isEmpty [
@@ -51,27 +51,32 @@ Array>>last [
 
 Array>>removeAt: index [
   # Remove element at index and return it.
-  ^ self perform: #primitiveRemoveAt: with: index
+  <primitive: #removeAt:>
 ]
 
 Array>>includes: element [
   # Check if array includes element.
-  ^ self perform: #primitiveIncludes: with: element
+  <primitive: #includes:>
 ]
 
 Array>>reverse [
   # Return new array with elements reversed.
-  ^ self perform: #primitiveReverse
+  <primitive: #reverse>
+]
+
+Array>>join: separator [
+  # Join array elements with separator string.
+  <primitive: #join:>
 ]
 
 Array>>sort [
   # Sort array in place.
-  ^ self perform: #primitiveSort
+  <primitive: #sort>
 ]
 
 Array>>sorted [
   # Return new sorted array.
-  ^ self perform: #primitiveSorted
+  <primitive: #sorted>
 ]
 
 #====================================================================
@@ -246,7 +251,7 @@ Table>>do: block [
 
 Table>>keys [
   # Return array of all keys.
-  ^ self perform: #primitiveKeys
+  <primitive: #keys>
 ]
 
 Table>>values [
@@ -259,12 +264,12 @@ Table>>values [
 
 Table>>includesKey: key [
   # Check if key exists in table.
-  ^ self perform: #primitiveIncludesKey: with: key
+  <primitive: #includesKey:>
 ]
 
 Table>>removeKey: key [
   # Remove key-value pair and return value (or nil).
-  ^ self perform: #primitiveRemoveKey: with: key
+  <primitive: #removeKey:>
 ]
 
 Table>>size [
@@ -382,10 +387,10 @@ Array>>new [
 
 Array>>new: size [
   # Create new array with given size.
-  ^ self perform: #primitiveNew: with: size
+  <primitive: #new:>
 ]
 
 Table>>new [
   # Create new empty table.
-  ^ self perform: #primitiveTableNew
+  <primitive: #new>
 ]
