@@ -32,7 +32,7 @@ suite "Slot-based Instance Variables (class-based model)":
 
   test "can create class with instance variables":
     discard initRootClass()
-    let personClass = newClass(parents = @[rootClass], slotNames = @["name", "age"], name = "Person")
+    let personClass = newClass(superclasses = @[rootClass], slotNames = @["name", "age"], name = "Person")
 
     check personClass.hasSlots == true
     check personClass.slotNames.len == 2
@@ -42,7 +42,7 @@ suite "Slot-based Instance Variables (class-based model)":
 
   test "can create instance with slots":
     discard initRootClass()
-    let personClass = newClass(parents = @[rootClass], slotNames = @["name", "age"], name = "Person")
+    let personClass = newClass(superclasses = @[rootClass], slotNames = @["name", "age"], name = "Person")
     let person = newInstance(personClass)
 
     check person.kind == ikObject
@@ -52,7 +52,7 @@ suite "Slot-based Instance Variables (class-based model)":
 
   test "instance variables initialize to nil":
     discard initRootClass()
-    let personClass = newClass(parents = @[rootClass], slotNames = @["name", "age"], name = "Person")
+    let personClass = newClass(superclasses = @[rootClass], slotNames = @["name", "age"], name = "Person")
     let person = newInstance(personClass)
 
     check person.slots[0].kind == vkNil
@@ -60,7 +60,7 @@ suite "Slot-based Instance Variables (class-based model)":
 
   test "can get and set slot values":
     discard initRootClass()
-    let personClass = newClass(parents = @[rootClass], slotNames = @["name", "age"], name = "Person")
+    let personClass = newClass(superclasses = @[rootClass], slotNames = @["name", "age"], name = "Person")
     var person = newInstance(personClass)
 
     # Initially nil
@@ -122,13 +122,13 @@ suite "Slot-based Instance Variables (class-based model)":
     discard initRootClass()
 
     # Level 1: Animal
-    let animalClass = newClass(parents = @[rootClass], slotNames = @["species"], name = "Animal")
+    let animalClass = newClass(superclasses = @[rootClass], slotNames = @["species"], name = "Animal")
 
     # Level 2: Person extends Animal
-    let personClass = newClass(parents = @[animalClass], slotNames = @["name"], name = "Person")
+    let personClass = newClass(superclasses = @[animalClass], slotNames = @["name"], name = "Person")
 
     # Level 3: Employee extends Person
-    let employeeClass = newClass(parents = @[personClass], slotNames = @["employeeID"], name = "Employee")
+    let employeeClass = newClass(superclasses = @[personClass], slotNames = @["employeeID"], name = "Employee")
 
     # Verify all ivars present in Employee
     check employeeClass.slotNames.len == 1
@@ -143,7 +143,7 @@ suite "Slot-based Instance Variables (class-based model)":
 
   test "class without slots creates instance without slots":
     discard initRootClass()
-    let simpleClass = newClass(parents = @[rootClass], slotNames = @[], name = "Simple")
+    let simpleClass = newClass(superclasses = @[rootClass], slotNames = @[], name = "Simple")
 
     check simpleClass.hasSlots == false
     check simpleClass.slotNames.len == 0
@@ -153,11 +153,11 @@ suite "Slot-based Instance Variables (class-based model)":
     discard initRootClass()
 
     # Create non-slotted parent
-    let parentClass = newClass(parents = @[rootClass], slotNames = @[], name = "Parent")
+    let parentClass = newClass(superclasses = @[rootClass], slotNames = @[], name = "Parent")
     check parentClass.hasSlots == false
 
     # Create slotted child
-    let childClass = newClass(parents = @[parentClass], slotNames = @["value"], name = "Child")
+    let childClass = newClass(superclasses = @[parentClass], slotNames = @["value"], name = "Child")
     check childClass.hasSlots == true
     check childClass.slotNames.len == 1
     check childClass.allSlotNames.len == 1
@@ -168,7 +168,7 @@ suite "Slot-based Instance Variables (class-based model)":
 
   test "slot access works by index position":
     discard initRootClass()
-    let personClass = newClass(parents = @[rootClass], slotNames = @["name", "age", "address"], name = "Person")
+    let personClass = newClass(superclasses = @[rootClass], slotNames = @["name", "age", "address"], name = "Person")
     var person = newInstance(personClass)
 
     person.slots[0] = NodeValue(kind: vkString, strVal: "Alice")
@@ -181,7 +181,7 @@ suite "Slot-based Instance Variables (class-based model)":
 
   test "slot initialization values":
     discard initRootClass()
-    let personClass = newClass(parents = @[rootClass], slotNames = @["name", "age", "active"], name = "Person")
+    let personClass = newClass(superclasses = @[rootClass], slotNames = @["name", "age", "active"], name = "Person")
     var person = newInstance(personClass)
 
     # All slots should start as nil
@@ -199,7 +199,7 @@ suite "Slot-based Instance Variables (class-based model)":
 
   test "slot names are case-sensitive":
     discard initRootClass()
-    let testClass = newClass(parents = @[rootClass], slotNames = @["name", "Name"], name = "Test")
+    let testClass = newClass(superclasses = @[rootClass], slotNames = @["name", "Name"], name = "Test")
 
     # Both should be distinct slot names
     check testClass.slotNames[0] == "name"
@@ -209,7 +209,7 @@ suite "Slot-based Instance Variables (class-based model)":
 
   test "instance can store any NodeValue type in slots":
     discard initRootClass()
-    let flexibleClass = newClass(parents = @[rootClass], slotNames = @["intValue", "boolValue", "strValue", "nilValue"], name = "Flexible")
+    let flexibleClass = newClass(superclasses = @[rootClass], slotNames = @["intValue", "boolValue", "strValue", "nilValue"], name = "Flexible")
     var inst = newInstance(flexibleClass)
 
     inst.slots[0] = NodeValue(kind: vkInt, intVal: 42)
@@ -225,15 +225,15 @@ suite "Slot-based Instance Variables (class-based model)":
   test "class knows if it has slots":
     discard initRootClass()
 
-    let emptyClass = newClass(parents = @[rootClass], slotNames = @[], name = "Empty")
-    let slottedClass = newClass(parents = @[rootClass], slotNames = @["value"], name = "Slotted")
+    let emptyClass = newClass(superclasses = @[rootClass], slotNames = @[], name = "Empty")
+    let slottedClass = newClass(superclasses = @[rootClass], slotNames = @["value"], name = "Slotted")
 
     check emptyClass.hasSlots == false
     check slottedClass.hasSlots == true
 
   test "class maintains slot name order":
     discard initRootClass()
-    let orderedClass = newClass(parents = @[rootClass], slotNames = @["c", "b", "a"], name = "Ordered")
+    let orderedClass = newClass(superclasses = @[rootClass], slotNames = @["c", "b", "a"], name = "Ordered")
 
     check orderedClass.slotNames[0] == "c"
     check orderedClass.slotNames[1] == "b"
@@ -241,7 +241,7 @@ suite "Slot-based Instance Variables (class-based model)":
 
   test "instance class reference is correct":
     discard initRootClass()
-    let myClass = newClass(parents = @[rootClass], slotNames = @["x"], name = "MyClass")
+    let myClass = newClass(superclasses = @[rootClass], slotNames = @["x"], name = "MyClass")
     let inst = newInstance(myClass)
 
     check inst.class == myClass
