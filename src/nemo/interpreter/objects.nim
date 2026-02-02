@@ -34,6 +34,7 @@ proc arrayIncludesImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc arrayReverseImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc arrayAtImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc arrayAtPutImpl*(self: Instance, args: seq[NodeValue]): NodeValue
+proc arrayJoinImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc tableNewImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc tableKeysImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc tableIncludesKeyImpl*(self: Instance, args: seq[NodeValue]): NodeValue
@@ -54,6 +55,7 @@ proc instStringTrimImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc instStringSplitImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc instStringAsIntegerImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc instStringAsSymbolImpl*(self: Instance, args: seq[NodeValue]): NodeValue
+proc instStringRepeatImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc classImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc instIdentityImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc instanceCloneImpl*(self: Instance, args: seq[NodeValue]): NodeValue
@@ -510,11 +512,13 @@ proc initCoreClasses*(): Class =
     # Array new: is a class method
     let newMethod = createCoreMethod("new")
     newMethod.nativeImpl = cast[pointer](arrayNewImpl)
+    newMethod.hasInterpreterParam = true  # Required for proper Instance wrapping
     addMethodToClass(arrayClass, "new", newMethod, isClassMethod = true)
 
     # Array new: with size argument
     let newSizeMethod = createCoreMethod("new:")
     newSizeMethod.nativeImpl = cast[pointer](arrayNewImpl)
+    newSizeMethod.hasInterpreterParam = true  # Required for proper Instance wrapping
     addMethodToClass(arrayClass, "new:", newSizeMethod, isClassMethod = true)
 
     addGlobal("Array", NodeValue(kind: vkClass, classVal: arrayClass))
@@ -685,8 +689,8 @@ proc classImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
 
 proc instIdentityImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Identity comparison - returns true only if same instance
-  if args[0].kind == vkInstance:
-    return toValue(unsafeAddr(self) == unsafeAddr(args[0].instVal))
+  if args.len > 0 and args[0].kind == vkInstance:
+    return toValue(self == args[0].instVal)
   return toValue(false)
 
 proc doesNotUnderstandImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
@@ -1005,6 +1009,19 @@ proc instStringAsSymbolImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
     return toSymbol(self.strVal)
   return self.toValue()
 
+proc instStringRepeatImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
+  ## Repeat string n times (e.g., "ab" repeat: 3 -> "ababab")
+  if self.kind == ikString and args.len > 0:
+    let (ok, count) = args[0].tryGetInt()
+    if ok and count > 0:
+      var result = ""
+      for i in 0..<count:
+        result.add(self.strVal)
+      return NodeValue(kind: vkInstance, instVal: newStringInstance(self.class, result))
+    elif ok and count <= 0:
+      return NodeValue(kind: vkInstance, instVal: newStringInstance(self.class, ""))
+  return NodeValue(kind: vkInstance, instVal: newStringInstance(self.class, self.strVal))
+
 # Array primitives
 proc arrayNewImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Create new array (class method)
@@ -1060,6 +1077,20 @@ proc arrayAtImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
 proc arrayAtPutImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Set element at index
   return atCollectionPutImpl(self, args)
+
+proc arrayJoinImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
+  ## Join array elements with separator string
+  if self.kind == ikArray:
+    let sep = if args.len > 0 and args[0].kind == vkString: args[0].strVal
+              elif args.len > 0 and args[0].kind == vkInstance and args[0].instVal.kind == ikString: args[0].instVal.strVal
+              else: ""
+    var result = ""
+    for i, elem in self.elements:
+      if i > 0:
+        result.add(sep)
+      result.add(elem.toString())
+    return NodeValue(kind: vkInstance, instVal: newStringInstance(stringClass, result))
+  return NodeValue(kind: vkInstance, instVal: newStringInstance(stringClass, ""))
 
 # Table primitives
 proc tableNewImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
