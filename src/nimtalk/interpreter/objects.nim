@@ -1,4 +1,4 @@
-import std/[tables, strutils, sequtils, logging, math, os]
+import std/[tables, strutils, sequtils, math]
 import ../core/types
 
 # ============================================================================
@@ -54,6 +54,7 @@ proc instStringTrimImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc instStringSplitImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc instStringAsIntegerImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc instStringAsSymbolImpl*(self: Instance, args: seq[NodeValue]): NodeValue
+proc classImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc instIdentityImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc instanceCloneImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 
@@ -93,8 +94,8 @@ proc primitiveCloneImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc primitiveAtImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc primitiveAtPutImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 
-# Global root class (singleton)
-var rootClass*: Class = nil
+# Global root class (singleton, local to this module)
+var rootClass: Class = nil
 
 # Global true/false values for comparison operators
 var trueValue*: NodeValue = NodeValue(kind: vkBool, boolVal: true)
@@ -239,8 +240,7 @@ proc initCoreClasses*(): Class =
   initGlobals()
 
   # Create Root class (empty - for DNU proxies/wrappers)
-  if rootClass == nil:
-    rootClass = initRootClass()
+  discard initRootClass()
 
   # Create Object class (inherits from Root)
   if objectClass == nil:
@@ -292,6 +292,11 @@ proc initCoreClasses*(): Class =
     let printStringMethod = createCoreMethod("printString")
     printStringMethod.nativeImpl = cast[pointer](printStringImpl)
     addMethodToClass(objectClass, "printString", printStringMethod)
+
+    # class method - returns the receiver's class
+    let classMethod = createCoreMethod("class")
+    classMethod.nativeImpl = cast[pointer](classImpl)
+    addMethodToClass(objectClass, "class", classMethod)
 
     # Add Object to globals as a Class value
     addGlobal("Object", NodeValue(kind: vkClass, classVal: objectClass))
@@ -557,7 +562,6 @@ proc initCoreClasses*(): Class =
     addGlobal("Boolean", NodeValue(kind: vkClass, classVal: booleanClass))
 
   # Also ensure the type module globals point to our classes
-  types.rootClass = rootClass
   types.objectClass = objectClass
   types.integerClass = integerClass
   types.floatClass = floatClass
@@ -671,6 +675,10 @@ proc modMethod*(self: Instance, args: seq[NodeValue]): NodeValue =
     if val == 0: return nilValue()
     return toValue(self.intVal mod val)
 
+proc classImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
+  ## Return the receiver's class
+  return NodeValue(kind: vkClass, classVal: self.class)
+
 proc instIdentityImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Identity comparison - returns true only if same instance
   if args[0].kind == vkInstance:
@@ -717,7 +725,8 @@ proc classDeriveImpl*(self: Class, args: seq[NodeValue]): NodeValue =
     for slot in slotNameValues:
       if slot.kind == vkSymbol:
         slotNames.add(slot.symVal)
-  let newClass = newClass(parents = @[self], slotNames = slotNames, name = "Derived")
+  let className = if self.name.len > 0: self.name & "+Derived" else: "Anonymous"
+  let newClass = newClass(parents = @[self], slotNames = slotNames, name = className)
   return NodeValue(kind: vkClass, classVal: newClass)
 
 proc classDeriveParentsIvarArrayMethodsImpl*(self: Class, args: seq[NodeValue]): NodeValue =
@@ -758,17 +767,18 @@ proc classDeriveParentsIvarArrayMethodsImpl*(self: Class, args: seq[NodeValue]):
   # Create the new class
   # Note: we use self as base if parents array is empty
   let actualParents = if args[0].kind == vkNil: @[self] else: parents
-  let newClass = newClass(parents = actualParents, slotNames = slotNames, name = "MixedDerived")
+  let className = if parents.len > 0 and parents[0].name.len > 0:
+                    parents[0].name & "+Derived"
+                  elif self.name.len > 0:
+                    self.name & "+Derived"
+                  else:
+                    "Anonymous"
+  let newClass = newClass(parents = actualParents, slotNames = slotNames, name = className)
 
   # Execute method block if provided (to define/override methods and resolve conflicts)
-  if args.len >= 3 and args[2].kind == vkBlock:
-    let methodBlock = args[2].blockVal
-    # Convert BlockNode to NodeValue for execution
-    let blockVal = NodeValue(kind: vkBlock, blockVal: methodBlock)
-    # Create an instance wrapper for the new Class to serve as self
-    # For now, skip block execution - it requires an interpreter context
-    # This could be enhanced later to support true method definition in the block
-    discard
+  # For now, skip block execution - it requires an interpreter context
+  # This could be enhanced later to support true method definition in the block
+  discard
 
   return NodeValue(kind: vkClass, classVal: newClass)
 
@@ -1174,9 +1184,9 @@ proc primitiveAtImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   if self.kind != ikObject or self.class == nil:
     return nilValue()
   let slotName = if args[0].kind == vkString: args[0].strVal
-                 elif args[0].kind == vkSymbol: args[0].symVal
-                 elif args[0].kind == vkInstance and args[0].instVal.kind == ikString: args[0].instVal.strVal
-                 else: ""
+               elif args[0].kind == vkSymbol: args[0].symVal
+               elif args[0].kind == vkInstance and args[0].instVal.kind == ikString: args[0].instVal.strVal
+               else: ""
   let slotIdx = self.class.allSlotNames.find(slotName)
   if slotIdx >= 0 and slotIdx < self.slots.len:
     return self.slots[slotIdx]
@@ -1189,9 +1199,9 @@ proc primitiveAtPutImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   if self.kind != ikObject or self.class == nil:
     return args[1]
   let slotName = if args[0].kind == vkString: args[0].strVal
-                 elif args[0].kind == vkSymbol: args[0].symVal
-                 elif args[0].kind == vkInstance and args[0].instVal.kind == ikString: args[0].instVal.strVal
-                 else: ""
+               elif args[0].kind == vkSymbol: args[0].symVal
+               elif args[0].kind == vkInstance and args[0].instVal.kind == ikString: args[0].instVal.strVal
+               else: ""
   let slotIdx = self.class.allSlotNames.find(slotName)
   if slotIdx >= 0 and slotIdx < self.slots.len:
     self.slots[slotIdx] = args[1]
@@ -1216,121 +1226,3 @@ proc registerPrimitivesOnObjectClass*(objCls: Class) =
   let primAtPut = createCoreMethod("primitiveAt:put:")
   primAtPut.nativeImpl = cast[pointer](primitiveAtPutImpl)
   addMethodToClass(objCls, "primitiveAt:put:", primAtPut)
-
-# ============================================================================
-# Slot-based Instance Variable Helpers (for test_slot_ivars.nim)
-# ============================================================================
-
-type
-  # Dictionary object type for slot-based objects with properties
-  # properties field is inherited from Instance
-  DictionaryObj = ref object of Instance
-
-proc initDictionaryObject*(): DictionaryObj =
-  ## Create an empty dictionary-based object for testing
-  result = DictionaryObj()
-  result.class = objectClass
-  result.kind = ikObject
-  result.slots = newSeq[NodeValue]()
-  result.isNimProxy = false
-  result.nimValue = nil
-
-proc initSlotObject*(slotNames: seq[string]): DictionaryObj =
-  ## Create an object with slot-based instance variables with a new Class
-  result = DictionaryObj()
-  result.kind = ikObject
-  result.isNimProxy = false
-  result.nimValue = nil
-  # Create a new class with given slot names
-  result.class = newClass(parents = @[objectClass], slotNames = slotNames, name = "TestObject")
-  result.slots = newSeq[NodeValue](slotNames.len)
-  for i in 0..<slotNames.len:
-    result.slots[i] = nilValue()
-
-proc hasSlotIVars*(obj: Instance): bool =
-  ## Check if object has slot-based instance variables
-  obj.class != nil and obj.class.hasSlots
-
-proc getSlot*(obj: Instance, name: string): NodeValue =
-  ## Get slot value by name
-  if obj.class != nil:
-    for i, slotName in obj.class.allSlotNames:
-      if slotName == name and i < obj.slots.len:
-        return obj.slots[i]
-  return nilValue()
-
-proc setSlot*(obj: Instance, name: string, value: NodeValue) =
-  ## Set slot value by name
-  if obj.class != nil:
-    for i, slotName in obj.class.allSlotNames:
-      if slotName == name and i < obj.slots.len:
-        obj.slots[i] = value
-        return
-
-proc getSlotNames*(obj: Instance): seq[string] =
-  ## Get all slot names
-  if obj.class != nil:
-    return obj.class.allSlotNames
-  return @[]
-
-proc initRootObject*(): Instance =
-  ## Create a root object without slots
-  result = Instance(kind: ikObject, class: rootClass)
-  result.slots = newSeq[NodeValue]()
-  result.isNimProxy = false
-  result.nimValue = nil
-
-proc deriveImpl*(parent: Instance, args: seq[NodeValue]): NodeValue =
-  ## Derive a new object from parent without new instance variables
-  let newObj = Instance(kind: ikObject, class: parent.class)
-  newObj.slots = newSeq[NodeValue](parent.slots.len)
-  for i in 0..<parent.slots.len:
-    newObj.slots[i] = parent.slots[i]
-  newObj.isNimProxy = parent.isNimProxy
-  newObj.nimValue = parent.nimValue
-  return NodeValue(kind: vkInstance, instVal: newObj)
-
-proc deriveWithIVarsImpl*(parent: Instance, args: seq[NodeValue]): NodeValue =
-  ## Derive a new object with additional instance variables
-  let newObj = Instance(kind: ikObject, class: parent.class)
-  var parentSlotCount = parent.slots.len
-  var newSlotCount = 0
-
-  # Extract new slot names from args
-  if args.len > 0 and args[0].kind == vkArray:
-    for slot in args[0].arrayVal:
-      if slot.kind == vkSymbol:
-        inc newSlotCount
-
-  # Create slots from parent + new slots
-  newObj.slots = newSeq[NodeValue](parentSlotCount + newSlotCount)
-  for i in 0..<parentSlotCount:
-    newObj.slots[i] = parent.slots[i]
-  for i in 0..<newSlotCount:
-    newObj.slots[parentSlotCount + i] = nilValue()
-
-  newObj.isNimProxy = parent.isNimProxy
-  newObj.nimValue = parent.nimValue
-  return NodeValue(kind: vkInstance, instVal: newObj)
-
-proc clone*(obj: Instance): NodeValue =
-  ## Clone an instance
-  let newObj = Instance(kind: obj.kind, class: obj.class)
-  newObj.slots = obj.slots
-  newObj.isNimProxy = obj.isNimProxy
-  newObj.nimValue = obj.nimValue
-  when defined(nimPreviewSlimSystem):
-    newObj.elements = when obj.kind == ikArray: obj.elements else: default(seq[NodeValue])
-    newObj.entries = when obj.kind == ikTable: obj.entries else: default(Table[string, NodeValue])
-    newObj.intVal = when obj.kind == ikInt: obj.intVal else: default(int)
-    newObj.floatVal = when obj.kind == ikFloat: obj.floatVal else: default(float)
-    newObj.strVal = when obj.kind == ikString: obj.strVal else: default(string)
-  else:
-    case obj.kind
-    of ikArray: newObj.elements = obj.elements
-    of ikTable: newObj.entries = obj.entries
-    of ikInt: newObj.intVal = obj.intVal
-    of ikFloat: newObj.floatVal = obj.floatVal
-    of ikString: newObj.strVal = obj.strVal
-    else: discard
-  return NodeValue(kind: vkInstance, instVal: newObj)
