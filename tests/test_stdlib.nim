@@ -288,7 +288,7 @@ suite "Stdlib: Arrays":
       result := hasEven
     """)
     check(result[1].len == 0)
-    check(result[0][^1].kind == vkInstance)
+    check(result[0][^1].kind == vkBool)
 
   test "allSatisfy: returns true if all elements match":
     let result = interp.evalStatements("""
@@ -300,7 +300,7 @@ suite "Stdlib: Arrays":
       result := allEven
     """)
     check(result[1].len == 0)
-    check(result[0][^1].kind == vkInstance)
+    check(result[0][^1].kind == vkBool)
 
 suite "Stdlib: Tables":
   var interp: Interpreter
