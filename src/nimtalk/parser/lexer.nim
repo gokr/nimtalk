@@ -216,13 +216,15 @@ proc parseTag(lexer: var Lexer): Token =
       value.add(lexer.next())
 
   # If it's a primitive tag, set appropriate lexer state
-  if value.startsWith("primitive") or value.startsWith("/primitive"):
+  if value.startsWith("primitive"):
     if isClosing:
       # Closing </primitive> - return to normal state
       lexer.state = lsNormal
     else:
-      # Opening <primitive> - enter Nim code mode
-      lexer.state = lsNimCode
+      # Opening <primitive> - enter Nim code mode only if exactly "primitive" (old style)
+      # New syntax like <primitive: #selector> or <primitive #selector> stays in normal state
+      if value == "primitive":
+        lexer.state = lsNimCode
 
   return Token(kind: tkTag, value: value, line: startLine, col: startCol)
 
