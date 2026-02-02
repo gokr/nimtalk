@@ -1,4 +1,4 @@
-import std/[tables, strutils, sequtils, math]
+import std/[tables, strutils, sequtils, math, hashes]
 import ../core/types
 
 # ============================================================================
@@ -831,9 +831,7 @@ proc atCollectionImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
     if ok and val >= 1 and val <= self.elements.len:
       return self.elements[val - 1]
   of ikTable:
-    let key = if args[0].kind == vkString: args[0].strVal
-              elif args[0].kind == vkSymbol: args[0].symVal
-              else: ""
+    let key = args[0]
     if key in self.entries:
       return self.entries[key]
   of ikObject:
@@ -860,9 +858,7 @@ proc atCollectionPutImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
     if ok and val >= 1 and val <= self.elements.len:
       self.elements[val - 1] = args[1]
   of ikTable:
-    let key = if args[0].kind == vkString: args[0].strVal
-              elif args[0].kind == vkSymbol: args[0].symVal
-              else: ""
+    let key = args[0]
     self.entries[key] = args[1]
   of ikObject:
     # Slot set for class-based objects
@@ -1060,32 +1056,27 @@ proc arrayAtPutImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
 # Table primitives
 proc tableNewImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Create new table
-  return NodeValue(kind: vkInstance, instVal: newTableInstance(tableClass, initTable[string, NodeValue]()))
+  return NodeValue(kind: vkInstance, instVal: newTableInstance(tableClass, initTable[NodeValue, NodeValue]()))
 
 proc tableKeysImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Get table keys as array
   if self.kind == ikTable:
     var elements: seq[NodeValue] = @[]
     for key in self.entries.keys():
-      elements.add(toValue(key))
+      elements.add(key)
     return NodeValue(kind: vkInstance, instVal: newArrayInstance(arrayClass, elements))
   return NodeValue(kind: vkInstance, instVal: newArrayInstance(arrayClass, @[]))
 
 proc tableIncludesKeyImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Check if table includes key
   if self.kind == ikTable and args.len > 0:
-    let key = if args[0].kind == vkString: args[0].strVal
-              elif args[0].kind == vkSymbol: args[0].symVal
-              else: ""
-    return toValue(key in self.entries)
+    return toValue(args[0] in self.entries)
   return toValue(false)
 
 proc tableRemoveKeyImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Remove key from table
   if self.kind == ikTable and args.len > 0:
-    let key = if args[0].kind == vkString: args[0].strVal
-              elif args[0].kind == vkSymbol: args[0].symVal
-              else: ""
+    let key = args[0]
     self.entries.del(key)
   return self.toValue()
 
