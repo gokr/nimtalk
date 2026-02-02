@@ -106,7 +106,7 @@ However, a method defined directly on the child class always takes precedence ov
 
 ## Example Program
 
-See `examples/test_conflict_detection.nt` for a complete example demonstrating conflict detection and the use of `addParent:` for resolution.
+See `examples/test_conflict_detection.nemo` for a complete example demonstrating conflict detection and the use of `addParent:` for resolution.
 
 ## See Also
 

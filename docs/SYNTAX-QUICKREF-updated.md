@@ -83,7 +83,7 @@ Person selector: #greet put: [ ^ "Hello, " , name ]
 ### Definition Syntax (Files Only - SPECIAL PARSING)
 ```smalltalk
 # This syntax requires special parsing - NOT executable in REPL
-# Use in .nt files for class definitions
+# Use in .nemo files for class definitions
 
 # Unary method (no parameters)
 Person>>greet [ ^ "Hello, " , name ]
@@ -245,14 +245,14 @@ The `super` keyword refers to the parent of the class where the current method w
 # One class per file (recommended)
 src/
   models/
-    Person.nt            # Defines Person class
-    Employee.nt          # Defines Employee
-    Company.nt           # Defines Company
-  main.nt                # Application entry point
+    Person.nemo            # Defines Person class
+    Employee.nemo          # Defines Employee
+    Company.nemo           # Defines Company
+  main.nemo                # Application entry point
 
 # Multi-class files also supported
 src/
-  models.nt              # Person, Employee, Company all defined here
+  models.nemo              # Person, Employee, Company all defined here
 ```
 
 ## Parsing Modes
@@ -268,7 +268,7 @@ src/
 
 ### File Definition Mode
 ```smalltalk
-# File: src/models/Person.nt
+# File: src/models/Person.nemo
 # Special parsing for method definitions
 
 Person := Object derive: #(#name #age)                    # Executable
@@ -453,7 +453,7 @@ Nemo supports multiple approaches for defining methods:
 
 ### Approach 1: Individual Definition (>> syntax)
 ```smalltalk
-# In .nt files only - transformed by parser
+# In .nemo files only - transformed by parser
 Person>>greet [ ^ "Hello, " , name ]
 Person>>name: aName [ name := aName ]
 ```

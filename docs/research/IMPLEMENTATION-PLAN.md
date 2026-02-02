@@ -215,7 +215,7 @@ MethodDefinitionNode(
 
 ## File Format Specification
 
-### .nt Files (Nemo Definition Files)
+### .nemo Files (Nemo Definition Files)
 
 ```smalltalk
 #!/usr/bin/env nemo
@@ -271,7 +271,7 @@ Person>>newWithName: aName age: anAge [
 ### Execution Flow
 
 ```
-.nt file
+.nemo file
     ↓
 Parser (File Definition Mode)
     ↓
@@ -302,7 +302,7 @@ person name: "Alice"
 person greet
 
 "Load other files (future)"
-Person := load: "models/Person.nt"
+Person := load: "models/Person.nemo"
 ```
 
 ### For Implementers
@@ -402,8 +402,8 @@ test "generated accessors":
 
 ### Integration Tests
 ```nim
-# Load and execute .nt files
-let result = loadAndRun("examples/Person.nt")
+# Load and execute .nemo files
+let result = loadAndRun("examples/Person.nemo")
 check result.isPrototype()
 check result.hasMethod("greet")
 ```
@@ -441,7 +441,7 @@ check result.hasMethod("greet")
 ✅ Direct ivar access is **149x faster** than property bag (exceeded 10x goal!)
 ✅ All 22+ new tests pass plus integration tests
 ✅ 100% code coverage for new functionality
-✅ Examples updated to use new syntax (demo_slots.nt, lib/)
+✅ Examples updated to use new syntax (demo_slots.nemo, lib/)
 ✅ Documentation complete and up-to-date
 ✅ Native method dispatch working from Nemo code
 ✅ Base library created with Object, Boolean, Collections

@@ -19,16 +19,16 @@ The `nemo` command provides both interactive REPL and script execution capabilit
 nemo
 
 # Run a script file
-nemo script.nt
+nemo script.nemo
 
 # Evaluate an expression
 nemo -e "3 + 4"
 
 # Show AST without executing (parse only)
-nemo --ast script.nt
+nemo --ast script.nemo
 
 # Run with debug logging
-nemo --loglevel DEBUG script.nt
+nemo --loglevel DEBUG script.nemo
 
 # Combine flags
 nemo --ast --loglevel DEBUG -e "Object clone"
@@ -94,19 +94,19 @@ The `nemoc` command compiles Nemo source to Nim code.
 
 ```bash
 # Compile to Nim source
-nemoc compile input.nt -o output.nim
+nemoc compile input.nemo -o output.nim
 
 # Compile and build executable
-nemoc build input.nt -d build/
+nemoc build input.nemo -d build/
 
 # Compile, build, and run
-nemoc run input.nt --release
+nemoc run input.nemo --release
 
 # Show AST before compiling
-nemoc compile input.nt --ast
+nemoc compile input.nemo --ast
 
 # Compile with debug logging
-nemoc compile input.nt --loglevel DEBUG
+nemoc compile input.nemo --loglevel DEBUG
 ```
 
 ### Commands
@@ -159,7 +159,7 @@ Use `--ast` to understand how code is parsed:
 nemo --ast -e "3 + 4"
 
 # See AST for complex code
-nemo --ast script.nt
+nemo --ast script.nemo
 ```
 
 AST output shows the structure:
@@ -177,10 +177,10 @@ Use `--loglevel DEBUG` to trace execution:
 
 ```bash
 # Trace message sends and method execution
-nemo --loglevel DEBUG script.nt
+nemo --loglevel DEBUG script.nemo
 
 # Combine with AST output
-nemo --ast --loglevel DEBUG script.nt
+nemo --ast --loglevel DEBUG script.nemo
 ```
 
 ### 3. Interactive Exploration
@@ -200,13 +200,13 @@ nt> obj at: #test
 Create test files to isolate and reproduce issues:
 
 ```smalltalk
-# test_debug.nt
+# test_debug.nemo
 test := Object derive.
 test at: #value put: 3 + 4.
 test at: #value  "Should be 7"
 ```
 
-Then run: `nemo --ast --loglevel DEBUG test_debug.nt`
+Then run: `nemo --ast --loglevel DEBUG test_debug.nemo`
 
 ## Common Issues and Solutions
 
@@ -216,7 +216,7 @@ This means the method doesn't exist on the receiver:
 
 ```bash
 # Debug with --loglevel DEBUG
-nemo --loglevel DEBUG script.nt
+nemo --loglevel DEBUG script.nemo
 
 # Check what the receiver actually is
 nemo -e "obj := Object clone. obj unknownMessage"
@@ -234,10 +234,10 @@ Use `--ast` to see if code is parsed correctly:
 
 ```bash
 # See parse error details
-nemo --ast script_with_error.nt
+nemo --ast script_with_error.nemo
 
 # Compare with working code
-nemo --ast working_script.nt
+nemo --ast working_script.nemo
 ```
 
 ### Execution Differences
@@ -246,11 +246,11 @@ If interpreter and compiler behave differently:
 
 ```bash
 # Test with interpreter
-nemo --loglevel DEBUG script.nt
+nemo --loglevel DEBUG script.nemo
 
 # Test AST (same for both)
-nemo --ast script.nt
-nemoc compile script.nt --ast
+nemo --ast script.nemo
+nemoc compile script.nemo --ast
 ```
 
 ## Best Practices
@@ -287,13 +287,13 @@ nemo --ast tests/test_specific.nim
 set -e
 
 # Verify AST parses correctly
-nemo --ast examples/*.nt
+nemo --ast examples/*.nemo
 
 # Run all tests with info logging
 nim e build.nims test --loglevel INFO
 
 # Run any example scripts
-nemo examples/demo.nt
+nemo examples/demo.nemo
 ```
 
 ## Advanced Debugging
@@ -352,7 +352,7 @@ nemo -e "42"
 
 ```bash
 # Use Nim's profiler with compiled code
-nemoc compile script.nt -o profile_me.nim
+nemoc compile script.nemo -o profile_me.nim
 nim c -r -d:release --profiler:on --stackTrace:on profile_me.nim
 ```
 

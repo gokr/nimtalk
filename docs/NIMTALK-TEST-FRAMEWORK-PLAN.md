@@ -209,7 +209,7 @@ runner run: MyTest.
 ```smalltalk
 #!/usr/bin/env nemo
 #
-# test_array.nt - Array collection tests
+# test_array.nemo - Array collection tests
 #
 
 ArrayTest := TestCase derive category: 'Collections-Tests'.

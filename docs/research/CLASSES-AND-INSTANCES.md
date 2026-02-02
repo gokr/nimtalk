@@ -154,7 +154,7 @@ Person>>greet [ ^ "Hello" ].       # With period (for familiarity)
 
 ## Example: Complete Class Definition
 
-### File: src/Person.nt
+### File: src/Person.nemo
 ```smalltalk
 #!/usr/bin/env nemo
 #
@@ -272,14 +272,14 @@ Person>>description [
 ].
 ```
 
-### Usage: main.nt
+### Usage: main.nemo
 ```smalltalk
 #!/usr/bin/env nemo
 #
 # Main application
 
 # Load Person (future: will auto-register in Nemo global)
-load: "src/Person.nt".
+load: "src/Person.nemo".
 
 # Create instances using class method
 alice := Person newWithName: "Alice" age: 30.
@@ -306,7 +306,7 @@ alice description print.                   # "Alice (age 31)"
 # Employee extends Person
 
 # Load parent
-load: "src/Person.nt".
+load: "src/Person.nemo".
 
 # Derive with additional ivars
 Employee := Person derive: #(employeeID department salary).

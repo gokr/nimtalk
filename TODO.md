@@ -133,7 +133,7 @@ nimble clean       # Clean artifacts
 - Created TestCase class in stdlib with assertion methods
 - Support for `assert:`, `assert:equals:`, `fail:` methods
 - Test lifecycle methods (initialize, setUp, tearDown)
-- Example tests in examples/test_example.nt
+- Example tests in examples/test_example.nemo
 
 ### Documentation
 - Created docs/NEWLINE_RULES.md documenting newline behavior
@@ -192,7 +192,7 @@ nimble clean       # Clean artifacts
 ## Recent Completed Work (2026-02-01)
 
 ### VSCode Extension
-- Added comprehensive VSCode syntax highlighting for `.nt` files
+- Added comprehensive VSCode syntax highlighting for `.nemo` files
 - Created TextMate grammar (.vscode/syntaxes/nt.tmLanguage.json)
 - Added language configuration (.vscode/language-configuration.json)
 - Added extension manifest (package.json)

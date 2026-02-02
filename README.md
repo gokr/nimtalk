@@ -215,7 +215,7 @@ Binaries: `nemo` (REPL/interpreter), `nemoc` (compiler stub)
 
 ### VSCode Extension
 
-Syntax highlighting for `.nt` files is available via the included VSCode extension. To install:
+Syntax highlighting for `.nemo` files is available via the included VSCode extension. To install:
 
 ```bash
 # From command line
@@ -239,9 +239,9 @@ vsce package
 
 ```bash
 nemo                    # Interactive REPL
-nemo script.nt          # Run a file
+nemo script.nemo          # Run a file
 nemo -e "3 + 4"         # Evaluate expression
-nemo --ast script.nt    # Show AST, then execute
+nemo --ast script.nemo    # Show AST, then execute
 nemo --loglevel DEBUG   # Verbose execution trace
 ```
 

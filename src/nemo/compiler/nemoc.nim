@@ -2,7 +2,7 @@
 #
 # Nemo Compiler - Standalone compiler binary
 #
-# Compiles Nemo source (.nt) to Nim code (.nim)
+# Compiles Nemo source (.nemo) to Nim code (.nim)
 
 import std/[os, strutils, parseopt, strformat, logging]
 import ../parser/parser
@@ -56,7 +56,7 @@ proc showUsage() =
   echo "Nemo Compiler - Class-based Smalltalk for Nim"
   echo ""
   echo "Usage:"
-  echo "  nemoc <command> [options] <file.nt>"
+  echo "  nemoc <command> [options] <file.nemo>"
   echo ""
   echo "Commands:"
   echo "  compile               Compile Nemo to Nim source code"
@@ -75,10 +75,10 @@ proc showUsage() =
   echo "  -v, --version         Show version"
   echo ""
   echo "Examples:"
-  echo "  nemoc compile examples/demo.nt -o demo.nim"
-  echo "  nemoc build examples/demo.nt -d build/"
-  echo "  nemoc run examples/demo.nt --release"
-  echo "  nemoc compile myprog.nt --ast --loglevel DEBUG"
+  echo "  nemoc compile examples/demo.nemo -o demo.nim"
+  echo "  nemoc build examples/demo.nemo -d build/"
+  echo "  nemoc run examples/demo.nemo --release"
+  echo "  nemoc compile myprog.nemo --ast --loglevel DEBUG"
   echo ""
 
 proc showVersion() =
@@ -249,7 +249,7 @@ proc main() =
 
     if config.inputFile.len == 0:
       echo "Error: No input file specified"
-      echo "Usage: nemoc compile <file.nt> [options]"
+      echo "Usage: nemoc compile <file.nemo> [options]"
       quit(1)
 
     if config.help:
@@ -271,7 +271,7 @@ proc main() =
 
     if config.inputFile.len == 0:
       echo "Error: No input file specified"
-      echo "Usage: nemoc build <file.nt> [options]"
+      echo "Usage: nemoc build <file.nemo> [options]"
       quit(1)
 
     if config.help:
@@ -293,7 +293,7 @@ proc main() =
 
     if config.inputFile.len == 0:
       echo "Error: No input file specified"
-      echo "Usage: nemoc run <file.nt> [options]"
+      echo "Usage: nemoc run <file.nemo> [options]"
       quit(1)
 
     if config.help:
@@ -310,7 +310,7 @@ proc main() =
 
   else:
     # Treat as file path for backward compatibility
-    if fileExists(command) and command.endsWith(".nt"):
+    if fileExists(command) and command.endsWith(".nemo"):
       var config = parseArgs()
       config.compile = true
       config.inputFile = command

@@ -62,7 +62,7 @@ Both `nemo` and `nemoc` support a `--loglevel` option to control logging output.
 nemo --loglevel DEBUG
 
 # Run a script with debug logging
-nemo --loglevel DEBUG myprogram.nt
+nemo --loglevel DEBUG myprogram.nemo
 
 # Evaluate expression with info logging
 nemo --loglevel INFO -e "3 + 4"
@@ -71,13 +71,13 @@ nemo --loglevel INFO -e "3 + 4"
 **For the compiler (nemoc):**
 ```bash
 # Compile with debug logging
-nemoc compile myprogram.nt --loglevel DEBUG
+nemoc compile myprogram.nemo --loglevel DEBUG
 
 # Build with info logging
-nemoc build myprogram.nt --loglevel INFO
+nemoc build myprogram.nemo --loglevel INFO
 
 # Run with debug logging
-nemoc run myprogram.nt --loglevel DEBUG
+nemoc run myprogram.nemo --loglevel DEBUG
 ```
 
 ### Debug Logging Output
@@ -125,22 +125,22 @@ Both `nemo` and `nemoc` support an `--ast` flag to dump the Abstract Syntax Tree
 **For the REPL (nemo):**
 ```bash
 # Show AST for a script and then execute it
-nemo --ast examples/demo.nt
+nemo --ast examples/demo.nemo
 
 # Show AST for an expression and show result
 nemo --ast -e "3 + 4"
 
 # Combine with debug logging for full visibility
-nemo --ast --loglevel DEBUG script.nt
+nemo --ast --loglevel DEBUG script.nemo
 ```
 
 **For the compiler (nemoc):**
 ```bash
 # Show AST before compiling
-nemoc compile myprog.nt --ast
+nemoc compile myprog.nemo --ast
 
 # Show AST with debug logging
-nemoc compile myprog.nt --ast --loglevel DEBUG
+nemoc compile myprog.nemo --ast --loglevel DEBUG
 ```
 
 The AST output shows the hierarchical structure of parsed expressions, making it easier to understand how messages, literals, and other constructs are represented.
@@ -577,7 +577,7 @@ When working with documentation, prefer the root-level user guides over research
 
 - Source files use `.nim` extension
 - Test files use `test_*.nim` pattern
-- Example files use `.nt` extension (Nemo source)
+- Example files use `.nemo` extension (Nemo source)
 
 ## Future Directions
 

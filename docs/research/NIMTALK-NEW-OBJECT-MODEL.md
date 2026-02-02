@@ -120,7 +120,7 @@ newline := '\n'                         # Escaped characters
 
 ### File Definition Mode
 ```smalltalk
-# File: src/models/Person.nt
+# File: src/models/Person.nemo
 # Parsed with extended parser that recognizes special syntax
 
 Person := Object derive: #(name age)
@@ -196,13 +196,13 @@ project/
 │   ├── parser/                 # Lexer and parser
 │   └── primitives/             # Built-in methods
 ├── models/                     # Application models
-│   ├── Person.nt
-│   ├── Employee.nt
-│   └── Company.nt
-├── main.nt                     # Application entry
+│   ├── Person.nemo
+│   ├── Employee.nemo
+│   └── Company.nemo
+├── main.nemo                     # Application entry
 ├── tests/
-│   ├── test_person.nt
-│   └── test_employee.nt
+│   ├── test_person.nemo
+│   └── test_employee.nemo
 └── README.md
 ```
 

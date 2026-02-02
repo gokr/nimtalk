@@ -212,7 +212,7 @@ Storing `homeActivation` directly in the block is more efficient than searching 
 Enable debug logging to trace closure behavior:
 
 ```bash
-nemo --loglevel DEBUG script.nt
+nemo --loglevel DEBUG script.nemo
 ```
 
 Look for:

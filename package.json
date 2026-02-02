@@ -1,7 +1,7 @@
 {
   "displayName": "Nemo Language Support",
   "name": "nemo-lang",
-  "description": "Syntax highlighting for Nemo (.nt) files",
+  "description": "Syntax highlighting for Nemo (.nemo) files",
   "version": "0.1.0",
   "publisher": "gokr",
   "repository": {
@@ -17,7 +17,7 @@
       {
         "id": "nemo",
         "aliases": ["Nemo", "nemo"],
-        "extensions": [".nt"],
+        "extensions": [".nemo"],
         "configuration": "./.vscode/language-configuration.json"
       }
     ],
@@ -25,7 +25,7 @@
       {
         "language": "nemo",
         "scopeName": "source.nemo",
-        "path": "./.vscode/syntaxes/nt.tmLanguage.json"
+        "path": "./.vscode/syntaxes/nemo.tmLanguage.json"
       }
     ]
   }

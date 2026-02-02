@@ -508,9 +508,9 @@ Translates Nemo to Nim source:
 
 ```bash
 nemo                  # Interactive REPL
-nemo script.nt        # Run script
+nemo script.nemo        # Run script
 nemo -e "3 + 4"       # Evaluate expression
-nemo --ast script.nt  # Show AST
+nemo --ast script.nemo  # Show AST
 nemo --loglevel DEBUG # Debug output
 ```
 
@@ -524,7 +524,7 @@ Both `nemo` supports `--loglevel`:
 
 ### VSCode Extension
 
-Syntax highlighting for `.nt` files is available via the included VSCode extension. See [VSCODE.md](VSCODE.md) for installation instructions.
+Syntax highlighting for `.nemo` files is available via the included VSCode extension. See [VSCODE.md](VSCODE.md) for installation instructions.
 
 ## Performance
 

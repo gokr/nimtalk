@@ -320,8 +320,8 @@ Object at: #primitiveClone put: <primitive>
 
 - **Lexer**: `src/nemo/parser/lexer.nim` - Tokenization rules
 - **Parser**: `src/nemo/parser/parser.nim` - Syntax parsing
-- **Examples**: `examples/*.nt` - Working syntax examples
-- **Core objects**: `lib/core/*.nt` - Standard library implementations
+- **Examples**: `examples/*.nemo` - Working syntax examples
+- **Core objects**: `lib/core/*.nemo` - Standard library implementations
 
 ---
 

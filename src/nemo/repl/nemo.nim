@@ -48,7 +48,7 @@ proc showUsage() =
   echo ""
   echo "Usage:"
   echo "  nemo [options]                    # Start interactive REPL"
-  echo "  nemo [options] <file.nt>          # Run script file"
+  echo "  nemo [options] <file.nemo>          # Run script file"
   echo "  nemo [options] -e \"<code>\"       # Evaluate expression"
   echo "  nemo --test                       # Run built-in tests"
   echo "  nemo --help                       # Show this help"
@@ -61,11 +61,11 @@ proc showUsage() =
   echo ""
   echo "Examples:"
   echo "  nemo                              # Start REPL interactively"
-  echo "  nemo examples/demo.nt             # Run a script file"
+  echo "  nemo examples/demo.nemo             # Run a script file"
   echo "  nemo -e \"3 + 4\"                 # Evaluate expression (prints: 7)"
-  echo "  nemo --ast examples/test.nt       # Show AST then execute"
-  echo "  nemo --loglevel DEBUG script.nt   # Run with debug logging"
-  echo "  nemo --stack-depth 50000 deep.nt  # Run with increased stack limit"
+  echo "  nemo --ast examples/test.nemo       # Show AST then execute"
+  echo "  nemo --loglevel DEBUG script.nemo   # Run with debug logging"
+  echo "  nemo --stack-depth 50000 deep.nemo  # Run with increased stack limit"
   echo ""
 
 proc main() =
@@ -182,7 +182,7 @@ proc main() =
         echo "Some tests failed. ⚠"
         quit(1)
     else:
-      # Check if it's a file (any extension, not just .nt)
+      # Check if it's a file (any extension, not just .nemo)
       if fileExists(positionalArgs[0]):
         # Run script file
         execScript(positionalArgs[0], dumpAst, maxStackDepth)

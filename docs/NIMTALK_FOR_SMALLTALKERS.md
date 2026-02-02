@@ -379,7 +379,7 @@ No `Behavior`, `ClassDescription`, or metaclass chain.
 
 **Smalltalk:** Image-based with change sets, versions, and Monticello.
 
-**Nemo:** File-based source code (`.nt` files) with traditional version control (git).
+**Nemo:** File-based source code (`.nemo` files) with traditional version control (git).
 
 ### 7. Refactoring Tools
 

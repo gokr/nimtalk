@@ -39,7 +39,7 @@ See [CLAUDE.md](CLAUDE.md) for comprehensive Nim coding guidelines, including:
 - **Performance**: Optimizations for interpreter and compiler
 
 ### Documentation
-- **Examples**: More .nt example files
+- **Examples**: More .nemo example files
 - **Tutorials**: Step-by-step guides
 - **API Documentation**: Generated docs from source
 

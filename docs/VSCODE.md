@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Nemo repository includes a VSCode extension that provides syntax highlighting for `.nt` files. This allows developers to get immediate syntax highlighting without needing to install a separate extension from the marketplace.
+The Nemo repository includes a VSCode extension that provides syntax highlighting for `.nemo` files. This allows developers to get immediate syntax highlighting without needing to install a separate extension from the marketplace.
 
 ## Installation
 
@@ -67,7 +67,7 @@ The grammar provides scopes for the following constructs:
 |------|---------|
 | `.vscode/syntaxes/nt.tmLanguage.json` | TextMate grammar definition |
 | `.vscode/language-configuration.json` | Bracket matching, word patterns |
-| `.vscode/settings.json` | File association for `.nt` files |
+| `.vscode/settings.json` | File association for `.nemo` files |
 | `package.json` | Extension manifest |
 | `.vscodeignore` | Files to exclude from `.vsix` |
 | `nemo-lang-0.1.0.vsix` | Packaged extension |
@@ -76,7 +76,7 @@ The grammar provides scopes for the following constructs:
 
 To check that syntax highlighting is working correctly:
 
-1. Open any `.nt` file in VSCode
+1. Open any `.nemo` file in VSCode
 2. Press `Ctrl+Shift+P` (Cmd+Shift+P on Mac)
 3. Type "Developer: Inspect Editor Tokens and Scopes"
 4. Move your cursor over different code elements
@@ -129,7 +129,7 @@ This convention makes class references stand out from local variables.
 
 **Extension not loading:**
 - Ensure VSCode is reloaded after installation
-- Check that the `.nt` file extension is associated with Nemo (should happen automatically)
+- Check that the `.nemo` file extension is associated with Nemo (should happen automatically)
 
 **Incorrect highlighting:**
 - Use "Developer: Inspect Editor Tokens and Scopes" to verify which scopes are applied

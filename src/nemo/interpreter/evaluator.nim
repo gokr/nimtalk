@@ -2446,15 +2446,15 @@ proc loadStdlib*(interp: var Interpreter, basePath: string = "") =
   let libPath = if basePath.len > 0: basePath / "lib" / "core" else: "lib" / "core"
 
   let stdlibFiles = [
-    "Object.nt",
-    "Boolean.nt",
-    "Block.nt",
-    "Number.nt",
-    "Collections.nt",
-    "String.nt",
-    "FileStream.nt",
-    "Exception.nt",
-    "TestCase.nt"
+    "Object.nemo",
+    "Boolean.nemo",
+    "Block.nemo",
+    "Number.nemo",
+    "Collections.nemo",
+    "String.nemo",
+    "FileStream.nemo",
+    "Exception.nemo",
+    "TestCase.nemo"
   ]
 
   for filename in stdlibFiles:

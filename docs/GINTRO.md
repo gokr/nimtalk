@@ -146,7 +146,7 @@ The GUI tools (Transcript, Workspace, Inspector, Browser, Debugger) are **all wr
 |  |    (GUI)     |  |    (GUI)     |  |   (GUI)      |           |
 |  +--------------+  +--------------+  +--------------+           |
 |                                                                  |
-|  All written in Nemo (.nt files)                              |
+|  All written in Nemo (.nemo files)                              |
 |  Can be edited live from within the IDE                          |
 +--------------------------+---------------------------------------+
                            |
@@ -204,27 +204,27 @@ src/nemo/gui/
 
 lib/nemo/gui/                # GUI tools written in Nemo
 ├── Gtk4/                       # GTK4 wrapper classes (Nemo)
-│   ├── Widget.nt               # Base widget class
-│   ├── Window.nt               # Window wrapper
-│   ├── Button.nt               # Button wrapper
-│   ├── TextView.nt             # TextView wrapper
-│   ├── Box.nt                  # Box layout
-│   ├── ScrolledWindow.nt       # Scrolled container
-│   ├── TreeView.nt             # Tree view wrapper
-│   ├── ListBox.nt              # List box wrapper
-│   ├── HeaderBar.nt            # Header bar wrapper
-│   └── Application.nt          # Application wrapper
+│   ├── Widget.nemo               # Base widget class
+│   ├── Window.nemo               # Window wrapper
+│   ├── Button.nemo               # Button wrapper
+│   ├── TextView.nemo             # TextView wrapper
+│   ├── Box.nemo                  # Box layout
+│   ├── ScrolledWindow.nemo       # Scrolled container
+│   ├── TreeView.nemo             # Tree view wrapper
+│   ├── ListBox.nemo              # List box wrapper
+│   ├── HeaderBar.nemo            # Header bar wrapper
+│   └── Application.nemo          # Application wrapper
 │
 ├── Ide/                        # IDE tool implementations
-│   ├── BaseTool.nt             # Base class for all tools
-│   ├── Launcher.nt             # Main launcher window
-│   ├── Transcript.nt           # Transcript tool
-│   ├── Workspace.nt            # Workspace tool
-│   ├── Inspector.nt            # Inspector tool
-│   ├── Browser.nt              # System browser
-│   └── Debugger.nt             # Debugger tool
+│   ├── BaseTool.nemo             # Base class for all tools
+│   ├── Launcher.nemo             # Main launcher window
+│   ├── Transcript.nemo           # Transcript tool
+│   ├── Workspace.nemo            # Workspace tool
+│   ├── Inspector.nemo            # Inspector tool
+│   ├── Browser.nemo              # System browser
+│   └── Debugger.nemo             # Debugger tool
 │
-└── main.nt                     # IDE startup script
+└── main.nemo                     # IDE startup script
 ```
 
 ---
@@ -617,7 +617,7 @@ This is where the actual IDE tools live. All written in Nemo - fully malleable!
 
 ### 6.1 GTK4 Base Classes (Nemo)
 
-**File:** `lib/nemo/gui/Gtk4/Widget.nt`
+**File:** `lib/nemo/gui/Gtk4/Widget.nemo`
 
 ```smalltalk
 "Base class for all GTK widgets
@@ -665,7 +665,7 @@ GtkWidget at: #addCssClass: put: [ :className |
 
 ### 6.2 Window Class (Nemo)
 
-**File:** `lib/nemo/gui/Gtk4/Window.nt`
+**File:** `lib/nemo/gui/Gtk4/Window.nemo`
 
 ```smalltalk
 "GTK Window - top-level window"
@@ -722,7 +722,7 @@ GtkWindow at: #defaultSize: put: [ :aPoint |
 
 ### 6.3 Button Class (Nemo)
 
-**File:** `lib/nemo/gui/Gtk4/Button.nt`
+**File:** `lib/nemo/gui/Gtk4/Button.nemo`
 
 ```smalltalk
 "GTK Button widget"
@@ -773,7 +773,7 @@ GtkButton at: #clicked: put: [ :aBlock |
 
 ### 6.4 Box Layout (Nemo)
 
-**File:** `lib/nemo/gui/Gtk4/Box.nt`
+**File:** `lib/nemo/gui/Gtk4/Box.nemo`
 
 ```smalltalk
 "GTK Box - layout container"
@@ -827,7 +827,7 @@ GtkBox at: #remove: put: [ :aWidget |
 
 ### 7.1 Launcher Window
 
-**File:** `lib/nemo/gui/Ide/Launcher.nt`
+**File:** `lib/nemo/gui/Ide/Launcher.nemo`
 
 ```smalltalk
 "Main IDE launcher window with Transcript"
@@ -926,7 +926,7 @@ IdeLauncher at: #showLine: put: [ :text |
 
 ### 7.2 Workspace Window
 
-**File:** `lib/nemo/gui/Ide/Workspace.nt`
+**File:** `lib/nemo/gui/Ide/Workspace.nemo`
 
 ```smalltalk
 "Workspace - code editor with Do It / Print It / Inspect It"
@@ -1037,7 +1037,7 @@ IdeWorkspace at: #clear put: [
 
 ### 7.3 Inspector Window
 
-**File:** `lib/nemo/gui/Ide/Inspector.nt`
+**File:** `lib/nemo/gui/Ide/Inspector.nemo`
 
 ```smalltalk
 "Inspector - view object internals"
@@ -1150,19 +1150,19 @@ proc initGtkBridge(interp: var Interpreter) =
 proc loadGuiCode(interp: var Interpreter) =
   ## Load all Nemo GUI files
   let guiFiles = [
-    "lib/nemo/gui/Gtk4/Widget.nt",
-    "lib/nemo/gui/Gtk4/Window.nt",
-    "lib/nemo/gui/Gtk4/Button.nt",
-    "lib/nemo/gui/Gtk4/Box.nt",
-    "lib/nemo/gui/Gtk4/TextView.nt",
-    "lib/nemo/gui/Gtk4/TreeView.nt",
-    "lib/nemo/gui/Ide/BaseTool.nt",
-    "lib/nemo/gui/Ide/Launcher.nt",
-    "lib/nemo/gui/Ide/Workspace.nt",
-    "lib/nemo/gui/Ide/Inspector.nt",
-    "lib/nemo/gui/Ide/Browser.nt",
-    "lib/nemo/gui/Ide/Debugger.nt",
-    "lib/nemo/gui/main.nt"  # Entry point
+    "lib/nemo/gui/Gtk4/Widget.nemo",
+    "lib/nemo/gui/Gtk4/Window.nemo",
+    "lib/nemo/gui/Gtk4/Button.nemo",
+    "lib/nemo/gui/Gtk4/Box.nemo",
+    "lib/nemo/gui/Gtk4/TextView.nemo",
+    "lib/nemo/gui/Gtk4/TreeView.nemo",
+    "lib/nemo/gui/Ide/BaseTool.nemo",
+    "lib/nemo/gui/Ide/Launcher.nemo",
+    "lib/nemo/gui/Ide/Workspace.nemo",
+    "lib/nemo/gui/Ide/Inspector.nemo",
+    "lib/nemo/gui/Ide/Browser.nemo",
+    "lib/nemo/gui/Ide/Debugger.nemo",
+    "lib/nemo/gui/main.nemo"  # Entry point
   ]
 
   for file in guiFiles:
@@ -1217,8 +1217,8 @@ Ship a usable Transcript + Workspace first, then iterate.
 - Label wrapper
 
 **Phase 3: Nemo GTK Classes (1-2 weeks)**
-- Write Widget.nt, Window.nt, Button.nt, Box.nt
-- Write TextView.nt, ScrolledWindow.nt
+- Write Widget.nemo, Window.nemo, Button.nemo, Box.nemo
+- Write TextView.nemo, ScrolledWindow.nemo
 - Write signal handling in Nemo
 
 **Phase 4: Transcript + Workspace (2-3 weeks)**
@@ -1294,7 +1294,7 @@ The same bridge supports:
 
 For visual UI design, add support for Glade XML files:
 
-**File:** `lib/nemo/gui/Gtk4/Builder.nt`
+**File:** `lib/nemo/gui/Gtk4/Builder.nemo`
 
 ```smalltalk
 "GtkBuilder - load UIs from Glade XML"
