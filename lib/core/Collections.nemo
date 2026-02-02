@@ -338,10 +338,5 @@ Array>>new [
   ^ Array new: 0
 ]
 
-# Note: Array new: is implemented as a native class method in objects.nim
-# The primitive is registered directly on the Array class
-
-Table>>new [
-  # Create new empty table.
-  <primitive: #new>
-]
+# Note: Array new: and Table new are implemented as native class methods in objects.nim
+# The primitives are registered directly on the classes
