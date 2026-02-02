@@ -1,4 +1,4 @@
-# Nimtalk Syntax Quick Reference - Object Model & Parsing
+# Nemo Syntax Quick Reference - Object Model & Parsing
 
 ## Instance Variable Declaration
 
@@ -337,9 +337,9 @@ tags isNil
 
 See [NEWLINE_RULES.md](NEWLINE_RULES.md) for complete newline handling rules.
 
-## Comparison: Smalltalk vs Nimtalk
+## Comparison: Smalltalk vs Nemo
 
-| Feature | Smalltalk | Nimtalk |
+| Feature | Smalltalk | Nemo |
 |---------|-----------|---------|
 | Object Model | Class-based | Class-based |
 | Inheritance | Classes | Class chain |
@@ -410,7 +410,7 @@ collection do: [ :each | block ].
 #=== Comments ================================
 # This is a comment
 #==== Section header
-#!/usr/bin/env ntalk                         # Shebang at start of file
+#!/usr/bin/env nemo                         # Shebang at start of file
 
 #=== Strings =================================
 "double quoted"                             # String literal
@@ -449,7 +449,7 @@ Object>>at: key <primitive: #primitiveAt:>
 
 ## Method Definition Approaches
 
-Nimtalk supports multiple approaches for defining methods:
+Nemo supports multiple approaches for defining methods:
 
 ### Approach 1: Individual Definition (>> syntax)
 ```smalltalk
@@ -530,7 +530,7 @@ obj properties     # Returns array of symbols
 6. ✅ Both REPL and File Definition modes work
 7. ✅ Comprehensive test suite written and passing
 8. ✅ Cascade syntax implemented (`;` operator)
-9. ✅ Native method dispatch from Nimtalk code
+9. ✅ Native method dispatch from Nemo code
 10. ✅ Base library with Object, Boolean, Collections
 11. ✅ Multi-character binary operators (`==`, `//`, `\`, `<=`, `>=`, `~=`, `~~`)
 12. ✅ Enhanced comment handling (`#====` section headers)
@@ -545,7 +545,7 @@ obj properties     # Returns array of symbols
 
 ### Multi-Character Binary Operators
 
-Nimtalk supports multi-character binary operators, matched longest-first:
+Nemo supports multi-character binary operators, matched longest-first:
 
 ```smalltalk
 a == b      # Equality comparison
@@ -561,7 +561,7 @@ a | b       # Logical OR
 
 ### Cascading Messages
 
-Nimtalk supports Smalltalk's cascade syntax using `;` to send multiple messages to the same receiver:
+Nemo supports Smalltalk's cascade syntax using `;` to send multiple messages to the same receiver:
 
 ```smalltalk
 # Send multiple messages to the same object

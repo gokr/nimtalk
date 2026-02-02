@@ -1,6 +1,6 @@
 # Multiple Inheritance and Conflict Resolution
 
-Nimtalk's class model supports multiple parents for flexible inheritance. This document explains how conflicts are detected and resolved.
+Nemo's class model supports multiple parents for flexible inheritance. This document explains how conflicts are detected and resolved.
 
 ## Multiple Parents
 
@@ -27,7 +27,7 @@ c bar  # Returns "bar2"
 
 ## Conflict Detection
 
-When adding multiple parents (via `derive:` with multiple parents or `addParent:`), Nimtalk checks for two types of conflicts:
+When adding multiple parents (via `derive:` with multiple parents or `addParent:`), Nemo checks for two types of conflicts:
 
 ### Slot Name Conflicts
 

@@ -1,10 +1,10 @@
-# Nimtalk BNF Grammar
+# Nemo BNF Grammar
 
-This document provides a formal BNF (Backus-Naur Form) grammar for the Nimtalk language, derived from the lexer (`src/nimtalk/parser/lexer.nim`) and parser (`src/nimtalk/parser/parser.nim`) implementations.
+This document provides a formal BNF (Backus-Naur Form) grammar for the Nemo language, derived from the lexer (`src/nimtalk/parser/lexer.nim`) and parser (`src/nimtalk/parser/parser.nim`) implementations.
 
 ## Overview
 
-Nimtalk uses a Smalltalk-style syntax with the following precedence (highest to lowest):
+Nemo uses a Smalltalk-style syntax with the following precedence (highest to lowest):
 1. Primary expressions (literals, parentheses, blocks)
 2. Unary messages (left-to-right)
 3. Binary operators (left-to-right)
@@ -91,7 +91,7 @@ Keywords are identifiers followed by a colon. Multi-part keywords like `at:put:`
 
 ### Primitives
 
-Nimtalk supports three primitive syntaxes:
+Nemo supports three primitive syntaxes:
 
 ```bnf
 (* XML-style primitive with Nim code embedding *)
@@ -226,7 +226,7 @@ Object>>at: key put: value <primitive: #primitiveAt:put:>
 <block>        ::= "[" <block-params>? <block-temps>? <statements> "]"
 
 <block-params> ::= ":" <identifier> (":" <identifier>)* "|"
-                 | ":" <identifier> (":" <identifier>)*   (* Nimtalk-style: | optional *)
+                 | ":" <identifier> (":" <identifier>)*   (* Nemo-style: | optional *)
 
 <block-temps>  ::= "|" <identifier>+ "|"
 ```
@@ -338,7 +338,7 @@ Message(
 
 ## Newline Handling and Statement Separation
 
-Nimtalk takes a pragmatic approach to statement separation that differs from traditional Smalltalk:
+Nemo takes a pragmatic approach to statement separation that differs from traditional Smalltalk:
 
 ### Statement Separators
 
@@ -353,7 +353,7 @@ Both periods (`.`) and line endings act as statement separators:
 x := 1.
 y := 2.
 
-# Implicit line endings (Nimtalk-style)
+# Implicit line endings (Nemo-style)
 x := 1
 y := 2
 

@@ -2,7 +2,7 @@ import std/[tables, strutils, sequtils, math]
 import ../core/types
 
 # ============================================================================
-# Object System for Nimtalk
+# Object System for Nemo
 # Class-based objects with delegation/inheritance
 # ============================================================================
 

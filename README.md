@@ -1,13 +1,13 @@
-# Nimtalk
+# Nemo
 
 Smalltalk semantics, Nim performance, modern tooling.
 
-Nimtalk is a Smalltalk dialect written in Nim. It preserves Smalltalk's message-passing syntax and live programming feel while adding native compilation, Nim ecosystem access, and familiar Unix tooling.
+Nemo is a Smalltalk dialect written in Nim. It preserves Smalltalk's message-passing syntax and live programming feel while adding native compilation, Nim ecosystem access, and familiar Unix tooling.
 
 ## Quick Example
 
 ```smalltalk
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 
 # Create a class with instance variables
 Point := Object derive: #(x y)
@@ -34,12 +34,12 @@ p x  # Returns 110
 - String concatenation with comma: `"Hello" , " World"`
 - Blocks work as expected with temporary variables: `[ | temp | temp := 1 ]`
 - Everything is an object, everything happens via message sends
-- Live evaluation in the REPL: `ntalk` gives you an interactive prompt
+- Live evaluation in the REPL: `nemo` gives you an interactive prompt
 - Familiar collection messages: `do:`, `select:`, `collect:`, etc
 
 **What's different:**
 
-| Smalltalk | Nimtalk |
+| Smalltalk | Nemo |
 |-----------|---------|
 | Period required at end of statements | Optional - newline or period both work |
 | Comments in double quotes | Hash `#` comments |
@@ -103,7 +103,7 @@ Instance variables declared with `derive:` are stored in slots (fast array acces
 
 ### Method Definition Approaches
 
-Nimtalk supports multiple ways to define methods:
+Nemo supports multiple ways to define methods:
 
 **Approach 1: Individual method definition (>> syntax)**
 ```smalltalk
@@ -155,7 +155,7 @@ The `extend:` and `extendClass:` methods use `asSelfDo:` internally, which tempo
 
 ### Multiple Inheritance and Conflict Resolution
 
-Nimtalk's class model supports multiple parents. When creating a class with multiple parents, the system checks for conflicts:
+Nemo's class model supports multiple parents. When creating a class with multiple parents, the system checks for conflicts:
 
 - **Slot name conflicts**: If two parents define the same slot name, an error is raised
 - **Method selector conflicts**: If two parents define the same method selector, an error is raised
@@ -185,7 +185,7 @@ result := Child new foo  # Returns "child" (child's override takes precedence)
 
 ### Green Threads (Cooperative Processes)
 
-Nimtalk supports cooperative green threads for concurrent execution:
+Nemo supports cooperative green threads for concurrent execution:
 
 ```smalltalk
 # Fork a new process
@@ -211,7 +211,7 @@ nimble build
 nimble local   # Copies binaries to current directory
 ```
 
-Binaries: `ntalk` (REPL/interpreter), `ntalkc` (compiler stub)
+Binaries: `nemo` (REPL/interpreter), `nemoc` (compiler stub)
 
 ### VSCode Extension
 
@@ -238,11 +238,11 @@ vsce package
 ## Usage
 
 ```bash
-ntalk                    # Interactive REPL
-ntalk script.nt          # Run a file
-ntalk -e "3 + 4"         # Evaluate expression
-ntalk --ast script.nt    # Show AST, then execute
-ntalk --loglevel DEBUG   # Verbose execution trace
+nemo                    # Interactive REPL
+nemo script.nt          # Run a file
+nemo -e "3 + 4"         # Evaluate expression
+nemo --ast script.nt    # Show AST, then execute
+nemo --loglevel DEBUG   # Verbose execution trace
 ```
 
 ### Debugging
@@ -312,13 +312,13 @@ See [docs/NEWLINE_RULES.md](docs/NEWLINE_RULES.md) for details on newline handli
 - `addParent:` message for adding parents after class creation
 
 **In progress:**
-- Compiler to Nim (ntalkc is stub)
+- Compiler to Nim (nemoc is stub)
 - FFI to Nim
 - Standard library expansion
 
 ## Architecture
 
-Nimtalk uses AST interpretation for REPL and rapid prototyping. The compiler (in development) will enable deployment as native single binary executables with better performance.
+Nemo uses AST interpretation for REPL and rapid prototyping. The compiler (in development) will enable deployment as native single binary executables with better performance.
 
 ## Differences from Standard Smalltalk
 
@@ -347,11 +347,11 @@ a | b       # Logical OR
 Uses Nim's data structures directly: `seq` instead of `OrderedCollection`, `Table` instead of `Dictionary`. The literal syntax is familiar but the underlying types are Nim's implementations.
 
 **No images:**
-Nimtalk uses source files. You use git, your regular editor, and standard build tools. The REPL provides live evaluation during development, but persistence is through source code.
+Nemo uses source files. You use git, your regular editor, and standard build tools. The REPL provides live evaluation during development, but persistence is through source code.
 
 ## Newline Handling
 
-Nimtalk supports newline-based statement separation while allowing keyword messages to span lines:
+Nemo supports newline-based statement separation while allowing keyword messages to span lines:
 
 - Line endings act as statement separators
 - Periods also terminate statements explicitly

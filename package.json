@@ -1,7 +1,7 @@
 {
-  "displayName": "Nimtalk Language Support",
+  "displayName": "Nemo Language Support",
   "name": "nimtalk-lang",
-  "description": "Syntax highlighting for Nimtalk (.nt) files",
+  "description": "Syntax highlighting for Nemo (.nt) files",
   "version": "0.1.0",
   "publisher": "gokr",
   "repository": {
@@ -16,7 +16,7 @@
     "languages": [
       {
         "id": "nimtalk",
-        "aliases": ["Nimtalk", "nimtalk"],
+        "aliases": ["Nemo", "nimtalk"],
         "extensions": [".nt"],
         "configuration": "./.vscode/language-configuration.json"
       }

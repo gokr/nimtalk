@@ -1,6 +1,6 @@
 import std/[unittest, tables]
-import ../src/nimtalk/core/types
-import ../src/nimtalk/core/process
+import ../src/nemo/core/types
+import ../src/nemo/core/process
 
 suite "Green Threads - Process and Scheduler":
 

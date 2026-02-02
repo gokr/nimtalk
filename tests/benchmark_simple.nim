@@ -1,11 +1,11 @@
-# Simple Nimtalk Slot-based Ivars Benchmark
+# Simple Nemo Slot-based Ivars Benchmark
 # Compares slot access vs property bag access
 
 import std/[times, tables]
-import ../src/nimtalk/core/types
-import ../src/nimtalk/interpreter/objects
+import ../src/nemo/core/types
+import ../src/nemo/interpreter/objects
 
-echo "Nimtalk Slot-based Ivars Performance"
+echo "Nemo Slot-based Ivars Performance"
 echo "===================================="
 echo ""
 

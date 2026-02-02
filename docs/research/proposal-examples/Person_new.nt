@@ -1,9 +1,9 @@
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 #
 # Person.nt - Person prototype definition
 # Instance variables: name (string), age (int)
 #
-# PARSED BY: Nimtalk Definition Parser (special syntax for method definitions)
+# PARSED BY: Nemo Definition Parser (special syntax for method definitions)
 
 Person := Object derive: #(name age)
 

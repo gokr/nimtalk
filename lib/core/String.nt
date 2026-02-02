@@ -1,4 +1,4 @@
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 #
 # String.nt - String manipulation methods
 # Provides Smalltalk-style string operations

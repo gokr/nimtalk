@@ -1,8 +1,8 @@
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 # Storage/Tree Benchmark
 # Ported from SOM benchmark suite (https://github.com/smarr/SOM)
 # Expected result: 5461 nodes for tree depth 7
-# NOTE: Simplified version for current Nimtalk limitations
+# NOTE: Simplified version for current Nemo limitations
 
 # The full Storage benchmark creates a tree structure:
 # - Each node has child arrays
@@ -12,6 +12,6 @@
 # Actually the algorithm counts each node visit, not just creation
 # Expected result: 5461
 
-# Current Nimtalk limitations prevent full implementation
+# Current Nemo limitations prevent full implementation
 
 5461

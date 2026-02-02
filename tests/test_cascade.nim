@@ -1,7 +1,7 @@
 import unittest
-import ../src/nimtalk/core/types
-import ../src/nimtalk/parser/parser
-import ../src/nimtalk/interpreter/evaluator
+import ../src/nemo/core/types
+import ../src/nemo/parser/parser
+import ../src/nemo/interpreter/evaluator
 
 suite "Cascade Tests":
   setup:

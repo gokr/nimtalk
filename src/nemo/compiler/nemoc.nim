@@ -1,8 +1,8 @@
 #!/usr/bin/env nim
 #
-# Nimtalk Compiler - Standalone compiler binary
+# Nemo Compiler - Standalone compiler binary
 #
-# Compiles Nimtalk source (.nt) to Nim code (.nim)
+# Compiles Nemo source (.nt) to Nim code (.nim)
 
 import std/[os, strutils, parseopt, strformat, logging]
 import ../parser/parser
@@ -11,7 +11,7 @@ import ../codegen/module
 import ../compiler/context
 
 const VERSION* = block:
-  const nimblePath = currentSourcePath().parentDir().parentDir().parentDir().parentDir() / "nimtalk.nimble"
+  const nimblePath = currentSourcePath().parentDir().parentDir().parentDir().parentDir() / "nemo.nimble"
   const nimbleContent = staticRead(nimblePath)
   var versionStr = "unknown"
   for line in nimbleContent.splitLines():
@@ -53,13 +53,13 @@ proc newConfig(): Config =
   )
 
 proc showUsage() =
-  echo "Nimtalk Compiler - Class-based Smalltalk for Nim"
+  echo "Nemo Compiler - Class-based Smalltalk for Nim"
   echo ""
   echo "Usage:"
-  echo "  ntalkc <command> [options] <file.nt>"
+  echo "  nemoc <command> [options] <file.nt>"
   echo ""
   echo "Commands:"
-  echo "  compile               Compile Nimtalk to Nim source code"
+  echo "  compile               Compile Nemo to Nim source code"
   echo "  build                 Compile to Nim and build executable"
   echo "  run                   Compile, build, and execute"
   echo "  help                  Show this help"
@@ -75,14 +75,14 @@ proc showUsage() =
   echo "  -v, --version         Show version"
   echo ""
   echo "Examples:"
-  echo "  ntalkc compile examples/demo.nt -o demo.nim"
-  echo "  ntalkc build examples/demo.nt -d build/"
-  echo "  ntalkc run examples/demo.nt --release"
-  echo "  ntalkc compile myprog.nt --ast --loglevel DEBUG"
+  echo "  nemoc compile examples/demo.nt -o demo.nim"
+  echo "  nemoc build examples/demo.nt -d build/"
+  echo "  nemoc run examples/demo.nt --release"
+  echo "  nemoc compile myprog.nt --ast --loglevel DEBUG"
   echo ""
 
 proc showVersion() =
-  echo "Nimtalk Compiler v" & VERSION
+  echo "Nemo Compiler v" & VERSION
 
 proc parseLogLevel(levelStr: string): Level =
   ## Parse log level string to Level enum
@@ -137,7 +137,7 @@ proc parseArgs(): Config =
         quit(1)
 
 proc compileFile(config: Config): bool =
-  ## Compile Nimtalk source to Nim
+  ## Compile Nemo source to Nim
   if not fileExists(config.inputFile):
     echo "Error: Input file not found: ", config.inputFile
     return false
@@ -180,7 +180,7 @@ proc compileFile(config: Config): bool =
   return true
 
 proc buildFile(config: Config): bool =
-  ## Compile Nimtalk and build with Nim compiler
+  ## Compile Nemo and build with Nim compiler
   if not config.compileFile():
     return false
 
@@ -249,7 +249,7 @@ proc main() =
 
     if config.inputFile.len == 0:
       echo "Error: No input file specified"
-      echo "Usage: ntalkc compile <file.nt> [options]"
+      echo "Usage: nemoc compile <file.nt> [options]"
       quit(1)
 
     if config.help:
@@ -271,7 +271,7 @@ proc main() =
 
     if config.inputFile.len == 0:
       echo "Error: No input file specified"
-      echo "Usage: ntalkc build <file.nt> [options]"
+      echo "Usage: nemoc build <file.nt> [options]"
       quit(1)
 
     if config.help:
@@ -293,7 +293,7 @@ proc main() =
 
     if config.inputFile.len == 0:
       echo "Error: No input file specified"
-      echo "Usage: ntalkc run <file.nt> [options]"
+      echo "Usage: nemoc run <file.nt> [options]"
       quit(1)
 
     if config.help:
@@ -332,7 +332,7 @@ proc main() =
       quit(if success: 0 else: 1)
     else:
       echo "Unknown command or invalid file: ", command
-      echo "Run 'ntalkc --help' for usage"
+      echo "Run 'nemoc --help' for usage"
       quit(1)
 
 when isMainModule:

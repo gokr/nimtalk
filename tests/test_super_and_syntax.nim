@@ -4,8 +4,8 @@
 #
 
 import std/[unittest, logging, strutils]
-import ../src/nimtalk/core/types
-import ../src/nimtalk/interpreter/evaluator
+import ../src/nemo/core/types
+import ../src/nemo/interpreter/evaluator
 
 configureLogging(lvlError)
 

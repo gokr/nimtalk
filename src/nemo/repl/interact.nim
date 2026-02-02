@@ -4,7 +4,7 @@ import ../parser/[lexer, parser]
 import ../interpreter/evaluator
 
 # ============================================================================
-# Simple Interactive REPL for Nimtalk
+# Simple Interactive REPL for Nemo
 # Works without readline for better portability
 # ============================================================================
 
@@ -29,7 +29,7 @@ proc newReplContext*(trace: bool = false): ReplContext =
 
 proc printWelcome() =
   echo "========================================"
-  echo "  Nimtalk - REPL"
+  echo "  Nemo - REPL"
   echo "  A modern Smalltalk in Nim"
   echo "========================================"
   echo ""

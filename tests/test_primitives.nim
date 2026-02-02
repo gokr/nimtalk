@@ -1,13 +1,13 @@
 #!/usr/bin/env nim
 #
-# Tests for primitive syntax in Nimtalk
+# Tests for primitive syntax in Nemo
 # Tests both declarative and inline primitive syntax
 #
 
 import std/unittest
-import ../src/nimtalk/core/types
-import ../src/nimtalk/parser/[lexer, parser]
-import ../src/nimtalk/interpreter/[evaluator, objects]
+import ../src/nemo/core/types
+import ../src/nemo/parser/[lexer, parser]
+import ../src/nemo/interpreter/[evaluator, objects]
 
 suite "Primitive Syntax: Declarative Form":
   var interp: Interpreter

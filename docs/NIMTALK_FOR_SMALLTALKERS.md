@@ -1,12 +1,12 @@
-# Nimtalk for Smalltalkers
+# Nemo for Smalltalkers
 
-A guide for experienced Smalltalk programmers coming to Nimtalk. This document covers the key differences in syntax, semantics, and available features.
+A guide for experienced Smalltalk programmers coming to Nemo. This document covers the key differences in syntax, semantics, and available features.
 
 ## Quick Summary
 
-Nimtalk is a class-based Smalltalk dialect that compiles to Nim. It preserves Smalltalk's message-passing semantics and syntax feel while making pragmatic changes for a modern implementation.
+Nemo is a class-based Smalltalk dialect that compiles to Nim. It preserves Smalltalk's message-passing semantics and syntax feel while making pragmatic changes for a modern implementation.
 
-| Feature | Smalltalk-80 | Nimtalk |
+| Feature | Smalltalk-80 | Nemo |
 |---------|-------------|---------|
 | Object model | Classes + metaclasses | Classes only (no metaclasses) |
 | Statement separator | Period (`.`) only | Period or newline |
@@ -29,13 +29,13 @@ y := 2.
 z := x + y.
 ```
 
-**Nimtalk:**
+**Nemo:**
 ```nimtalk
 * Periods work (Smalltalk-compatible)
 x := 1.
 y := 2.
 
-* Line endings also work (Nimtalk-style)
+* Line endings also work (Nemo-style)
 x := 1
 y := 2
 
@@ -52,7 +52,7 @@ z := x + y.
 'Hello World'       "Single quotes only"
 ```
 
-**Nimtalk:**
+**Nemo:**
 ```nimtalk
 "Hello World"       # Double quotes only
 ```
@@ -66,7 +66,7 @@ z := x + y.
 "This is a comment - double quotes"
 ```
 
-**Nimtalk:**
+**Nemo:**
 ```nimtalk
 # This is a comment - hash style
 #==== Section header
@@ -85,9 +85,9 @@ z := x + y.
 ]
 ```
 
-**Nimtalk:**
+**Nemo:**
 ```nimtalk
-# Optional | after parameters (Nimtalk-specific)
+# Optional | after parameters (Nemo-specific)
 [ :x :y
   x + y
 ]
@@ -125,7 +125,7 @@ name: aName
 ! !
 ```
 
-**Nimtalk:**
+**Nemo:**
 ```nimtalk
 # Define class with slots
 Person := Object derive: #(#name #age).
@@ -151,7 +151,7 @@ dictionary
     ifAbsent: [ default ]
 ```
 
-**Nimtalk:**
+**Nemo:**
 ```nimtalk
 # Same syntax, but note that newlines act as separators
 # except when continuing a keyword message chain
@@ -166,7 +166,7 @@ dictionary
 
 **Smalltalk:** Every class is an instance of a metaclass. Class methods are defined on the metaclass.
 
-**Nimtalk:** Classes are objects, but there are no metaclasses. Class methods are stored directly on the class object.
+**Nemo:** Classes are objects, but there are no metaclasses. Class methods are stored directly on the class object.
 
 ```nimtalk
 # Instance method
@@ -184,7 +184,7 @@ The `class` message returns the class object itself, and methods can be stored t
 
 **Smalltalk:** Instance variables are named slots accessed by name.
 
-**Nimtalk:** Instance variables are indexed slots for O(1) access. The class maintains `slotNames` (declared on class) and `allSlotNames` (inherited layout).
+**Nemo:** Instance variables are indexed slots for O(1) access. The class maintains `slotNames` (declared on class) and `allSlotNames` (inherited layout).
 
 ```nimtalk
 Person := Object derive: #(#name #age).
@@ -208,7 +208,7 @@ Performance comparison (per 100k ops):
 
 **Smalltalk:** Single inheritance only. Traits provide code sharing.
 
-**Nimtalk:** Currently single inheritance, with multiple parents planned:
+**Nemo:** Currently single inheritance, with multiple parents planned:
 
 ```nimtalk
 # Single inheritance
@@ -226,7 +226,7 @@ The internal class model stores `parents: seq[Class]`. The first parent defines 
 
 ### Conflict Detection for Multiple Inheritance
 
-When creating a class with multiple parents (or adding parents via `addParent:`), Nimtalk checks for conflicts:
+When creating a class with multiple parents (or adding parents via `addParent:`), Nemo checks for conflicts:
 
 - **Slot name conflicts**: If any slot name exists in multiple parent hierarchies, an error is raised
 - **Method selector conflicts**: If directly-defined method selectors conflict between parents, an error is raised
@@ -268,7 +268,7 @@ Child addParent: Parent2
 
 **Smalltalk:** `super` starts method lookup in the parent class.
 
-**Nimtalk:** `super` works similarly, but supports qualified super for multiple inheritance:
+**Nemo:** `super` works similarly, but supports qualified super for multiple inheritance:
 
 ```nimtalk
 # Unqualified super (uses first parent)
@@ -288,7 +288,7 @@ Employee>>calculatePay [
 
 **Smalltalk:** Primitives are VM-specific numbered operations (e.g., `<primitive: 1>`).
 
-**Nimtalk:** Primitives embed Nim code directly:
+**Nemo:** Primitives embed Nim code directly:
 
 ```nimtalk
 Object>>primitiveClone [
@@ -309,10 +309,10 @@ The Nim code has access to the interpreter context and can manipulate objects di
 ```smalltalk
 Object subclass: #MyClass
     instanceVariableNames: ''
-    classVariableNames: 'SharedVar'    "Not in Nimtalk"
+    classVariableNames: 'SharedVar'    "Not in Nemo"
 ```
 
-**Nimtalk:** Not implemented. Use class methods with captured state or global objects:
+**Nemo:** Not implemented. Use class methods with captured state or global objects:
 
 ```nimtalk
 # Workaround: Store in class method closure
@@ -331,20 +331,20 @@ Registry at: #MyClassCounter put: 0.
 **Smalltalk:** Instance variables on the class object (metaclass instance variables):
 ```smalltalk
 Object class>>initialize
-    classInstVar := 0.    "Not in Nimtalk"
+    classInstVar := 0.    "Not in Nemo"
 ```
 
-**Nimtalk:** Not implemented. Classes don't have instance variables separate from their instances.
+**Nemo:** Not implemented. Classes don't have instance variables separate from their instances.
 
 ### 3. Pool Dictionaries
 
 **Smalltalk:** Shared dictionaries for constants:
 ```smalltalk
 Object subclass: #MyClass
-    poolDictionaries: 'MyPool'    "Not in Nimtalk"
+    poolDictionaries: 'MyPool'    "Not in Nemo"
 ```
 
-**Nimtalk:** Not implemented. Use global tables or symbols:
+**Nemo:** Not implemented. Use global tables or symbols:
 
 ```nimtalk
 # Workaround: Global table
@@ -360,7 +360,7 @@ Constants := #{
 
 **Smalltalk:** Rich metaclass hierarchy with `Class`, `ClassDescription`, `Behavior`, etc.
 
-**Nimtalk:** Classes are simple objects. The hierarchy is flat:
+**Nemo:** Classes are simple objects. The hierarchy is flat:
 - `Class` - defines structure and behavior
 - `Instance` - pure data with reference to class
 
@@ -373,31 +373,31 @@ No `Behavior`, `ClassDescription`, or metaclass chain.
 !MyClass methodsFor: 'accessing'!
 ```
 
-**Nimtalk:** Not implemented. Methods are stored in a flat table. Organization is by convention only.
+**Nemo:** Not implemented. Methods are stored in a flat table. Organization is by convention only.
 
 ### 6. Change Sets and Version Control
 
 **Smalltalk:** Image-based with change sets, versions, and Monticello.
 
-**Nimtalk:** File-based source code (`.nt` files) with traditional version control (git).
+**Nemo:** File-based source code (`.nt` files) with traditional version control (git).
 
 ### 7. Refactoring Tools
 
 **Smalltalk:** Rich refactoring browser with rename, extract method, push up/down, etc.
 
-**Nimtalk:** Basic text editing. No specialized refactoring tools yet.
+**Nemo:** Basic text editing. No specialized refactoring tools yet.
 
 ### 8. Debugger
 
 **Smalltalk:** Full debugger with stack inspection, variable examination, step-through.
 
-**Nimtalk:** Basic error messages with line numbers. Stack traces available but limited.
+**Nemo:** Basic error messages with line numbers. Stack traces available but limited.
 
-## Additional Nimtalk Features
+## Additional Nemo Features
 
 ### 1. Cascade Operator
 
-Nimtalk implements Smalltalk's cascade using `;`:
+Nemo implements Smalltalk's cascade using `;`:
 
 ```nimtalk
 obj
@@ -451,7 +451,7 @@ Singleton class>>instance
     ^ Instance
 ```
 
-**Nimtalk singleton:**
+**Nemo singleton:**
 ```nimtalk
 # Using captured variable
 Singleton class>>instance [
@@ -474,7 +474,7 @@ Singleton class>>instance [
 
 ## Summary
 
-Nimtalk preserves the essence of Smalltalk (message passing, blocks, live programming) while simplifying the object model and adding modern conveniences. The main adjustments for Smalltalkers are:
+Nemo preserves the essence of Smalltalk (message passing, blocks, live programming) while simplifying the object model and adding modern conveniences. The main adjustments for Smalltalkers are:
 
 1. No metaclasses - classes are just objects
 2. No class variables - use globals or closures
@@ -482,4 +482,4 @@ Nimtalk preserves the essence of Smalltalk (message passing, blocks, live progra
 4. Nim primitives - embed native code directly
 5. Use double quotes for strings - hash `#` for comments
 
-The trade-off is simplicity over completeness - Nimtalk is smaller and compiles to native code through Nim, but lacks some of Smalltalk's advanced reflective features.
+The trade-off is simplicity over completeness - Nemo is smaller and compiles to native code through Nim, but lacks some of Smalltalk's advanced reflective features.

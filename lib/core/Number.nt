@@ -1,4 +1,4 @@
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 #
 # Number.nt - Extensions to Number class hierarchy
 # Adds Smalltalk-style numeric operations to existing Integer and Float classes

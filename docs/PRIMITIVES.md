@@ -1,10 +1,10 @@
-# Primitive Syntax in Nimtalk
+# Primitive Syntax in Nemo
 
-This document describes the syntax for direct primitive invocation in Nimtalk, which eliminates the overhead of going through `perform:` while maintaining clean, readable code.
+This document describes the syntax for direct primitive invocation in Nemo, which eliminates the overhead of going through `perform:` while maintaining clean, readable code.
 
 ## Overview
 
-Nimtalk provides two related syntax forms for calling primitives:
+Nemo provides two related syntax forms for calling primitives:
 
 1. **Declarative form** `<primitive: #selector>` - for methods that ARE primitives
 2. **Inline form** `<primitive #selector args>` - for calling primitives within method bodies
@@ -13,7 +13,7 @@ Both forms bypass the `perform:` machinery, eliminating an extra method lookup a
 
 ## Declarative Form
 
-Use when a method's entire purpose is to invoke a primitive with no Nimtalk code before or after.
+Use when a method's entire purpose is to invoke a primitive with no Nemo code before or after.
 
 ### Syntax
 
@@ -51,7 +51,7 @@ String class>>with: character <primitive: #primitiveStringWith:>
 
 ## Inline Form
 
-Use when you need to execute Nimtalk code before or after the primitive call.
+Use when you need to execute Nemo code before or after the primitive call.
 
 ### Syntax
 
@@ -152,7 +152,7 @@ The parser and compiler verify:
 
 ### Converting Existing perform: Calls
 
-1. **Simple delegation** (no Nimtalk code):
+1. **Simple delegation** (no Nemo code):
    ```smalltalk
    # Before
    Object>>clone [ ^ self perform: #primitiveClone ]
@@ -161,7 +161,7 @@ The parser and compiler verify:
    Object>>clone <primitive: #primitiveClone>
    ```
 
-2. **With validation** (needs Nimtalk code):
+2. **With validation** (needs Nemo code):
    ```smalltalk
    # Before
    Array>>at: index [

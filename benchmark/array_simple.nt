@@ -1,5 +1,5 @@
-#!/usr/bin/env ntalk
-# Simple Array Benchmark for Nimtalk
+#!/usr/bin/env nemo
+# Simple Array Benchmark for Nemo
 # Tests basic array access
 
 # Create array literal

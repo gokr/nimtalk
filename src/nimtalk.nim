@@ -1,18 +1,18 @@
-## Nimtalk Entry Point
-## This is the main module that exports all Nimtalk functionality
+## Nemo Entry Point
+## This is the main module that exports all Nemo functionality
 
 # Export core modules
-import nimtalk/core/[types]
-import nimtalk/parser/[lexer, parser]
-import nimtalk/interpreter/[evaluator, objects, activation]
-import nimtalk/repl/[ntalk, doit, interact]
-import nimtalk/compiler/[codegen]
+import nemo/core/[types]
+import nemo/parser/[lexer, parser]
+import nemo/interpreter/[evaluator, objects, activation]
+import nemo/repl/[nemo, doit, interact]
+import nemo/compiler/[codegen]
 
-export types, lexer, parser, evaluator, objects, activation, ntalk, doit, interact, codegen
+export types, lexer, parser, evaluator, objects, activation, nemo, doit, interact, codegen
 
 # Convenience proc to create and run interpreter
 proc run*(code: string): string =
-  ## Run Nimtalk code and return result as string
+  ## Run Nemo code and return result as string
   var interp = newInterpreter()
   initGlobals(interp)
 
@@ -24,7 +24,7 @@ proc run*(code: string): string =
 
 # Version constant
 const VERSION* = block:
-  const nimblePath = currentSourcePath().parentDir() / "nimtalk.nimble"
+  const nimblePath = currentSourcePath().parentDir() / "nemo.nimble"
   const nimbleContent = staticRead(nimblePath)
   var versionStr = "unknown"
   for line in nimbleContent.splitLines():
@@ -38,5 +38,5 @@ const VERSION* = block:
 
 # Simple evaluation demo
 when isMainModule:
-  echo "Nimtalk v" & VERSION
+  echo "Nemo v" & VERSION
   echo "Use 'nimble build' to build the REPL"

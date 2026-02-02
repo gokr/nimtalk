@@ -1,4 +1,4 @@
-# Nimtalk Object Model - Implementation Plan
+# Nemo Object Model - Implementation Plan
 
 ## Overview
 This document outlines the implementation steps for the new object model with declared instance variables and the `>>` method definition syntax.
@@ -215,10 +215,10 @@ MethodDefinitionNode(
 
 ## File Format Specification
 
-### .nt Files (Nimtalk Definition Files)
+### .nt Files (Nemo Definition Files)
 
 ```smalltalk
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 #
 # Comments can use single #
 
@@ -443,7 +443,7 @@ check result.hasMethod("greet")
 ✅ 100% code coverage for new functionality
 ✅ Examples updated to use new syntax (demo_slots.nt, lib/)
 ✅ Documentation complete and up-to-date
-✅ Native method dispatch working from Nimtalk code
+✅ Native method dispatch working from Nemo code
 ✅ Base library created with Object, Boolean, Collections
 ✅ Symbol canonicalization implemented
 ✅ Globals table for class management

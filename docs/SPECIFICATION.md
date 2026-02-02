@@ -1,10 +1,10 @@
-# Nimtalk Language Specification
+# Nemo Language Specification
 
-Nimtalk is a class-based Smalltalk dialect that compiles to Nim code. This document specifies the complete language syntax, semantics, and behavior.
+Nemo is a class-based Smalltalk dialect that compiles to Nim code. This document specifies the complete language syntax, semantics, and behavior.
 
 ## Overview
 
-Nimtalk combines Smalltalk's message-passing semantics with Nim's compilation and performance characteristics. Key features include:
+Nemo combines Smalltalk's message-passing semantics with Nim's compilation and performance characteristics. Key features include:
 
 - Class-based object system with single inheritance (multiple parents planned)
 - Message-passing semantics (unary, binary, keyword)
@@ -177,7 +177,7 @@ Employee := Person derive: #(salary) withParents: #(Enumerable)
 
 ### Conflict Detection
 
-When creating a class with multiple parents, Nimtalk checks for conflicts:
+When creating a class with multiple parents, Nemo checks for conflicts:
 
 - **Slot name conflicts**: If any slot name exists in multiple parent hierarchies, an error is raised
 - **Method selector conflicts**: If directly-defined method selectors conflict between parents, an error is raised
@@ -497,7 +497,7 @@ AST-based interpreter for REPL and development:
 
 ### Compiler (In Development)
 
-Translates Nimtalk to Nim source:
+Translates Nemo to Nim source:
 - Generates Nim procedures for methods
 - Inline optimization for known operations
 - Compiles to native binaries
@@ -507,16 +507,16 @@ Translates Nimtalk to Nim source:
 ### Command-Line
 
 ```bash
-ntalk                  # Interactive REPL
-ntalk script.nt        # Run script
-ntalk -e "3 + 4"       # Evaluate expression
-ntalk --ast script.nt  # Show AST
-ntalk --loglevel DEBUG # Debug output
+nemo                  # Interactive REPL
+nemo script.nt        # Run script
+nemo -e "3 + 4"       # Evaluate expression
+nemo --ast script.nt  # Show AST
+nemo --loglevel DEBUG # Debug output
 ```
 
 ### Logging
 
-Both `ntalk` supports `--loglevel`:
+Both `nemo` supports `--loglevel`:
 - `DEBUG` - Detailed execution trace
 - `INFO` - General information
 - `WARN` - Warnings only

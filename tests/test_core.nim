@@ -1,15 +1,15 @@
 #!/usr/bin/env nim
 #
-# Core tests for Nimtalk
+# Core tests for Nemo
 # Tests basic parsing, objects, and evaluation
 #
 
 import std/logging
 import std/tables
 import unittest
-import ../src/nimtalk/core/types
-import ../src/nimtalk/parser/[lexer, parser]
-import ../src/nimtalk/interpreter/[evaluator, objects]
+import ../src/nemo/core/types
+import ../src/nemo/parser/[lexer, parser]
+import ../src/nemo/interpreter/[evaluator, objects]
 
 # Configure logging for tests - set to ERROR by default to keep test output clean
 configureLogging(lvlError)

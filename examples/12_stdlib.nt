@@ -1,10 +1,10 @@
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 #
 # Standard Library Demonstration
 #
 
 '========================================' println
-'Nimtalk Standard Library Demo' println
+'Nemo Standard Library Demo' println
 '========================================' println
 '' println
 
@@ -34,7 +34,7 @@ s := 'Hello, World!'
 ('Trim: ' , ('  spaces  ' trim)) println
 ('Index of World: ' , (s indexOf: 'World') asString) println
 ('Contains Hello: ' , (s includesSubString: 'Hello') asString) println
-('Replace: ' , (s replace: 'World' with: 'Nimtalk')) println
+('Replace: ' , (s replace: 'World' with: 'Nemo')) println
 
 'Split:' println
 parts := 'a,b,c,d' split: ','

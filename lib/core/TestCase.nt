@@ -1,6 +1,6 @@
-# TestCase - Unit testing framework for Nimtalk
+# TestCase - Unit testing framework for Nemo
 #
-# Provides assertion methods for writing unit tests in Nimtalk.
+# Provides assertion methods for writing unit tests in Nemo.
 #
 # Example:
 #   MyTests := TestCase derive.

@@ -1,7 +1,7 @@
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 #
 # Object.nt - Root object with core methods
-# This is the foundation of the Nimtalk object system
+# This is the foundation of the Nemo object system
 
 # Object is the root of the class hierarchy
 # It provides fundamental behaviors that all objects inherit

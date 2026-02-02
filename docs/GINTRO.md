@@ -1,13 +1,13 @@
-# Nimtalk GUI IDE Implementation Plan
+# Nemo GUI IDE Implementation Plan
 
 ## Executive Summary
 
-Build a classic Smalltalk-style GUI IDE where **the GUI tools themselves are written in Nimtalk**, making them malleable at runtime. Use gintro (Salewski's GTK4 binding) as a thin wrapper layer to expose GTK objects to Nimtalk.
+Build a classic Smalltalk-style GUI IDE where **the GUI tools themselves are written in Nemo**, making them malleable at runtime. Use gintro (Salewski's GTK4 binding) as a thin wrapper layer to expose GTK objects to Nemo.
 
 **Why this approach wins:**
 - GUI tools are modifiable from within the system (true Smalltalk philosophy)
 - Only the low-level GTK binding is static Nim code
-- Future evolution: GTK wrapper can be reimplemented in Nimtalk via FFI
+- Future evolution: GTK wrapper can be reimplemented in Nemo via FFI
 
 ---
 
@@ -41,7 +41,7 @@ proc activate(app: Application) =
 **Pros:**
 - Direct GTK4 access - full API coverage, no limitations
 - Go directly from Nim to GTK without abstraction layers
-- Easier to expose to Nimtalk: just wrap gintro objects
+- Easier to expose to Nemo: just wrap gintro objects
 - Signals use standard GTK connect mechanism
 - No compile-time macro magic - straightforward Nim code
 - Smaller runtime overhead
@@ -90,10 +90,10 @@ brew(gui(App()))
 - Good for static, pre-defined interfaces
 
 **Cons:**
-- Compile-time DSL (macros) - cannot be generated at runtime from Nimtalk
-- Harder to bridge to Nimtalk: the `gui:` macro and `viewable` types are compile-time constructs
+- Compile-time DSL (macros) - cannot be generated at runtime from Nemo
+- Harder to bridge to Nemo: the `gui:` macro and `viewable` types are compile-time constructs
 - Limited by what Owlkettle supports (subset of GTK)
-- Views are static Nim code - not malleable from Nimtalk
+- Views are static Nim code - not malleable from Nemo
 
 ---
 
@@ -104,12 +104,12 @@ brew(gui(App()))
 | **Style** | Imperative | Declarative |
 | **GTK Coverage** | Complete (~100k functions) | Subset (common widgets) |
 | **Runtime Malleability** | Can wrap and expose | Compile-time macros |
-| **Bridge to Nimtalk** | Straightforward | Complex/abstraction mismatch |
+| **Bridge to Nemo** | Straightforward | Complex/abstraction mismatch |
 | **State Management** | Manual | Automatic |
 | **Boilerplate** | More | Less |
-| **IDE Tools in Nimtalk** | Yes | Tools must be in Nim |
+| **IDE Tools in Nemo** | Yes | Tools must be in Nim |
 
-**Verdict for Nimtalk IDE:** gintro is the clear choice because it enables the core requirement - **GUI tools written in malleable Nimtalk code**.
+**Verdict for Nemo IDE:** gintro is the clear choice because it enables the core requirement - **GUI tools written in malleable Nemo code**.
 
 ---
 
@@ -119,17 +119,17 @@ brew(gui(App()))
 
 Instead of:
 ```
-Nimtalk Model -> Nim Bridge -> Owlkettle View (static Nim)
+Nemo Model -> Nim Bridge -> Owlkettle View (static Nim)
 ```
 
 We do:
 ```
-Nimtalk GUI Tool -> gintro Wrapper -> GTK4
+Nemo GUI Tool -> gintro Wrapper -> GTK4
      ^                              |
-     +------  Nimtalk code  --------+
+     +------  Nemo code  --------+
 ```
 
-The GUI tools (Transcript, Workspace, Inspector, Browser, Debugger) are **all written in Nimtalk**. Only the thin gintro wrapper layer is static Nim code.
+The GUI tools (Transcript, Workspace, Inspector, Browser, Debugger) are **all written in Nemo**. Only the thin gintro wrapper layer is static Nim code.
 
 ### Architecture Diagram
 
@@ -146,7 +146,7 @@ The GUI tools (Transcript, Workspace, Inspector, Browser, Debugger) are **all wr
 |  |    (GUI)     |  |    (GUI)     |  |   (GUI)      |           |
 |  +--------------+  +--------------+  +--------------+           |
 |                                                                  |
-|  All written in Nimtalk (.nt files)                              |
+|  All written in Nemo (.nt files)                              |
 |  Can be edited live from within the IDE                          |
 +--------------------------+---------------------------------------+
                            |
@@ -174,10 +174,10 @@ The GUI tools (Transcript, Workspace, Inspector, Browser, Debugger) are **all wr
 Instead of implementing widget behavior in Nim, we only expose:
 1. GTK widget constructors (create window, button, textview, etc.)
 2. Property getters/setters (set text, get text, etc.)
-3. Signal connection (when button clicked, call this Nimtalk block)
+3. Signal connection (when button clicked, call this Nemo block)
 4. Container operations (add child, remove child)
 
-All the **logic** (layout, event handling, state management) lives in Nimtalk.
+All the **logic** (layout, event handling, state management) lives in Nemo.
 
 ---
 
@@ -200,10 +200,10 @@ src/nimtalk/gui/
 │   ├── signal.nim              # Signal handling utilities
 │   └── application.nim         # GtkApplication wrapper
 │
-└── ide.nim                     # IDE entry point - loads Nimtalk GUI code
+└── ide.nim                     # IDE entry point - loads Nemo GUI code
 
-lib/nimtalk/gui/                # GUI tools written in Nimtalk
-├── Gtk4/                       # GTK4 wrapper classes (Nimtalk)
+lib/nimtalk/gui/                # GUI tools written in Nemo
+├── Gtk4/                       # GTK4 wrapper classes (Nemo)
 │   ├── Widget.nt               # Base widget class
 │   ├── Window.nt               # Window wrapper
 │   ├── Button.nt               # Button wrapper
@@ -233,15 +233,15 @@ lib/nimtalk/gui/                # GUI tools written in Nimtalk
 
 This is the only static Nim code. It's a thin wrapper that:
 1. Creates gintro GTK objects
-2. Exposes them to Nimtalk as proxy objects
-3. Forwards signals from GTK to Nimtalk
+2. Exposes them to Nemo as proxy objects
+3. Forwards signals from GTK to Nemo
 
 ### 4.1 Widget Wrapper Base
 
 **File:** `src/nimtalk/gui/gtk4/widget.nim`
 
 ```nim
-## Base widget wrapper - exposes GTK widget to Nimtalk
+## Base widget wrapper - exposes GTK widget to Nemo
 
 import gintro/[gtk4, gobject]
 import ../../core/types
@@ -249,9 +249,9 @@ import ../../interpreter/objects
 
 type
   GtkWidgetProxy* = ref object
-    ## Wraps a GTK widget for Nimtalk access
+    ## Wraps a GTK widget for Nemo access
     widget*: gtk4.Widget
-    interp*: ptr Interpreter  # For calling back to Nimtalk
+    interp*: ptr Interpreter  # For calling back to Nemo
     signalHandlers*: Table[string, seq[BlockNode]]  # signal -> blocks
     destroyed*: bool  # Track if GTK widget was destroyed
 
@@ -269,10 +269,10 @@ proc asWidgetProxy*(obj: Instance): GtkWidgetProxy =
     raise newException(ValueError, "GTK widget has been destroyed")
 
 proc createWidgetProxy*(widget: gtk4.Widget, interp: ptr Interpreter): NodeValue =
-  ## Create a Nimtalk object that wraps a GTK widget
+  ## Create a Nemo object that wraps a GTK widget
   let proxy = GtkWidgetProxy(widget: widget, interp: interp, destroyed: false)
 
-  # Create Nimtalk object
+  # Create Nemo object
   let obj = Instance(class: rootObj, slots: @[])
   obj.nimProxy = proxy
 
@@ -306,7 +306,7 @@ proc destroyMethodImpl(self: Instance, args: seq[NodeValue]): NodeValue =
 # Safe block evaluation wrapper - catches exceptions to prevent GTK crashes
 proc safeEvalBlock(interp: ptr Interpreter, blockNode: BlockNode,
                    args: seq[NodeValue] = @[]): NodeValue =
-  ## Evaluate a Nimtalk block safely within a GTK signal handler.
+  ## Evaluate a Nemo block safely within a GTK signal handler.
   ## Exceptions are caught and reported to the Transcript instead of crashing.
   try:
     result = interp[].evalBlock(blockNode, args)
@@ -324,7 +324,7 @@ proc safeEvalBlock(interp: ptr Interpreter, blockNode: BlockNode,
     result = nilValue()
 
 proc connectDoImpl(self: Instance, args: seq[NodeValue]): NodeValue =
-  ## Connect a GTK signal to a Nimtalk block
+  ## Connect a GTK signal to a Nemo block
   ## args[0] = signal name (string)
   ## args[1] = block to execute
   let proxy = self.asWidgetProxy()
@@ -338,7 +338,7 @@ proc connectDoImpl(self: Instance, args: seq[NodeValue]): NodeValue =
 
   # Connect GTK signal with safe evaluation
   proxy.widget.connect(signalName, proc(widget: gtk4.Widget) =
-    # Call all Nimtalk blocks for this signal
+    # Call all Nemo blocks for this signal
     for handler in proxy.signalHandlers[signalName]:
       discard safeEvalBlock(proxy.interp, handler)
   )
@@ -359,7 +359,7 @@ import ../../interpreter/objects
 import ./widget
 
 proc createWindowWrapper*(interp: ptr Interpreter, app: Application): NodeValue =
-  ## Create a Nimtalk Window object
+  ## Create a Nemo Window object
   let window = newApplicationWindow(app)
   let proxy = GtkWidgetProxy(widget: window, interp: interp)
 
@@ -410,7 +410,7 @@ type
   ButtonProxy* = ref object of GtkWidgetProxy
 
 proc newButtonWrapper*(interp: ptr Interpreter, label: string): NodeValue =
-  ## Create a Nimtalk Button object
+  ## Create a Nemo Button object
   let button = newButton(label)
   let proxy = ButtonProxy(widget: button, interp: interp)
 
@@ -435,12 +435,12 @@ proc getLabelImpl(self: Instance, args: seq[NodeValue]): NodeValue =
   return wrapString(button.getLabel())
 
 proc connectClickedImpl(self: Instance, args: seq[NodeValue]): NodeValue =
-  ## Connect "clicked" signal to a Nimtalk block
+  ## Connect "clicked" signal to a Nemo block
   let proxy = cast[ButtonProxy](self.nimProxy)
   let button = cast[gtk4.Button](proxy.widget)
   let blockNode = args[0].toBlock()
 
-  # Connect GTK signal -> Nimtalk callback
+  # Connect GTK signal -> Nemo callback
   button.connect("clicked", proc(btn: Button) =
     discard proxy.interp[].evalBlock(blockNode)
   )
@@ -493,7 +493,7 @@ proc connectRowActivated*(proxy: GtkWidgetProxy, blockNode: BlockNode) =
   )
 ```
 
-**Nimtalk usage:**
+**Nemo usage:**
 ```smalltalk
 button connectClicked: [ self doSomething ].
 canvas connectMotion: [ :x :y | self drawAt: x @ y ].
@@ -511,7 +511,7 @@ entry connectKeyPressed: [ :keyval :keycode :mods |
 
 ### 5.1 Widget Lifecycle and Memory Management
 
-GTK widgets are reference-counted via GObject. When a Nimtalk `GtkWidget` object is garbage collected, the underlying GTK widget must be properly released.
+GTK widgets are reference-counted via GObject. When a Nemo `GtkWidget` object is garbage collected, the underlying GTK widget must be properly released.
 
 **Strategy:** Track widget ownership and destruction state:
 
@@ -525,26 +525,26 @@ type
 # When GTK widget is destroyed (window closed, etc.), mark proxy
 widget.connect("destroy", proc(w: gtk4.Widget) =
   proxy.destroyed = true
-  proxy.signalHandlers.clear()  # Release Nimtalk blocks
+  proxy.signalHandlers.clear()  # Release Nemo blocks
 )
 
-# When Nimtalk object is GC'd, the proxy ref drops
+# When Nemo object is GC'd, the proxy ref drops
 # GTK's refcount handles the rest - we DON'T explicitly destroy
 # because user might still have GTK references
 ```
 
 **Rules:**
 1. GTK owns widget lifetime (via refcount)
-2. Nimtalk proxy tracks destroyed state
+2. Nemo proxy tracks destroyed state
 3. Methods check `destroyed` flag before operating
 4. Explicit `widget destroy` available for manual cleanup
 5. Closing a window destroys child widgets automatically
 
 ### 5.2 Event Loop Integration
 
-The GTK main loop and Nimtalk evaluation must cooperate. When a signal handler runs Nimtalk code, the UI is blocked until evaluation completes.
+The GTK main loop and Nemo evaluation must cooperate. When a signal handler runs Nemo code, the UI is blocked until evaluation completes.
 
-**Approach:** Run Nimtalk in the GTK main thread (simple, predictable):
+**Approach:** Run Nemo in the GTK main thread (simple, predictable):
 
 ```
 GTK Main Loop
@@ -553,7 +553,7 @@ Signal Emitted (e.g., button clicked)
     ↓
 Signal Handler Called
     ↓
-Nimtalk Block Evaluated (UI blocked)
+Nemo Block Evaluated (UI blocked)
     ↓
 Handler Returns
     ↓
@@ -581,7 +581,7 @@ proc longOperationChunked(interp: ptr Interpreter, chunks: seq[Node]) =
 
 Option B: Background thread with channel (future enhancement):
 ```nim
-# Worker thread evaluates Nimtalk
+# Worker thread evaluates Nemo
 # Results sent via channel
 # Main thread picks up via idle callback
 ```
@@ -590,7 +590,7 @@ Option B: Background thread with channel (future enhancement):
 
 ### 5.3 Error Handling in Signal Callbacks
 
-GTK signal handlers cannot propagate exceptions. If a Nimtalk block raises an error, we must catch it and report gracefully.
+GTK signal handlers cannot propagate exceptions. If a Nemo block raises an error, we must catch it and report gracefully.
 
 **Implementation:** (shown in 4.1 `safeEvalBlock`)
 
@@ -599,7 +599,7 @@ GTK signal handlers cannot propagate exceptions. If a Nimtalk block raises an er
 - Attempt to show in Transcript
 - Never crash the GTK event loop
 
-**Nimtalk-level error handling:**
+**Nemo-level error handling:**
 
 ```smalltalk
 button clicked: [
@@ -611,17 +611,17 @@ button clicked: [
 
 ---
 
-## Part 6: The Nimtalk GUI Layer
+## Part 6: The Nemo GUI Layer
 
-This is where the actual IDE tools live. All written in Nimtalk - fully malleable!
+This is where the actual IDE tools live. All written in Nemo - fully malleable!
 
-### 6.1 GTK4 Base Classes (Nimtalk)
+### 6.1 GTK4 Base Classes (Nemo)
 
 **File:** `lib/nimtalk/gui/Gtk4/Widget.nt`
 
 ```smalltalk
 "Base class for all GTK widgets
- This is a Nimtalk wrapper around the Nim GTK proxy"
+ This is a Nemo wrapper around the Nim GTK proxy"
 
 GtkWidget := Object derive: #(
     proxy           "The underlying Nim GTK proxy object"
@@ -663,7 +663,7 @@ GtkWidget at: #addCssClass: put: [ :className |
 ].
 ```
 
-### 6.2 Window Class (Nimtalk)
+### 6.2 Window Class (Nemo)
 
 **File:** `lib/nimtalk/gui/Gtk4/Window.nt`
 
@@ -720,7 +720,7 @@ GtkWindow at: #defaultSize: put: [ :aPoint |
 ].
 ```
 
-### 6.3 Button Class (Nimtalk)
+### 6.3 Button Class (Nemo)
 
 **File:** `lib/nimtalk/gui/Gtk4/Button.nt`
 
@@ -771,7 +771,7 @@ GtkButton at: #clicked: put: [ :aBlock |
 ].
 ```
 
-### 6.4 Box Layout (Nimtalk)
+### 6.4 Box Layout (Nemo)
 
 **File:** `lib/nimtalk/gui/Gtk4/Box.nt`
 
@@ -823,7 +823,7 @@ GtkBox at: #remove: put: [ :aWidget |
 
 ---
 
-## Part 7: IDE Tool Implementations (All in Nimtalk!)
+## Part 7: IDE Tool Implementations (All in Nemo!)
 
 ### 7.1 Launcher Window
 
@@ -840,7 +840,7 @@ IdeLauncher := GtkWindow derive: #(
 
 IdeLauncher at: #initialize put: [
     super initialize.
-    self title: 'Nimtalk IDE'.
+    self title: 'Nemo IDE'.
     self defaultSize: 800 @ 600.
     self buildUI.
     ^self
@@ -1125,7 +1125,7 @@ IdeInspector at: #refresh put: [
 
 ```nim
 ## IDE Entry Point
-## Loads Nimtalk GUI code and starts the application
+## Loads Nemo GUI code and starts the application
 
 import gintro/[gtk4, gobject, gio]
 import ../core/types
@@ -1136,7 +1136,7 @@ import gtk4/[bridge, widget, window, button, textview, box]
 proc initGtkBridge(interp: var Interpreter) =
   ## Register GTK wrapper functions with interpreter
 
-  # Create GtkBridge object in Nimtalk globals
+  # Create GtkBridge object in Nemo globals
   let bridgeObj = Instance(class: rootObj, slots: @[])
   addMethod(bridgeObj, "createWindow", createWindowNative)
   addMethod(bridgeObj, "createButton:", createButtonNative)
@@ -1148,7 +1148,7 @@ proc initGtkBridge(interp: var Interpreter) =
   interp.globals["IdeBridge"] = NodeValue(kind: vkObject, objVal: createIdeBridge())
 
 proc loadGuiCode(interp: var Interpreter) =
-  ## Load all Nimtalk GUI files
+  ## Load all Nemo GUI files
   let guiFiles = [
     "lib/nimtalk/gui/Gtk4/Widget.nt",
     "lib/nimtalk/gui/Gtk4/Window.nt",
@@ -1180,10 +1180,10 @@ proc main =
   # Initialize GTK bridge
   initGtkBridge(interp)
 
-  # Load Nimtalk GUI code
+  # Load Nemo GUI code
   loadGuiCode(interp)
 
-  # Launch the IDE by calling Nimtalk entry point
+  # Launch the IDE by calling Nemo entry point
   discard interp.doit("IdeLauncher new present")
 
   # Run GTK main loop
@@ -1216,10 +1216,10 @@ Ship a usable Transcript + Workspace first, then iterate.
 - Entry (text input) wrapper
 - Label wrapper
 
-**Phase 3: Nimtalk GTK Classes (1-2 weeks)**
+**Phase 3: Nemo GTK Classes (1-2 weeks)**
 - Write Widget.nt, Window.nt, Button.nt, Box.nt
 - Write TextView.nt, ScrolledWindow.nt
-- Write signal handling in Nimtalk
+- Write signal handling in Nemo
 
 **Phase 4: Transcript + Workspace (2-3 weeks)**
 - Launcher window with Transcript
@@ -1229,7 +1229,7 @@ Ship a usable Transcript + Workspace first, then iterate.
 
 **MVP Total: 7-9 weeks**
 
-**MVP Deliverable:** A working IDE where you can write Nimtalk code in a Workspace, evaluate it, and see output in the Transcript.
+**MVP Deliverable:** A working IDE where you can write Nemo code in a Workspace, evaluate it, and see output in the Transcript.
 
 ---
 
@@ -1264,21 +1264,21 @@ After MVP is stable and usable, continue with:
 ## Part 10: Benefits of This Architecture
 
 ### 1. True Malleability
-All IDE tools are Nimtalk code. Modify the browser layout live. Change colors, add buttons, rearrange panes - all from within the running IDE.
+All IDE tools are Nemo code. Modify the browser layout live. Change colors, add buttons, rearrange panes - all from within the running IDE.
 
 ### 2. Evolution Path
 ```
-Phase 1 (Now):      Nim GTK wrapper -> Nimtalk GUI tools
-Phase 2 (Future):   FFI to GTK -> Pure Nimtalk GTK binding
+Phase 1 (Now):      Nim GTK wrapper -> Nemo GUI tools
+Phase 2 (Future):   FFI to GTK -> Pure Nemo GTK binding
 ```
 
-Eventually, even the wrapper can be replaced with FFI calls from Nimtalk.
+Eventually, even the wrapper can be replaced with FFI calls from Nemo.
 
 ### 3. Teaching Tool
-Students can read and modify the IDE itself to learn Nimtalk.
+Students can read and modify the IDE itself to learn Nemo.
 
 ### 4. Community Contributions
-Users can share custom IDE tools as Nimtalk packages.
+Users can share custom IDE tools as Nemo packages.
 
 ### 5. Multiple UIs
 The same bridge supports:
@@ -1290,7 +1290,7 @@ The same bridge supports:
 
 ## Part 11: Glade/XML UI Definition Support (Optional Enhancement)
 
-**Note:** This is an optional feature for UI prototyping. The primary workflow is code-based construction in Nimtalk, which provides full malleability. Glade can be used to quickly prototype layouts, then import them into Nimtalk for further refinement and dynamic behavior.
+**Note:** This is an optional feature for UI prototyping. The primary workflow is code-based construction in Nemo, which provides full malleability. Glade can be used to quickly prototype layouts, then import them into Nemo for further refinement and dynamic behavior.
 
 For visual UI design, add support for Glade XML files:
 
@@ -1347,7 +1347,7 @@ doItButton clicked: [ self doIt ].
 
 **Benefits:**
 - Design UIs visually in Glade
-- Load and hook up in Nimtalk
+- Load and hook up in Nemo
 - Completely malleable
 
 ---
@@ -1362,7 +1362,7 @@ doItButton clicked: [ self doIt ].
 | Widget lifecycle bugs | Track destroyed state, validate before operations |
 | Type-unsafe proxy casts | Type-checking `asWidgetProxy` helper |
 | Performance | Lazy widget creation, virtual scrolling |
-| GTK learning curve | Mirror GTK API closely in Nimtalk |
+| GTK learning curve | Mirror GTK API closely in Nemo |
 | Debugging bridge issues | Extensive logging in bridge layer |
 
 ---
@@ -1371,11 +1371,11 @@ doItButton clicked: [ self doIt ].
 
 This revised plan uses **gintro** instead of Owlkettle because:
 
-1. **gintro enables malleability** - GTK objects can be exposed to Nimtalk
+1. **gintro enables malleability** - GTK objects can be exposed to Nemo
 2. **Owlkettle prevents malleability** - its declarative macros are compile-time only
 3. **gintro is more direct** - simpler bridge, less abstraction
 
-The GUI tools (Transcript, Workspace, Inspector, Browser, Debugger) are all written in **Nimtalk itself**, making them fully malleable at runtime. Only a thin bridge layer (~20 core GTK widgets) is static Nim code.
+The GUI tools (Transcript, Workspace, Inspector, Browser, Debugger) are all written in **Nemo itself**, making them fully malleable at runtime. Only a thin bridge layer (~20 core GTK widgets) is static Nim code.
 
 **Timeline:**
 - **MVP (Transcript + Workspace): 7-9 weeks**
@@ -1384,7 +1384,7 @@ The GUI tools (Transcript, Workspace, Inspector, Browser, Debugger) are all writ
 **Critical Success Metric:** A user can open a Workspace, modify the `IdeLauncher` class, and see the changes immediately in the running IDE.
 
 **Why NOT Owlkettle?**
-Owlkettle uses its own custom GTK bindings (not gintro). Its value is in compile-time macros (`gui:`, `viewable`) that generate code at compile time. Since we want GUI construction to happen in Nimtalk at runtime, Owlkettle's declarative layer cannot be used. We'd only access its low-level bindings, offering no advantage over gintro.
+Owlkettle uses its own custom GTK bindings (not gintro). Its value is in compile-time macros (`gui:`, `viewable`) that generate code at compile time. Since we want GUI construction to happen in Nemo at runtime, Owlkettle's declarative layer cannot be used. We'd only access its low-level bindings, offering no advantage over gintro.
 
 **Why gintro?**
-gintro exposes GTK directly. We can wrap its objects in Nim proxies and pass them to Nimtalk. This enables true malleability - Nimtalk code creates and manages GTK widgets at runtime.
+gintro exposes GTK directly. We can wrap its objects in Nim proxies and pass them to Nemo. This enables true malleability - Nemo code creates and manages GTK widgets at runtime.

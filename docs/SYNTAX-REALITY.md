@@ -1,6 +1,6 @@
-# Nimtalk Syntax - Current Implementation
+# Nemo Syntax - Current Implementation
 
-This document describes the **actual implemented syntax** in the current Nimtalk interpreter. Key updates:
+This document describes the **actual implemented syntax** in the current Nemo interpreter. Key updates:
 - ✅ Slot-based instance variable system fully implemented (149x performance improvement)
 - ✅ Binary operators implemented as regular messages
 - ✅ Cascade syntax working (`;` operator)
@@ -21,7 +21,7 @@ Single quotes are reserved for future use.
 
 ## Comments
 
-Nimtalk uses **hash-style comments**:
+Nemo uses **hash-style comments**:
 
 ```nimtalk
 # This is a comment
@@ -43,10 +43,10 @@ Nimtalk uses **hash-style comments**:
 
 ## Shebang Support
 
-Nimtalk scripts can include shebang lines at the beginning:
+Nemo scripts can include shebang lines at the beginning:
 
 ```smalltalk
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 # This script can be made executable and run directly
 
 calculator := Object derive.
@@ -99,10 +99,10 @@ The vertical bar `|` **only appears when you have block parameters or temporarie
 ]
 ```
 
-**Nimtalk-specific feature**: Unlike most Smalltalk implementations, Nimtalk allows you to omit the `|` when a block has parameters but no temporaries. This is more concise while remaining unambiguous:
+**Nemo-specific feature**: Unlike most Smalltalk implementations, Nemo allows you to omit the `|` when a block has parameters but no temporaries. This is more concise while remaining unambiguous:
 
 ```smalltalk
-# Nimtalk - valid and concise
+# Nemo - valid and concise
 Object at: #error: put: [
   :message
   self error: "Message not understood: " + message asString
@@ -131,7 +131,7 @@ When there's no second `|` block (temporaries), the first `|` acts as the separa
 # No params, no temps
 [ code ]
 
-# Params, no temps (Nimtalk style - optional |)
+# Params, no temps (Nemo style - optional |)
 [ :x :y | code ]
 
 # Params, no temps (explicit - also valid)
@@ -148,7 +148,7 @@ When there's no second `|` block (temporaries), the first `|` acts as the separa
 
 ### >> Syntax (Implemented)
 
-Nimtalk supports the `>>` method definition syntax for cleaner method declarations:
+Nemo supports the `>>` method definition syntax for cleaner method declarations:
 
 ```smalltalk
 # Unary method (no parameters)
@@ -232,7 +232,7 @@ name := "Alice".
 
 ## Message Passing
 
-Nimtalk uses Smalltalk-style message passing:
+Nemo uses Smalltalk-style message passing:
 
 ```smalltalk
 # Unary messages
@@ -259,7 +259,7 @@ tab at: #name        # returns "Alice"
 
 ## Cascading
 
-Nimtalk implements the Smalltalk cascade syntax using `;` to send multiple messages to the same receiver:
+Nemo implements the Smalltalk cascade syntax using `;` to send multiple messages to the same receiver:
 
 ```smalltalk
 # Send multiple messages to the same object
@@ -278,7 +278,7 @@ The receiver is evaluated once, then each message in the cascade is sent to that
 
 ## Primitive Syntax
 
-Nimtalk supports three forms for working with primitives:
+Nemo supports three forms for working with primitives:
 
 ### Declarative Primitives
 

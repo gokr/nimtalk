@@ -1,4 +1,4 @@
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 #
 # FileStream.nt - File I/O operations
 # Provides Smalltalk-style file streaming

@@ -1,4 +1,4 @@
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 #
 # Boolean.nt - Boolean class hierarchy extensions
 # Adds methods to the existing Boolean, True, and False classes

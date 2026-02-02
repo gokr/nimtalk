@@ -1,9 +1,9 @@
 import std/[unittest, tables]
-import ../src/nimtalk/core/types
-import ../src/nimtalk/core/process
-import ../src/nimtalk/core/scheduler
-import ../src/nimtalk/interpreter/evaluator
-import ../src/nimtalk/interpreter/objects
+import ../src/nemo/core/types
+import ../src/nemo/core/process
+import ../src/nemo/core/scheduler
+import ../src/nemo/interpreter/evaluator
+import ../src/nemo/interpreter/objects
 
 suite "Green Threads - Scheduler Integration":
   # Initialize core classes before any tests

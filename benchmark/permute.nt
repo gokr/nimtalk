@@ -1,8 +1,8 @@
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 # Permutation Benchmark
 # Ported from SOM benchmark suite (https://github.com/smarr/SOM)
 # Expected result: 8660 for permutations of 7 elements
-# NOTE: Simplified version for current Nimtalk limitations
+# NOTE: Simplified version for current Nemo limitations
 
 # The full permutation benchmark requires:
 # - Array for storing elements
@@ -14,6 +14,6 @@
 # But the SOM benchmark counts intermediate states too
 # Expected result: 8660
 
-# Current Nimtalk limitations prevent full implementation
+# Current Nemo limitations prevent full implementation
 
 8660

@@ -1,8 +1,8 @@
-# VSCode Extension for Nimtalk
+# VSCode Extension for Nemo
 
 ## Overview
 
-The Nimtalk repository includes a VSCode extension that provides syntax highlighting for `.nt` files. This allows developers to get immediate syntax highlighting without needing to install a separate extension from the marketplace.
+The Nemo repository includes a VSCode extension that provides syntax highlighting for `.nt` files. This allows developers to get immediate syntax highlighting without needing to install a separate extension from the marketplace.
 
 ## Installation
 
@@ -129,7 +129,7 @@ This convention makes class references stand out from local variables.
 
 **Extension not loading:**
 - Ensure VSCode is reloaded after installation
-- Check that the `.nt` file extension is associated with Nimtalk (should happen automatically)
+- Check that the `.nt` file extension is associated with Nemo (should happen automatically)
 
 **Incorrect highlighting:**
 - Use "Developer: Inspect Editor Tokens and Scopes" to verify which scopes are applied

@@ -38,17 +38,17 @@ Thumbs.db
 *.out
 tests/test_core
 
-# Nimtalk binaries
-ntalk
-ntalkc
-/nimtalk/
+# Nemo binaries
+nemo
+nemoc
+/nemo/
 # Binary patterns from source directories
-src/nimtalk/compiler/*
-!src/nimtalk/compiler/*.nim
-src/nimtalk/repl/*
-!src/nimtalk/repl/*.nim
-src/nimtalk/codegen/*
-!src/nimtalk/codegen/*.nim
+src/nemo/compiler/*
+!src/nemo/compiler/*.nim
+src/nemo/repl/*
+!src/nemo/repl/*.nim
+src/nemo/codegen/*
+!src/nemo/codegen/*.nim
 # Test binaries
 tests/test_evaluator
 tests/test_evaluator.nim
@@ -73,5 +73,5 @@ tests/test_super
 tests/test_process
 tests/test_scheduler
 *.vsix
-src/nimtalk/parser/lexer
+src/nemo/parser/lexer
 tests/test_primitives

@@ -1,10 +1,10 @@
 #
-# test_stdlib.nim - Comprehensive tests for Nimtalk Standard Library
+# test_stdlib.nim - Comprehensive tests for Nemo Standard Library
 #
 
 import std/unittest
-import ../src/nimtalk/core/types
-import ../src/nimtalk/interpreter/[evaluator, objects]
+import ../src/nemo/core/types
+import ../src/nemo/interpreter/[evaluator, objects]
 
 suite "Stdlib: Numbers":
   var interp: Interpreter

@@ -1,6 +1,6 @@
-# Nimtalk Development TODO
+# Nemo Development TODO
 
-This document tracks current work items and future directions for Nimtalk development.
+This document tracks current work items and future directions for Nemo development.
 
 ## Current Status
 
@@ -24,7 +24,7 @@ This document tracks current work items and future directions for Nimtalk develo
 - **derive:methods:** for combined class creation ✅
 - **perform:** family for dynamic message sending ✅
 
-**Not Yet Implemented**: Compiler (ntalkc is stub), FFI, advanced standard library.
+**Not Yet Implemented**: Compiler (nemoc is stub), FFI, advanced standard library.
 
 ## High Priority
 
@@ -32,7 +32,7 @@ This document tracks current work items and future directions for Nimtalk develo
 - [ ] Method compilation from AST to Nim procedures
 - [ ] Nim type definitions for Class and Instance
 - [ ] Symbol export for compiled methods
-- [ ] Working `ntalkc` (currently stub)
+- [ ] Working `nemoc` (currently stub)
 
 ### FFI Integration
 - [ ] Nim type marshaling
@@ -93,7 +93,7 @@ This document tracks current work items and future directions for Nimtalk develo
 - Monitors and SharedQueues (in progress)
 - Memory management for circular references
 - Error handling improvements needed
-- Compiler implementation (ntalkc is stub)
+- Compiler implementation (nemoc is stub)
 
 ## Documentation Needs
 
@@ -106,7 +106,7 @@ This document tracks current work items and future directions for Nimtalk develo
 ## Build Quick Reference
 
 ```bash
-nimble build       # Build ntalk and ntalkc
+nimble build       # Build nemo and nemoc
 nimble local       # Build and copy to root
 nimble test        # Run tests
 nimble clean       # Clean artifacts
@@ -159,7 +159,7 @@ nimble clean       # Clean artifacts
 - Round-robin scheduling with explicit yields
 - Process states: ready, running, blocked, suspended, terminated
 - `Processor` global object with `yield`, `fork:`, `current` methods
-- Process forking from Nimtalk blocks
+- Process forking from Nemo blocks
 - Test suite for scheduler and process lifecycle
 
 ---

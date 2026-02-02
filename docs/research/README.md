@@ -1,6 +1,6 @@
-# Nimtalk Research and Historical Documents
+# Nemo Research and Historical Documents
 
-This directory contains historical design documents, implementation plans, and research notes from Nimtalk's development. These documents are kept for reference but may not reflect the current implementation.
+This directory contains historical design documents, implementation plans, and research notes from Nemo's development. These documents are kept for reference but may not reflect the current implementation.
 
 ## Contents
 

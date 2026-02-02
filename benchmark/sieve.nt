@@ -1,4 +1,4 @@
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 # Sieve of Eratosthenes Benchmark
 # Ported from SOM benchmark suite (https://github.com/smarr/SOM)
 # Expected result: 669 primes below 5000

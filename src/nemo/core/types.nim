@@ -1,7 +1,7 @@
 import std/[tables, logging]
 
 # ============================================================================
-# Core Types for Nimtalk
+# Core Types for Nemo
 # ============================================================================
 
 # All type definitions in a single section to allow forward declarations

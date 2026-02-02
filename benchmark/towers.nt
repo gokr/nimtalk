@@ -1,4 +1,4 @@
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 # Towers of Hanoi Benchmark
 # Ported from SOM benchmark suite (https://github.com/smarr/SOM)
 # Expected result: 8191 moves for 13 disks

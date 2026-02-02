@@ -21,8 +21,8 @@ nimcache/
 build/
 
 # Binaries
-ntalk
-ntalkc
+nemo
+nemoc
 nimtalk/
 
 # Tools

@@ -3,8 +3,8 @@ import ../core/types
 import ../interpreter/[objects, activation]
 
 # ============================================================================
-# Nimtalk Runtime
-# Runtime support for compiled Nimtalk code
+# Nemo Runtime
+# Runtime support for compiled Nemo code
 # ============================================================================
 
 type

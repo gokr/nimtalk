@@ -12,7 +12,7 @@ import ../interpreter/activation
 # They are re-exported for backward compatibility with code that imports evaluator
 
 # ============================================================================
-# Evaluation engine for Nimtalk
+# Evaluation engine for Nemo
 # Interprets AST nodes and executes currentMethods
 # ============================================================================
 

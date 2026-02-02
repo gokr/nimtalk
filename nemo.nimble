@@ -1,11 +1,11 @@
-# Nimtalk - Modern Smalltalk dialect
+# Nemo - Modern Smalltalk dialect
 version = "0.2.0"
 author = "Göran Krampe"
 description = "Modern Smalltalk dialect written in Nim"
 license = "MIT"
 
 srcDir = "src"
-bin = @["nimtalk/repl/ntalk", "nimtalk/compiler/ntalkc"]
+bin = @["nemo/repl/nemo", "nemo/compiler/nemoc"]
 
 # Current Nim version
 requires "nim == 2.2.6"
@@ -20,7 +20,7 @@ import os, strutils
 
 task test, "Run all tests (automatic discovery via testament)":
   exec """
-    echo "Running Nimtalk test suite..."
+    echo "Running Nemo test suite..."
     echo "=== Running tests/test_*.nim ==="
     testament pattern "tests/test_*.nim" || true
     # echo "=== Running tests/category/*.nim ==="
@@ -30,41 +30,40 @@ task test, "Run all tests (automatic discovery via testament)":
   """
 
 task local, "Build and copy binaries to root directory":
-  exec "nimble build"
-  # Copy binaries to root directory for convenience
-  exec "cp nimtalk/repl/ntalk ntalk 2>/dev/null || true"
-  exec "cp nimtalk/compiler/ntalkc ntalkc 2>/dev/null || true"
-  echo "Binaries available in root directory as ntalk and ntalkc"
+  # Build REPL directly (nimble build has path conflicts with package name)
+  exec "nim c -o:nemo src/nemo/repl/nemo.nim"
+  exec "nim c -o:nemoc src/nemo/compiler/nemoc.nim"
+  echo "Binaries available in root directory as nemo and nemoc"
 
 task clean, "Clean build artifacts using build.nims":
   exec "nim e build.nims clean"
 
-task install, "Install ntalk to ~/.local/bin/":
+task install, "Install nemo to ~/.local/bin/":
   var binPath = ""
-  for possiblePath in ["ntalk", "nimtalk/repl/ntalk"]:
+  for possiblePath in ["nemo", "nemo/repl/nemo"]:
     if possiblePath.fileExists:
       binPath = possiblePath
       break
 
   when defined(windows):
     if binPath == "":
-      for possiblePath in ["ntalk.exe", "nimtalk/repl/ntalk.exe"]:
+      for possiblePath in ["nemo.exe", "nemo/repl/nemo.exe"]:
         if possiblePath.fileExists:
           binPath = possiblePath
           break
 
   if binPath == "" or not binPath.fileExists:
-    echo "Error: ntalk binary not found. Run 'nimble build' or 'nimble setup' first."
-    echo "Checked locations: ./ntalk, nimtalk/repl/ntalk"
+    echo "Error: nemo binary not found. Run 'nimble build' or 'nimble setup' first."
+    echo "Checked locations: ./nemo, nemo/repl/nemo"
     system.quit(1)
 
   when defined(windows):
-    let dest = getHomeDir() / "ntalk" / "ntalk.exe"
-    exec "mkdir -p " & (getHomeDir() / "ntalk")
+    let dest = getHomeDir() / "nemo" / "nemo.exe"
+    exec "mkdir -p " & (getHomeDir() / "nemo")
     exec "cp " & binPath & " " & dest
     echo "Installed to: " & dest
   else:
-    let dest = getHomeDir() / ".local" / "bin" / "ntalk"
+    let dest = getHomeDir() / ".local" / "bin" / "nemo"
     exec "mkdir -p " & (getHomeDir() / ".local" / "bin")
     exec "cp " & binPath & " " & dest & " && chmod +x " & dest
     echo "Installed to: " & dest

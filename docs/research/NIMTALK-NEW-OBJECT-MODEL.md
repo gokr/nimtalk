@@ -1,8 +1,8 @@
-# Nimtalk New Object Model - Summary
+# Nemo New Object Model - Summary
 
 ## What We're Building
 
-A new prototype-based object model for Nimtalk that:
+A new prototype-based object model for Nemo that:
 - **Eliminates property bags** in favor of declared instance variables
 - **Improves performance** with direct slot access (no dictionary lookup)
 - **Maintains prototype flexibility** with structured object definitions
@@ -282,7 +282,7 @@ Start implementing:
 
 ## What's Different from Traditional Smalltalk?
 
-| Aspect | Smalltalk-80 | Nimtalk |
+| Aspect | Smalltalk-80 | Nemo |
 |--------|--------------|---------|
 | Object Model | Class-based | Prototype-based |
 | Inheritance | Subclassing | Derivation / chain |
@@ -291,9 +291,9 @@ Start implementing:
 | Collections | OrderedCollection | seq/Table (Nim) |
 | Compilation | Usually bytecode | Nim native |
 
-## What's Different from Old Nimtalk?
+## What's Different from Old Nemo?
 
-| Aspect | Old Nimtalk | New Nimtalk |
+| Aspect | Old Nemo | New Nemo |
 |--------|-------------|-------------|
 | Instance Variables | Arbitrary properties on Object | Declared slots on Object, property bag on Dictionary |
 | Access Pattern | Dictionary lookup | Direct slot access or Dictionary lookup |

@@ -1,4 +1,4 @@
-# Nimtalk build script
+# Nemo build script
 
 import os, strutils
 
@@ -6,9 +6,9 @@ import os, strutils
 task "setup", "Build and copy binaries to root directory":
   exec "nimble build"
   # Copy binaries to root directory for convenience
-  exec "cp nimtalk/repl/ntalk ntalk 2>/dev/null || true"
-  exec "cp nimtalk/compiler/ntalkc ntalkc 2>/dev/null || true"
-  echo "Binaries available in root directory as ntalk and ntalkc"
+  exec "cp nemo/repl/nemo nemo 2>/dev/null || true"
+  exec "cp nemo/compiler/nemoc nemoc 2>/dev/null || true"
+  echo "Binaries available in root directory as nemo and nemoc"
 
 # Build tests
 task "test", "Run tests":
@@ -18,16 +18,16 @@ task "test", "Run tests":
 task "clean", "Clean build artifacts":
   exec "rm -rf nimcache build 2>/dev/null || true"
   # Clean binaries in various possible locations
-  exec "rm -f ntalk ntalkc ntalk.exe ntalkc.exe 2>/dev/null || true"
-  exec "rm -f nimtalk/repl/ntalk nimtalk/repl/ntalkc nimtalk/compiler/ntalk nimtalk/compiler/ntalkc 2>/dev/null || true"
+  exec "rm -f nemo nemoc nemo.exe nemoc.exe 2>/dev/null || true"
+  exec "rm -f nemo/repl/nemo nemo/repl/nemoc nemo/compiler/nemo nemo/compiler/nemoc 2>/dev/null || true"
 
 # Install binary
-task "install", "Install Nimtalk":
+task "install", "Install Nemo":
   # Check multiple possible binary locations
   var binPath = ""
   for possiblePath in [
-    getCurrentDir() / "ntalk",
-    "nimtalk/repl/ntalk"
+    getCurrentDir() / "nemo",
+    "nemo/repl/nemo"
   ]:
     if fileExists(possiblePath):
       binPath = possiblePath
@@ -36,23 +36,23 @@ task "install", "Install Nimtalk":
   when defined(windows):
     if binPath == "":
       for possiblePath in [
-        getCurrentDir() / "ntalk.exe",
-        "nimtalk/repl/ntalk.exe"
+        getCurrentDir() / "nemo.exe",
+        "nemo/repl/nemo.exe"
       ]:
         if fileExists(possiblePath):
           binPath = possiblePath
           break
 
   if binPath == "":
-    echo "Error: ntalk binary not found. Run 'nimble build' first."
-    echo "Checked locations: ./ntalk, nimtalk/repl/ntalk"
+    echo "Error: nemo binary not found. Run 'nimble build' first."
+    echo "Checked locations: ./nemo, nemo/repl/nemo"
     return
 
-  let dest = getHomeDir() / ".local" / "bin" / "ntalk"
+  let dest = getHomeDir() / ".local" / "bin" / "nemo"
   when defined(windows):
     # On Windows, install to a common location
-    let winDest = getHomeDir() / "ntalk" / "ntalk.exe"
-    exec "mkdir -p " & (getHomeDir() / "ntalk")
+    let winDest = getHomeDir() / "nemo" / "nemo.exe"
+    exec "mkdir -p " & (getHomeDir() / "nemo")
     exec "cp " & binPath & " " & winDest
     echo "Installed to: " & winDest
   else:

@@ -1,4 +1,4 @@
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 #
 # Block.nt - Block (closure) methods
 # Provides Smalltalk-style iteration and control flow

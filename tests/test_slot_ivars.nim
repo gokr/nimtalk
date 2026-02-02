@@ -1,11 +1,11 @@
-# Nimtalk Slot-based Instance Variables Tests
+# Nemo Slot-based Instance Variables Tests
 #
 # Tests for the new class-based object model with declared instance variables
 #
 
 import std/[unittest, tables]
-import ../src/nimtalk/interpreter/objects
-import ../src/nimtalk/core/types
+import ../src/nemo/interpreter/objects
+import ../src/nemo/core/types
 
 suite "Slot-based Instance Variables (class-based model)":
   setup:

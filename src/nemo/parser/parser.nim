@@ -3,7 +3,7 @@ import ../parser/lexer
 import ../core/types
 
 # ============================================================================
-# Parser for Nimtalk
+# Parser for Nemo
 # Parses Smalltalk-style syntax into AST nodes
 # ============================================================================
 
@@ -40,7 +40,7 @@ proc parsePrimitiveTagContent(tagContent: string): (string, seq[Node], string) =
   if content.len == 0:
     return ("", @[], "Expected primitive selector after 'primitive'")
 
-  # Lex the content as Nimtalk tokens
+  # Lex the content as Nemo tokens
   let tokens = lex(content)
   if tokens.len == 0:
     return ("", @[], "Failed to lex primitive content")
@@ -644,7 +644,7 @@ proc parseBlock*(parser: var Parser): BlockNode =
     discard parser.next()
 
   # Check for temporaries: | temp1 temp2 | (Smalltalk-style)
-  # OR just consume the | separator and parse body (Nimtalk-style)
+  # OR just consume the | separator and parse body (Nemo-style)
   # In the test syntax, [| ...] means block with no params, just consume | and parse body
   debug("parseBlock: checking for temporaries, current=", parser.peek().kind, " value=", parser.peek().value)
   if parser.peek().kind == tkPipe:

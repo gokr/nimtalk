@@ -1,6 +1,6 @@
-# The `perform:` Mechanism in Nimtalk
+# The `perform:` Mechanism in Nemo
 
-This document explains how `perform:` works for dynamic message sending in Nimtalk, including its implementation details and performance characteristics.
+This document explains how `perform:` works for dynamic message sending in Nemo, including its implementation details and performance characteristics.
 
 ## Overview
 

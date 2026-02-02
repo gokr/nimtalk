@@ -1,5 +1,5 @@
 # ============================================================================
-# Lexer for Nimtalk - Tokenizes Smalltalk-style syntax
+# Lexer for Nemo - Tokenizes Smalltalk-style syntax
 # ============================================================================
 
 import std/strutils
@@ -437,7 +437,7 @@ proc nextToken*(lexer: var Lexer): Token =
     discard lexer.next()
     let nextChar = lexer.peek()
 
-    # Special case: shebang line at start of file (e.g., #!/usr/bin/env ntalk)
+    # Special case: shebang line at start of file (e.g., #!/usr/bin/env nemo)
     if lexer.line == 1 and lexer.col == 2 and nextChar == '!':
       # Skip shebang line
       while lexer.pos < lexer.input.len and lexer.peek() != '\n':

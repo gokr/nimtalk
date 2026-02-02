@@ -1,18 +1,18 @@
-# Concurrency Design for Nimtalk
+# Concurrency Design for Nemo
 
-This document explores concurrency models for Nimtalk, comparing different approaches and their implications for the language design, debugger implementation, and compilation strategy.
+This document explores concurrency models for Nemo, comparing different approaches and their implications for the language design, debugger implementation, and compilation strategy.
 
 ## Goals
 
-Nimtalk aims to support:
+Nemo aims to support:
 
-1. **Smalltalk-style debugging** - A debugger written in Nimtalk itself that can manipulate other processes (step, pause, continue, introspect stacks)
-2. **Efficient compilation** - Nimtalk programs compile to efficient Nim code for deployment
+1. **Smalltalk-style debugging** - A debugger written in Nemo itself that can manipulate other processes (step, pause, continue, introspect stacks)
+2. **Efficient compilation** - Nemo programs compile to efficient Nim code for deployment
 3. **Native thread utilization** - Take advantage of Nim's threading capabilities
 
 ## Current Architecture Context
 
-Nimtalk's interpreter uses:
+Nemo's interpreter uses:
 
 - **Per-Interpreter activation stack** - Each `Interpreter` has `activationStack: seq[Activation]`, naturally isolating Process state
 - **Spaghetti stack** - Activations link via `sender` for non-local returns
@@ -31,7 +31,7 @@ Nimtalk's interpreter uses:
 - Full control over scheduling enables deterministic debugging
 - Processes can be suspended, resumed, and introspected
 
-**Nimtalk mapping**:
+**Nemo mapping**:
 ```nim
 type
   Process* = ref object
@@ -74,7 +74,7 @@ Each `Activation` exposes:
 - Long-lived - persists until explicitly terminated
 - No shared mutable state by design
 
-**Nimtalk mapping**:
+**Nemo mapping**:
 ```nim
 type
   Pid* = ref object
@@ -88,7 +88,7 @@ type
     args*: seq[NodeValue]
 ```
 
-**Nimtalk syntax**:
+**Nemo syntax**:
 ```smalltalk
 "Spawn a new actor process"
 pid := [self receive: [:msg | msg process]] spawn.
@@ -118,7 +118,7 @@ self receive: [
 - Channels are the communication mechanism
 - No inherent identity
 
-**Nimtalk mapping**:
+**Nemo mapping**:
 ```nim
 type
   Channel*[T] = ref object
@@ -131,7 +131,7 @@ type
     nativeThread*: Thread[void]
 ```
 
-**Nimtalk syntax**:
+**Nemo syntax**:
 ```smalltalk
 "Create a channel"
 ch := Channel new: 10.
@@ -170,7 +170,7 @@ select: [
 - Can be resumed multiple times (undelimited) or once (delimited)
 - Not inherently concurrent - enables concurrency implementations
 
-**Nimtalk mapping**:
+**Nemo mapping**:
 ```nim
 type
   Continuation* = ref object
@@ -182,7 +182,7 @@ type
     handler*: BlockNode
 ```
 
-**Nimtalk syntax**:
+**Nemo syntax**:
 ```smalltalk
 "Capture current continuation"
 continuation := self callcc: [:cont |
@@ -299,7 +299,7 @@ proc runScheduler() =
     resume(next.interpreter)
 ```
 
-**Option B: Nimtalk-level** (migrate here)
+**Option B: Nemo-level** (migrate here)
 ```smalltalk
 Scheduler runLoop: [
   self nextProcess ifNotNil: [:p |

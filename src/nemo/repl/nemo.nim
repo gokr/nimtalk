@@ -1,6 +1,6 @@
 #!/usr/bin/env nim
 #
-# Nimtalk REPL - Main entry point
+# Nemo REPL - Main entry point
 #
 
 import std/[os, strutils, logging]
@@ -8,12 +8,12 @@ import ../repl/doit
 import ../core/types
 
 # ============================================================================
-# Main entry point for Nimtalk REPL
+# Main entry point for Nemo REPL
 # ============================================================================
 
 # Version constant
 const VERSION* = block:
-  const nimblePath = currentSourcePath().parentDir().parentDir().parentDir().parentDir() / "nimtalk.nimble"
+  const nimblePath = currentSourcePath().parentDir().parentDir().parentDir().parentDir() / "nemo.nimble"
   const nimbleContent = staticRead(nimblePath)
   var versionStr = "unknown"
   for line in nimbleContent.splitLines():
@@ -44,15 +44,15 @@ proc parseLogLevel(levelStr: string): Level =
     quit(1)
 
 proc showUsage() =
-  echo "Nimtalk REPL - Modern Smalltalk in Nim"
+  echo "Nemo REPL - Modern Smalltalk in Nim"
   echo ""
   echo "Usage:"
-  echo "  ntalk [options]                    # Start interactive REPL"
-  echo "  ntalk [options] <file.nt>          # Run script file"
-  echo "  ntalk [options] -e \"<code>\"       # Evaluate expression"
-  echo "  ntalk --test                       # Run built-in tests"
-  echo "  ntalk --help                       # Show this help"
-  echo "  ntalk --version                    # Show version"
+  echo "  nemo [options]                    # Start interactive REPL"
+  echo "  nemo [options] <file.nt>          # Run script file"
+  echo "  nemo [options] -e \"<code>\"       # Evaluate expression"
+  echo "  nemo --test                       # Run built-in tests"
+  echo "  nemo --help                       # Show this help"
+  echo "  nemo --version                    # Show version"
   echo ""
   echo "Options:"
   echo "  --ast              Dump AST after parsing and continue execution"
@@ -60,12 +60,12 @@ proc showUsage() =
   echo "  --stack-depth <n>  Set maximum stack depth (default: 10000)"
   echo ""
   echo "Examples:"
-  echo "  ntalk                              # Start REPL interactively"
-  echo "  ntalk examples/demo.nt             # Run a script file"
-  echo "  ntalk -e \"3 + 4\"                 # Evaluate expression (prints: 7)"
-  echo "  ntalk --ast examples/test.nt       # Show AST then execute"
-  echo "  ntalk --loglevel DEBUG script.nt   # Run with debug logging"
-  echo "  ntalk --stack-depth 50000 deep.nt  # Run with increased stack limit"
+  echo "  nemo                              # Start REPL interactively"
+  echo "  nemo examples/demo.nt             # Run a script file"
+  echo "  nemo -e \"3 + 4\"                 # Evaluate expression (prints: 7)"
+  echo "  nemo --ast examples/test.nt       # Show AST then execute"
+  echo "  nemo --loglevel DEBUG script.nt   # Run with debug logging"
+  echo "  nemo --stack-depth 50000 deep.nt  # Run with increased stack limit"
   echo ""
 
 proc main() =
@@ -128,10 +128,10 @@ proc main() =
     of "--help", "-h":
       showUsage()
     of "--version", "-v":
-      echo "Nimtalk " & VERSION
+      echo "Nemo " & VERSION
     of "--test":
       # Run tests
-      echo "Running Nimtalk tests..."
+      echo "Running Nemo tests..."
       var passed, failed = 0
 
       # Test 1: Basic arithmetic (3 + 4 = 7)

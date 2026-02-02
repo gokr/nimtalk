@@ -1,6 +1,6 @@
-# Design Decisions Needed for Nimtalk
+# Design Decisions Needed for Nemo
 
-*This document tracks key design decisions that need to be made during Nimtalk development.*
+*This document tracks key design decisions that need to be made during Nemo development.*
 
 ## Open Decisions
 

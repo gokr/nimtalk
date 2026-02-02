@@ -1,37 +1,37 @@
-# Nimtalk Tools and Debugging Guide
+# Nemo Tools and Debugging Guide
 
 ## Overview
 
-Nimtalk provides several command-line tools to support development, debugging, and deployment:
+Nemo provides several command-line tools to support development, debugging, and deployment:
 
-- `ntalk` - REPL and interpreter for interactive development
-- `ntalkc` - Compiler for transforming Nimtalk to Nim code
+- `nemo` - REPL and interpreter for interactive development
+- `nemoc` - Compiler for transforming Nemo to Nim code
 - `build.nims` - Build automation script
 
-## The REPL: ntalk
+## The REPL: nemo
 
-The `ntalk` command provides both interactive REPL and script execution capabilities.
+The `nemo` command provides both interactive REPL and script execution capabilities.
 
 ### Usage
 
 ```bash
 # Start interactive REPL
-ntalk
+nemo
 
 # Run a script file
-ntalk script.nt
+nemo script.nt
 
 # Evaluate an expression
-ntalk -e "3 + 4"
+nemo -e "3 + 4"
 
 # Show AST without executing (parse only)
-ntalk --ast script.nt
+nemo --ast script.nt
 
 # Run with debug logging
-ntalk --loglevel DEBUG script.nt
+nemo --loglevel DEBUG script.nt
 
 # Combine flags
-ntalk --ast --loglevel DEBUG -e "Object clone"
+nemo --ast --loglevel DEBUG -e "Object clone"
 ```
 
 ### Command-Line Options
@@ -54,7 +54,7 @@ ntalk --ast --loglevel DEBUG -e "Object clone"
 
 ### Debug Logging Output
 
-When using `--loglevel DEBUG`, ntalk provides detailed execution tracing:
+When using `--loglevel DEBUG`, nemo provides detailed execution tracing:
 
 ```
 DEBUG Evaluating node: nkMessage
@@ -86,32 +86,32 @@ Inside the REPL, these commands are available:
 - `:clear` - Clear the screen
 - `:trace` - Toggle execution tracing
 
-## The Compiler: ntalkc
+## The Compiler: nemoc
 
-The `ntalkc` command compiles Nimtalk source to Nim code.
+The `nemoc` command compiles Nemo source to Nim code.
 
 ### Usage
 
 ```bash
 # Compile to Nim source
-ntalkc compile input.nt -o output.nim
+nemoc compile input.nt -o output.nim
 
 # Compile and build executable
-ntalkc build input.nt -d build/
+nemoc build input.nt -d build/
 
 # Compile, build, and run
-ntalkc run input.nt --release
+nemoc run input.nt --release
 
 # Show AST before compiling
-ntalkc compile input.nt --ast
+nemoc compile input.nt --ast
 
 # Compile with debug logging
-ntalkc compile input.nt --loglevel DEBUG
+nemoc compile input.nt --loglevel DEBUG
 ```
 
 ### Commands
 
-**compile**: Transform Nimtalk to Nim source code
+**compile**: Transform Nemo to Nim source code
 **build**: Compile to Nim and build executable
 **run**: Compile, build, and execute the result
 **help**: Show usage information
@@ -132,7 +132,7 @@ ntalkc compile input.nt --loglevel DEBUG
 Nimble provides convenient build automation.
 
 ```bash
-# Build both ntalk and ntalkc (binaries in subdirectories)
+# Build both nemo and nemoc (binaries in subdirectories)
 nimble build
 
 # Build and copy binaries to root directory
@@ -156,10 +156,10 @@ Use `--ast` to understand how code is parsed:
 
 ```bash
 # See AST for expression
-ntalk --ast -e "3 + 4"
+nemo --ast -e "3 + 4"
 
 # See AST for complex code
-ntalk --ast script.nt
+nemo --ast script.nt
 ```
 
 AST output shows the structure:
@@ -177,10 +177,10 @@ Use `--loglevel DEBUG` to trace execution:
 
 ```bash
 # Trace message sends and method execution
-ntalk --loglevel DEBUG script.nt
+nemo --loglevel DEBUG script.nt
 
 # Combine with AST output
-ntalk --ast --loglevel DEBUG script.nt
+nemo --ast --loglevel DEBUG script.nt
 ```
 
 ### 3. Interactive Exploration
@@ -188,7 +188,7 @@ ntalk --ast --loglevel DEBUG script.nt
 Use the REPL to test small pieces of code:
 
 ```bash
-$ ntalk
+$ nemo
 nt> obj := Object derive
 nt> obj at: #test put: 42
 nt> obj at: #test
@@ -206,7 +206,7 @@ test at: #value put: 3 + 4.
 test at: #value  "Should be 7"
 ```
 
-Then run: `ntalk --ast --loglevel DEBUG test_debug.nt`
+Then run: `nemo --ast --loglevel DEBUG test_debug.nt`
 
 ## Common Issues and Solutions
 
@@ -216,10 +216,10 @@ This means the method doesn't exist on the receiver:
 
 ```bash
 # Debug with --loglevel DEBUG
-ntalk --loglevel DEBUG script.nt
+nemo --loglevel DEBUG script.nt
 
 # Check what the receiver actually is
-ntalk -e "obj := Object clone. obj unknownMessage"
+nemo -e "obj := Object clone. obj unknownMessage"
 ```
 
 Debug output shows:
@@ -234,10 +234,10 @@ Use `--ast` to see if code is parsed correctly:
 
 ```bash
 # See parse error details
-ntalk --ast script_with_error.nt
+nemo --ast script_with_error.nt
 
 # Compare with working code
-ntalk --ast working_script.nt
+nemo --ast working_script.nt
 ```
 
 ### Execution Differences
@@ -246,11 +246,11 @@ If interpreter and compiler behave differently:
 
 ```bash
 # Test with interpreter
-ntalk --loglevel DEBUG script.nt
+nemo --loglevel DEBUG script.nt
 
 # Test AST (same for both)
-ntalk --ast script.nt
-ntalkc compile script.nt --ast
+nemo --ast script.nt
+nemoc compile script.nt --ast
 ```
 
 ## Best Practices
@@ -265,7 +265,7 @@ ntalkc compile script.nt --ast
 
 ### Editor Integration
 
-- Configure your editor to run `ntalk --ast` on current file
+- Configure your editor to run `nemo --ast` on current file
 - Set up keyboard shortcuts for quick REPL access
 - Use `--loglevel DEBUG` in build scripts for CI debugging
 
@@ -276,7 +276,7 @@ ntalkc compile script.nt --ast
 nim e build.nims test --loglevel DEBUG
 
 # Test specific file with AST output
-ntalk --ast tests/test_specific.nim
+nemo --ast tests/test_specific.nim
 ```
 
 ### Continuous Integration
@@ -287,20 +287,20 @@ ntalk --ast tests/test_specific.nim
 set -e
 
 # Verify AST parses correctly
-ntalk --ast examples/*.nt
+nemo --ast examples/*.nt
 
 # Run all tests with info logging
 nim e build.nims test --loglevel INFO
 
 # Run any example scripts
-ntalk examples/demo.nt
+nemo examples/demo.nt
 ```
 
 ## Advanced Debugging
 
 ### Adding Custom Debug Logging
 
-When developing Nimtalk itself, add debug statements:
+When developing Nemo itself, add debug statements:
 
 ```nim
 import std/logging
@@ -337,28 +337,28 @@ If debugging tools themselves have issues:
 
 ```bash
 # Check tool versions
-ntalk --version
-ntalkc --version
+nemo --version
+nemoc --version
 
 # Verify installation
-which ntalk
-which ntalkc
+which nemo
+which nemoc
 
 # Test minimal case
-ntalk -e "42"
+nemo -e "42"
 ```
 
 ### Performance Profiling
 
 ```bash
 # Use Nim's profiler with compiled code
-ntalkc compile script.nt -o profile_me.nim
+nemoc compile script.nt -o profile_me.nim
 nim c -r -d:release --profiler:on --stackTrace:on profile_me.nim
 ```
 
 ## Summary
 
-Nimtalk provides comprehensive debugging tools:
+Nemo provides comprehensive debugging tools:
 - `--ast` for parsing inspection
 - `--loglevel DEBUG` for execution tracing
 - REPL for interactive exploration

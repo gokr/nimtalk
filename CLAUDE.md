@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Nimtalk is a prototype-based Smalltalk dialect that compiles to Nim. It provides:
+Nemo is a prototype-based Smalltalk dialect that compiles to Nim. It provides:
 - Smalltalk-like object system with prototype inheritance
 - Nim compilation backend
 - REPL for interactive development
@@ -19,18 +19,18 @@ nimble local             # Build and copy binaries to root directory (PREFERRED)
 nimble build             # Build the REPL and compiler (binaries in subdirectories only)
 nimble test              # Run all tests (automatic discovery via testament)
 nimble clean             # Clean build artifacts and binaries
-nimble install           # Install ntalk binary to ~/.local/bin/
+nimble install           # Install nemo binary to ~/.local/bin/
 ```
 
-**IMPORTANT**: Always use `nimble local` when developing. This is the only command that updates the `./ntalk` and `./ntalkc` binaries in the root directory. Using `nimble build` alone will NOT update the root directory binaries.
+**IMPORTANT**: Always use `nimble local` when developing. This is the only command that updates the `./nemo` and `./nemoc` binaries in the root directory. Using `nimble build` alone will NOT update the root directory binaries.
 
 ### Convenience Tasks
 
 The following nimble tasks provide convenient shortcuts for common development tasks:
 
-- **`nimble local`**: Builds the project using `nimble build` and copies the `ntalk` and `ntalkc` binaries to the root directory for easy access. **Always use this when developing.**
+- **`nimble local`**: Builds the project using `nimble build` and copies the `nemo` and `nemoc` binaries to the root directory for easy access. **Always use this when developing.**
 - **`nimble clean`**: Removes build artifacts including nimcache, build directories, and binaries from all locations
-- **`nimble install`**: Copies the `ntalk` binary to `~/.local/bin` (Unix/Linux/macOS) or appropriate Windows location
+- **`nimble install`**: Copies the `nemo` binary to `~/.local/bin` (Unix/Linux/macOS) or appropriate Windows location
 
 These tasks match the functionality previously only available through `nim e build.nims <task>`.
 
@@ -44,7 +44,7 @@ nim c -r tests/test_core.nim
 
 ## Logging and Debugging
 
-Both `ntalk` and `ntalkc` support a `--loglevel` option to control logging output. This is useful for debugging execution flow and tracing interpreter behavior.
+Both `nemo` and `nemoc` support a `--loglevel` option to control logging output. This is useful for debugging execution flow and tracing interpreter behavior.
 
 ### Available Log Levels
 
@@ -56,28 +56,28 @@ Both `ntalk` and `ntalkc` support a `--loglevel` option to control logging outpu
 
 ### Using Logging
 
-**For the REPL (ntalk):**
+**For the REPL (nemo):**
 ```bash
 # Start REPL with debug logging
-ntalk --loglevel DEBUG
+nemo --loglevel DEBUG
 
 # Run a script with debug logging
-ntalk --loglevel DEBUG myprogram.nt
+nemo --loglevel DEBUG myprogram.nt
 
 # Evaluate expression with info logging
-ntalk --loglevel INFO -e "3 + 4"
+nemo --loglevel INFO -e "3 + 4"
 ```
 
-**For the compiler (ntalkc):**
+**For the compiler (nemoc):**
 ```bash
 # Compile with debug logging
-ntalkc compile myprogram.nt --loglevel DEBUG
+nemoc compile myprogram.nt --loglevel DEBUG
 
 # Build with info logging
-ntalkc build myprogram.nt --loglevel INFO
+nemoc build myprogram.nt --loglevel INFO
 
 # Run with debug logging
-ntalkc run myprogram.nt --loglevel DEBUG
+nemoc run myprogram.nt --loglevel DEBUG
 ```
 
 ### Debug Logging Output
@@ -120,27 +120,27 @@ The `debug` statements are only active when the log level is set to DEBUG or low
 
 ### AST Debugging
 
-Both `ntalk` and `ntalkc` support an `--ast` flag to dump the Abstract Syntax Tree after parsing. This is useful for understanding how your Nimtalk code is being parsed before execution or compilation.
+Both `nemo` and `nemoc` support an `--ast` flag to dump the Abstract Syntax Tree after parsing. This is useful for understanding how your Nemo code is being parsed before execution or compilation.
 
-**For the REPL (ntalk):**
+**For the REPL (nemo):**
 ```bash
 # Show AST for a script and then execute it
-ntalk --ast examples/demo.nt
+nemo --ast examples/demo.nt
 
 # Show AST for an expression and show result
-ntalk --ast -e "3 + 4"
+nemo --ast -e "3 + 4"
 
 # Combine with debug logging for full visibility
-ntalk --ast --loglevel DEBUG script.nt
+nemo --ast --loglevel DEBUG script.nt
 ```
 
-**For the compiler (ntalkc):**
+**For the compiler (nemoc):**
 ```bash
 # Show AST before compiling
-ntalkc compile myprog.nt --ast
+nemoc compile myprog.nt --ast
 
 # Show AST with debug logging
-ntalkc compile myprog.nt --ast --loglevel DEBUG
+nemoc compile myprog.nt --ast --loglevel DEBUG
 ```
 
 The AST output shows the hierarchical structure of parsed expressions, making it easier to understand how messages, literals, and other constructs are represented.
@@ -577,22 +577,22 @@ When working with documentation, prefer the root-level user guides over research
 
 - Source files use `.nim` extension
 - Test files use `test_*.nim` pattern
-- Example files use `.nt` extension (Nimtalk source)
+- Example files use `.nt` extension (Nemo source)
 
 ## Future Directions
 
 ### BitBarrel Integration
-Consider integrating BitBarrel (the high-performance Bitcask-style key-value storage engine from ../bitbarrel) as a core part of Nimtalk. This would provide:
-- First-class barrel objects in Nimtalk
+Consider integrating BitBarrel (the high-performance Bitcask-style key-value storage engine from ../bitbarrel) as a core part of Nemo. This would provide:
+- First-class barrel objects in Nemo
 - Built-in persistence model similar to Gemstone and original OODBs
 - High-performance storage with O(1) reads via in-memory hash index
 - Crash recovery with hint files for fast startup
 - Background compaction
 
 Potential integration approaches:
-1. Expose BitBarrel API as Nimtalk objects and methods
+1. Expose BitBarrel API as Nemo objects and methods
 2. Implement barrel literals in the language syntax
-3. Provide transparent persistence for Nimtalk objects
+3. Provide transparent persistence for Nemo objects
 4. Use FFI to call BitBarrel C API or directly link the Nim library
 
-This would give Nimtalk a powerful persistence layer built into the language.
+This would give Nemo a powerful persistence layer built into the language.

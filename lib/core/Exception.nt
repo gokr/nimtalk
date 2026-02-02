@@ -1,6 +1,6 @@
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 #
-# Exception.nt - Exception handling for Nimtalk
+# Exception.nt - Exception handling for Nemo
 # Provides Smalltalk-style on:do: exception handling
 
 #====================================================================

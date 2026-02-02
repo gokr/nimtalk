@@ -7,7 +7,7 @@ import ../interpreter/activation
 
 # ============================================================================
 # Scheduler Integration with Interpreter
-# This module connects the green threads scheduler with the Nimtalk interpreter
+# This module connects the green threads scheduler with the Nemo interpreter
 # ============================================================================
 
 type
@@ -55,7 +55,7 @@ proc setInterpreter*(process: Process, interp: Interpreter) =
 
 proc forkProcess*(ctx: SchedulerContext, blockNode: BlockNode,
                   receiver: Instance, name: string = ""): Process =
-  ## Create a new green process from a Nimtalk block
+  ## Create a new green process from a Nemo block
   ## The new process will execute the block when scheduled
 
   let sched = ctx.scheduler
@@ -173,14 +173,14 @@ proc runToCompletion*(ctx: SchedulerContext, maxSteps: int = 100000): int =
     inc result
 
 # ============================================================================
-# Nimtalk-side Processor Object
+# Nemo-side Processor Object
 # ============================================================================
 
 # Processor yield implementation
 proc processorYieldImpl(interp: var Interpreter, self: Instance,
                         args: seq[NodeValue]): NodeValue =
   ## Processor yield - yields the current process
-  ## This is called from Nimtalk code and triggers a context switch
+  ## This is called from Nemo code and triggers a context switch
   ## The actual yield happens in the scheduler loop, so we just return nil
   ## and the scheduler will handle the yield after this method returns
   debug("Processor yield called")

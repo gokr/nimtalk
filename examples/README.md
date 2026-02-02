@@ -1,18 +1,18 @@
-# Nimtalk Examples
+# Nemo Examples
 
-This directory contains example programs demonstrating Nimtalk features.
+This directory contains example programs demonstrating Nemo features.
 
 ## Running Examples
 
 ```bash
 # Run an example
-ntalk 01_hello.nt
+nemo 01_hello.nt
 
 # Or with debug output
-ntalk --loglevel DEBUG 02_arithmetic.nt
+nemo --loglevel DEBUG 02_arithmetic.nt
 
 # Show AST before execution
-ntalk --ast 05_classes.nt
+nemo --ast 05_classes.nt
 ```
 
 ## Example Overview
@@ -37,15 +37,15 @@ ntalk --ast 05_classes.nt
 Start with the first few examples to learn the basics:
 
 ```bash
-ntalk 01_hello.nt
-ntalk 02_arithmetic.nt
-ntalk 05_classes.nt
+nemo 01_hello.nt
+nemo 02_arithmetic.nt
+nemo 05_classes.nt
 ```
 
 Then explore more advanced features:
 
 ```bash
-ntalk 07_inheritance.nt
-ntalk 11_fibonacci.nt
-ntalk 12_stdlib.nt
+nemo 07_inheritance.nt
+nemo 11_fibonacci.nt
+nemo 12_stdlib.nt
 ```

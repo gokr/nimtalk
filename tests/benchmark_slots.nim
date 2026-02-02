@@ -1,11 +1,11 @@
-# Nimtalk Slot-based Instance Variables Performance Benchmark
+# Nemo Slot-based Instance Variables Performance Benchmark
 #
 # Compares performance of slot access vs property bag access
 #
 
 import std/times
-import ../src/nimtalk/core/types
-import ../src/nimtalk/interpreter/objects
+import ../src/nemo/core/types
+import ../src/nemo/interpreter/objects
 
 proc benchmarkPropertyBag() =
   ## Benchmark property bag access (current/old way)
@@ -79,7 +79,7 @@ proc benchmarkNamedSlotAccess() =
   echo ""
 
 when isMainModule:
-  echo "Nimtalk Slot-based Ivars Benchmark"
+  echo "Nemo Slot-based Ivars Benchmark"
   echo "=================================="
   echo ""
   

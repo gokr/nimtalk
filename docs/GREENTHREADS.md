@@ -1,19 +1,19 @@
 # Green Threads and GTK Integration Plan
 
-This document outlines the implementation of cooperative green processes (green threads) and the planned GTK4 integration for Nimtalk. The design centers around Monitors as the fundamental concurrency primitive, with shared heaps and copy-on-pass by reference.
+This document outlines the implementation of cooperative green processes (green threads) and the planned GTK4 integration for Nemo. The design centers around Monitors as the fundamental concurrency primitive, with shared heaps and copy-on-pass by reference.
 
 **Status**: Phase 1 (Core Scheduler) ✅ Implemented | Phase 2 (GTK Integration) 🚧 Planned
 
 **See also:**
 - [Concurrency Design](./CONCURRENCY.md) – background theory and comparisons.
 - [Gtk Intro](./GINTRO.md) – GTK4 Nim bindings.
-- [API Reference](#api-reference) – Nimtalk-side API documentation.
+- [API Reference](#api-reference) – Nemo-side API documentation.
 
 ---
 
 ## 1. What we are building
 
-We implement a **user‑space cooperative scheduler** for _green processes_, each with its own Nimtalk interpreter and activation stack. The scheduler runs all processes in a single Nim thread, sharing a common heap but with per‑process activation stacks.
+We implement a **user‑space cooperative scheduler** for _green processes_, each with its own Nemo interpreter and activation stack. The scheduler runs all processes in a single Nim thread, sharing a common heap but with per‑process activation stacks.
 
 A **Monitor** is the fundamental coordination primitive, providing re‑entrant mutual exclusion and condition variables. All other IPC (SharedQueue, Channel) is built on Monitors.
 
@@ -25,9 +25,9 @@ A GTK‑idle callback runs the scheduler; when the ready‑queue is empty, we yi
 
 ### 2.1. Green‑process model (co‑operative)
 
-- **Single‑threaded** Nimtalk VM (one OS thread, green processes scheduled cooperatively).
+- **Single‑threaded** Nemo VM (one OS thread, green processes scheduled cooperatively).
 - **Explicit yield points** on `Processor yield`, when blocking on a synchronization primitive, or optionally after N message sends (configurable via `yieldEveryNSends`).
-- Processes run in a **shared‑heap, private‑stack** model: the Nimtalk heap is common, but each process has its own activation stack and program‑counter‑like “instruction pointer”.
+- Processes run in a **shared‑heap, private‑stack** model: the Nemo heap is common, but each process has its own activation stack and program‑counter‑like “instruction pointer”.
 - Communication uses Monitors, built‑on‑them SharedQueues, and later channels (bounded buffers). No copying of objects passed via a channel (shared heap, pass‑by‑reference).
 - **Blocking**: when a process would block on a Monitor, SharedQueue, or Channel, the scheduler moves it to a blocked set.
 
@@ -49,24 +49,24 @@ Primitives in order of increasing abstraction:
 
 ### 2.3. Communication Primitives (Nim‑side Naming)
 
-| Primitive           | Nim‑side type        | Nimtalk‑side class | Purpose                               |
+| Primitive           | Nim‑side type        | Nemo‑side class | Purpose                               |
 |--------------------|---------------------|----------------------|---------------------------------------|
-| Monitor            | `NimtalkMonitor`     | `Monitor`            | Re‑entrant mutex + condition vars   |
-| Semaphore          | `NimtalkSemaphore`  | `Semaphore`          | Binary/counting semaphore            |
-| SharedQueue        | `NimtalkSharedQueue` | `SharedQueue`        | Classic Smalltalk bounded queue      |
-| Channel           | `NimtalkChannel`     | `Channel` (bounded)  | CSP‑style typed channel (future)    |
+| Monitor            | `NemoMonitor`     | `Monitor`            | Re‑entrant mutex + condition vars   |
+| Semaphore          | `NemoSemaphore`  | `Semaphore`          | Binary/counting semaphore            |
+| SharedQueue        | `NemoSharedQueue` | `SharedQueue`        | Classic Smalltalk bounded queue      |
+| Channel           | `NemoChannel`     | `Channel` (bounded)  | CSP‑style typed channel (future)    |
 
 All primitives are designed to work purely cooperatively: when a green process blocks (waiting on a monitor or queue), the scheduler puts it aside and runs the next process.
 
 ### 2.4. Debugging & Inspection
 
-Because each process has its own interpreter and activation stack, a debugger written in Nimtalk can:
+Because each process has its own interpreter and activation stack, a debugger written in Nemo can:
 
 1. Attach to any process (suspend it).
 2. Walk its stack frames (each frame has `receiver`, `method`, locals, PC).
-3. Step the process one Nimtalk message‑send at a time.
+3. Step the process one Nemo message‑send at a time.
 
-The debugger is just another Nimtalk process, using the same APIs that the Nim scheduler provides.
+The debugger is just another Nemo process, using the same APIs that the Nim scheduler provides.
 
 ---
 
@@ -114,7 +114,7 @@ Scheduler loop:
 1. If `readyQueue` empty → remove GTK idle callback (nothing to do).
 2. Pop first process from `readyQueue`.
 3. Switch context (current interpreter = its interpreter; set current process).
-4. Let the interpreter run **one Nimtalk message send** (or a time‑slice of byte‑code).
+4. Let the interpreter run **one Nemo message send** (or a time‑slice of byte‑code).
 5. If the process didn't block, push back to tail of readyQueue.
 6. If it blocked on a condition, move it to the appropriate blocked set.
 7. Goto step 1.
@@ -136,19 +136,19 @@ proc schedulerIdleCallback(): bool =
 
 ### 3.3. GTK Integration
 
-Each Nimtalk‑side GTK widget holds a Nim‑side pointer to the underlying GTK widget and a finalizer.
+Each Nemo‑side GTK widget holds a Nim‑side pointer to the underlying GTK widget and a finalizer.
 
 When a GTK event occurs (button‑click), the GTK main loop invokes our Nim‑side callback, which does:
 
 ```nim
 let process = processOwningThisWidget(proc)
 var callbackBlock: BlockNode
-# ... wrap GTK arguments into Nimtalk objects, push a new activation frame
+# ... wrap GTK arguments into Nemo objects, push a new activation frame
 pushActivation(proc, callbackBlock, args)
 schedule(proc)
 ```
 
-The callback is executed next time the associated Nimtalk process is scheduled.
+The callback is executed next time the associated Nemo process is scheduled.
 
 ### 3.4. Monitor Implementation
 
@@ -156,12 +156,12 @@ For single-threaded cooperative scheduling, monitors are just bookkeeping—no O
 
 ```nim
 type
-  NimtalkMonitor* = ref object
+  NemoMonitor* = ref object
     owner*: Process           # Which process holds the lock (nil = unlocked)
     lockCount*: int           # Re-entrancy count
     waitQueue*: seq[Process]  # Processes waiting to acquire
 
-proc enter*(m: NimtalkMonitor, sched: Scheduler, caller: Process) =
+proc enter*(m: NemoMonitor, sched: Scheduler, caller: Process) =
   if m.owner == nil:
     m.owner = caller
     m.lockCount = 1
@@ -171,7 +171,7 @@ proc enter*(m: NimtalkMonitor, sched: Scheduler, caller: Process) =
     m.waitQueue.add(caller)
     sched.block(caller, WaitCondition(kind: wkMonitor, target: cast[pointer](m)))
 
-proc leave*(m: NimtalkMonitor, sched: Scheduler) =
+proc leave*(m: NemoMonitor, sched: Scheduler) =
   dec m.lockCount
   if m.lockCount == 0:
     m.owner = nil
@@ -188,14 +188,14 @@ A bounded buffer with separate wait queues for producers and consumers:
 
 ```nim
 type
-  NimtalkSharedQueue*[T] = ref object
+  NemoSharedQueue*[T] = ref object
     data: seq[T]
     head, tail, count: int
     capacity: int
     waitingProducers: seq[Process]  # Blocked on "queue full"
     waitingConsumers: seq[Process]  # Blocked on "queue empty"
 
-proc put*(q: NimtalkSharedQueue, sched: Scheduler, item: NodeValue, caller: Process) =
+proc put*(q: NemoSharedQueue, sched: Scheduler, item: NodeValue, caller: Process) =
   if q.count == q.capacity:
     q.waitingProducers.add(caller)
     sched.block(caller, WaitCondition(kind: wkQueueFull, target: cast[pointer](q)))
@@ -208,7 +208,7 @@ proc put*(q: NimtalkSharedQueue, sched: Scheduler, item: NodeValue, caller: Proc
   if q.waitingConsumers.len > 0:
     sched.unblock(q.waitingConsumers.pop())
 
-proc take*(q: NimtalkSharedQueue, sched: Scheduler, caller: Process): NodeValue =
+proc take*(q: NemoSharedQueue, sched: Scheduler, caller: Process): NodeValue =
   if q.count == 0:
     q.waitingConsumers.add(caller)
     sched.block(caller, WaitCondition(kind: wkQueueEmpty, target: cast[pointer](q)))
@@ -224,11 +224,11 @@ proc take*(q: NimtalkSharedQueue, sched: Scheduler, caller: Process): NodeValue 
 
 ### 3.6. Process Spawning Mechanics
 
-When a Nimtalk program calls `Processor fork: aBlock`, the following Nim-side code runs:
+When a Nemo program calls `Processor fork: aBlock`, the following Nim-side code runs:
 
 ```nim
 proc forkProcess*(sched: var Scheduler, block: BlockNode, receiver: Instance): Process =
-  ## Create a new green process from a Nimtalk block
+  ## Create a new green process from a Nemo block
   let newInterp = newInterpreter()
   newInterp.globals = sched.sharedGlobals     # Share globals table
   newInterp.rootObject = sched.rootObject     "Share class root
@@ -249,9 +249,9 @@ proc forkProcess*(sched: var Scheduler, block: BlockNode, receiver: Instance): P
   sched.allProcesses[result.pid] = result
 ```
 
-### 3.7. Nimtalk API Examples
+### 3.7. Nemo API Examples
 
-Here's what the Nimtalk programmer sees:
+Here's what the Nemo programmer sees:
 
 ```smalltalk
 "Fork a new process"
@@ -311,8 +311,8 @@ Processor fork: [100 timesRepeat: [Transcript show: queue take]]
 
 - [ ] Semaphore (binary, counting).
 - [ ] SharedQueue (bounded buffer) atop Monitor.
-- [ ] Nimtalk‑side `Monitor` and `SharedQueue` objects.
-- [x] Process spawning from Nimtalk: `Processor fork: aBlock`.
+- [ ] Nemo‑side `Monitor` and `SharedQueue` objects.
+- [x] Process spawning from Nemo: `Processor fork: aBlock`.
 - [ ] Debugger: inspection of process stack frames.
 
 **Status**: `Processor fork:` and `Processor yield` are implemented. Monitors and SharedQueues are planned but not yet implemented.
@@ -321,28 +321,28 @@ Processor fork: [100 timesRepeat: [Transcript show: queue take]]
 
 - [ ] Basic GTK widget objects (Window, Button, Box, TextView).
 - [ ] Event‑loop hook for GTK idles.
-- [ ] Signal‑to‑callback mapping (GTK signal → Nimtalk block evaluation).
+- [ ] Signal‑to‑callback mapping (GTK signal → Nemo block evaluation).
 
-### Phase 4: Nimtalk‑side UI Framework (📋 Planned)
+### Phase 4: Nemo‑side UI Framework (📋 Planned)
 
-- [ ] `GtkApplication` Nimtalk‑side class.
+- [ ] `GtkApplication` Nemo‑side class.
 - [ ] Example apps: Transcript, simple editor, process inspector.
 
 ### Phase 5: Channels and Actor‑style (📋 Future)
 
 - [ ] Channels: bounded capacity, typed.
 - [ ] Actor‑mailbox processes.
-- [ ] Supervisor‑style process‑linking (re‑invent OTP for Nimtalk).
+- [ ] Supervisor‑style process‑linking (re‑invent OTP for Nemo).
 
 ### Why Green Threads Before GTK?
 
 Green threads are not strictly required for GTK4 integration. A simpler model could work:
 - Single interpreter, no scheduler
-- GTK events directly invoke Nimtalk blocks
+- GTK events directly invoke Nemo blocks
 - Each callback runs to completion before returning to GTK
 
 This works for simple UIs but has limitations:
-- Long-running Nimtalk code blocks the UI
+- Long-running Nemo code blocks the UI
 - No background processing while UI is active
 - No debugger that can inspect a running process
 
@@ -352,7 +352,7 @@ This works for simple UIs but has limitations:
 
 2. **Responsive UI requires it** – even a simple "Cancel" button during a computation needs another process to handle the click.
 
-3. **The debugger use case** – one of the main goals is a Nimtalk debugger that can step through another process. This fundamentally requires multiple processes.
+3. **The debugger use case** – one of the main goals is a Nemo debugger that can step through another process. This fundamentally requires multiple processes.
 
 4. **Retrofitting is harder** – adding green threads later means rewriting the GTK integration layer.
 
@@ -364,14 +364,14 @@ This works for simple UIs but has limitations:
 
 - **Priority inversion** – simple strict FIFO of same priority. Could add priority inheritance later.
 - **Process‑local GC heaps?** Not for now; single‑heap with sharing is fine for small objects.
-- **Channel type safety** – Nim‑side generic channels possible; Nimtalk values carry type‑tags.
+- **Channel type safety** – Nim‑side generic channels possible; Nemo values carry type‑tags.
 
 ---
 
 ## 6. Why Monitors as Foundation?
 
 1. **Familiar to Smalltalk programmers** (`Object‑‑MonitorState‑‑Process‑‑Condition`).
-2. **Re‑entrant locks** are easier for Nimtalk: process can re‑enter a Monitor it already holds.
+2. **Re‑entrant locks** are easier for Nemo: process can re‑enter a Monitor it already holds.
 3. **Condition variables** are exactly the synchronization primitive we need for blocking queues, semaphores, etc.
 4. Simple blocking semantics fit the green‑thread scheduler perfectly.
 
@@ -379,7 +379,7 @@ This works for simple UIs but has limitations:
 
 ## 7. Summary: What This Gives Us
 
-A simple, **debuggable** cooperative‑concurrency system, where all UI‑level constructs are just Nimtalk objects, fully inspectable and changeable at runtime.
+A simple, **debuggable** cooperative‑concurrency system, where all UI‑level constructs are just Nemo objects, fully inspectable and changeable at runtime.
 
 The same cooperative scheduler that runs your GUI app can run the debugger that steps through it. The same green threads that handle UI events also run your application logic. All built from Monitors and one‑thread‑at‑a‑time execution.
 
@@ -387,7 +387,7 @@ The same cooperative scheduler that runs your GUI app can run the debugger that 
 
 ## API Reference
 
-### Nimtalk-Side API
+### Nemo-Side API
 
 The `Processor` global object provides the main interface for green thread operations:
 

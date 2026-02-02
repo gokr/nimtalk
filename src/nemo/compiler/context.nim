@@ -3,7 +3,7 @@ import ./types
 
 # ============================================================================
 # Compiler Context
-# Maintains state during Nimtalk to Nim compilation
+# Maintains state during Nemo to Nim compilation
 # ============================================================================
 
 type

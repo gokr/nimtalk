@@ -4,7 +4,7 @@ import ../parser/[lexer, parser]
 import ../interpreter/evaluator
 
 # ============================================================================
-# Nimtalk REPL and Interactive Evaluation
+# Nemo REPL and Interactive Evaluation
 # Provides "do-it" evaluation for interactive development
 # ============================================================================
 
@@ -22,7 +22,7 @@ proc newDoitContext*(trace: bool = false, maxStackDepth: int = 10000): DoitConte
   result = DoitContext(
     interpreter: newInterpreter(trace, maxStackDepth),
     globals: new(Table[string, NodeValue]),
-    history: @["-- Nimtalk REPL History --"],
+    history: @["-- Nemo REPL History --"],
     prompt: "nt> ",
     showResults: true
   )
@@ -38,7 +38,7 @@ proc newDoitContext*(trace: bool = false, maxStackDepth: int = 10000): DoitConte
 
 # Print welcome message
 proc printWelcomeRepl() =
-  echo "Nimtalk REPL (:help for commands, :quit to exit)"
+  echo "Nemo REPL (:help for commands, :quit to exit)"
 
 # Print help
 proc printHelp() =
@@ -154,7 +154,7 @@ proc main*() =
 
 # File-based script execution
 proc runScript*(filename: string, ctx: DoitContext = nil, dumpAst = false, maxStackDepth: int = 10000): (string, string) =
-  ## Run a Nimtalk script file
+  ## Run a Nemo script file
   var scriptCtx = if ctx != nil: ctx else: newDoitContext(maxStackDepth = maxStackDepth)
 
   if not fileExists(filename):
@@ -235,7 +235,7 @@ proc testREPL*(): (bool, string) =
 
 # Example script content for testing
 const exampleScript* = """
-# Example Nimtalk script
+# Example Nemo script
 # This demonstrates basic functionality
 
 # Create objects

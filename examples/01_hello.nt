@@ -1,6 +1,6 @@
-#!/usr/bin/env ntalk
+#!/usr/bin/env nemo
 #
-# Hello World - The simplest Nimtalk program
+# Hello World - The simplest Nemo program
 #
 
 'Hello, World!' println

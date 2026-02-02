@@ -1,10 +1,10 @@
-# Closures in Nimtalk
+# Closures in Nemo
 
-Nimtalk implements Smalltalk-style lexical closures with full environment capture, mutable shared state, and non-local returns.
+Nemo implements Smalltalk-style lexical closures with full environment capture, mutable shared state, and non-local returns.
 
 ## Overview
 
-Closures (blocks) in Nimtalk capture their lexical environment when created. This allows them to:
+Closures (blocks) in Nemo capture their lexical environment when created. This allows them to:
 
 - Access variables from their defining scope
 - Share mutable state between multiple closures
@@ -212,7 +212,7 @@ Storing `homeActivation` directly in the block is more efficient than searching 
 Enable debug logging to trace closure behavior:
 
 ```bash
-ntalk --loglevel DEBUG script.nt
+nemo --loglevel DEBUG script.nt
 ```
 
 Look for:

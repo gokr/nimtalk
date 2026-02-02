@@ -3,8 +3,8 @@
 #
 
 import std/[unittest, tables, strutils]
-import ../src/nimtalk/core/types
-import ../src/nimtalk/interpreter/[objects, activation]
+import ../src/nemo/core/types
+import ../src/nemo/interpreter/[objects, activation]
 
 suite "Class Object Model":
 

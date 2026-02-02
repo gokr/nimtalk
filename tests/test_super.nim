@@ -3,9 +3,9 @@
 #
 
 import std/[unittest, tables, strutils]
-import ../src/nimtalk/core/types
-import ../src/nimtalk/parser/[lexer, parser]
-import ../src/nimtalk/interpreter/[evaluator, objects]
+import ../src/nemo/core/types
+import ../src/nemo/parser/[lexer, parser]
+import ../src/nemo/interpreter/[evaluator, objects]
 
 suite "Super Syntax Parsing":
 
