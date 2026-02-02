@@ -14,8 +14,8 @@ This gives us the clarity of traditional OOP while keeping the flexibility of pr
 ### "Classes" (Prototypes Used as Classes)
 ```smalltalk
 # These are "classes" - capitalized, serve as templates
-Person := Object derive
-Employee := Person derive
+Person := Object derive: #(name age)
+Employee := Person derive: #(employeeID)
 Company := Object derive
 ```
 
@@ -29,16 +29,16 @@ Company := Object derive
 ### "Instances" (Objects Created from Classes)
 ```smalltalk
 # These are instances - lowercase, hold actual data
-alice := Person derive
-charlie := Employee derive
-acme := Company derive
+alice := Person new
+charlie := Employee new
+acme := Company new
 ```
 
 **Characteristics:**
 - Typically lowercase (convention)
 - Hold instance-specific data
 - Inherit behavior from their class
-- Created by sending messages to classes
+- Created by sending `new` to classes
 
 ## Global Storage
 
@@ -62,28 +62,28 @@ Person
 **Implementation:**
 ```nim
 # When parser sees assignment to capitalized identifier at module level:
-# Person := Object derive
+# Person := Object derive: #(name age)
 #
 # It generates:
-# 1. var Person = derive(Object)
+# 1. var Person = classDeriveImpl(Object, ["name", "age"])
 # 2. Nimtalk["Person"] = Person
 ```
 
 ## Instance Creation
 
-### Method 1: Direct Derivation
+### Method 1: Direct `new`
 ```smalltalk
-# Simplest - just derive from the class
-alice := Person derive.
+# Simplest - send new to the class
+alice := Person new.
 alice name: "Alice".
 alice age: 30.
 ```
 
 ### Method 2: Custom Factory Methods (Recommended)
 ```smalltalk
-# Define factory method on the "class"
-Person>>newWithName: aName age: anAge [
-  ^ self derive
+# Define factory method as a CLASS method using class>>
+Person class>>newWithName: aName age: anAge [
+  ^ self new
       name: aName;
       age: anAge;
       yourself
@@ -96,24 +96,22 @@ bob := Person newWithName: "Bob" age: 25.
 
 ### Method 3: Standard `new` (with initialize)
 ```smalltalk
-# Similar to Smalltalk pattern
-Person>>initializeWithName: aName age: anAge [
-  name := aName.
-  age := anAge
+# Instance-side initialize (called automatically by new)
+Person>>initialize [
+  name := "Anonymous".
+  age := 0
 ]
 
-Person>>new: aName age: anAge [
-  ^ self derive initializeWithName: aName age: anAge
-]
-
-# Usage
-alice := Person new: "Alice" age: 30.
+# Usage - initialize is called automatically
+alice := Person new.
+alice name: "Alice".
+alice age: 30.
 ```
 
 ### Method 4: Cascading Initialization
 ```smalltalk
 # After creation, use cascaded messages
-alice := Person derive
+alice := Person new
   name: "Alice";
   age: 30;
   address: "123 Main St";
@@ -127,14 +125,14 @@ alice := Person derive
 The parser can convert this cleaner syntax:
 ```smalltalk
 Person>>greet: otherPerson [
-  ^ "Hello " + otherPerson name + ", I'm " + name
+  ^ "Hello " , otherPerson name , ", I'm " , name
 ]
 ```
 
 Into the equivalent:
 ```smalltalk
 Person at: "greet:" put: [ :otherPerson |
-  ^ "Hello " + otherPerson name + ", I'm " + name
+  ^ "Hello " , otherPerson name , ", I'm " , name
 ].
 ```
 
@@ -167,17 +165,17 @@ Person>>greet [ ^ "Hello" ].       # With period (for familiarity)
 Person := Object derive: #(name age address)
 
 #----------------------------------------------------------------
-# Instance creation methods (on the "class")
+# Class methods (instance creation)
 #----------------------------------------------------------------
-Person at: "newWithName:age:" put: [ :aName :anAge |
-  ^ self derive
+Person class>>newWithName: aName age: anAge [
+  ^ self new
       name: aName;
       age: anAge;
       yourself
 ].
 
-Person at: "newWithName:age:address:" put: [ :aName :anAge :anAddr |
-  ^ self derive
+Person class>>newWithName: aName age: anAge address: anAddr [
+  ^ self new
       name: aName;
       age: anAge;
       address: anAddr;
@@ -207,11 +205,11 @@ Person at: "address" put: [ ^ address ].
 Person at: "address:" put: [ :anAddr | address := anAddr ].
 
 Person at: "greet" put: [
-  ^ "Hello, I'm " + name
+  ^ "Hello, I'm " , name
 ].
 
 Person at: "greet:" put: [ :other |
-  ^ "Hello " + other name + ", I'm " + name
+  ^ "Hello " , other name , ", I'm " , name
 ].
 
 Person at: "birthday" put: [
@@ -233,9 +231,9 @@ Person at: "description" put: [
 
 Person := Object derive: #(name age address).
 
-# Class methods (instance creation)
-Person>>newWithName: aName age: anAge [                    # <--- keyword with args!
-  ^ self derive
+# Class methods (instance creation) - note the "class>>" syntax
+Person class>>newWithName: aName age: anAge [
+  ^ self new
       name: aName;
       age: anAge;
       yourself
@@ -243,14 +241,14 @@ Person>>newWithName: aName age: anAge [                    # <--- keyword with a
 
 # Instance methods
 Person>>initialize [
-  name := "Anonymous"
-  age := 0
+  name := "Anonymous".
+  age := 0.
   address := nil
 ].
 
 Person>>name [ ^ name ].
 
-Person>>name: aName [                                     # <--- colon indicates setter
+Person>>name: aName [
   name := aName
 ].
 
@@ -260,8 +258,8 @@ Person>>age: anAge [
   age := anAge
 ].
 
-Person>>greet: otherPerson [                              # <--- keyword message
-  ^ "Hello " + otherPerson name + ", I'm " + name
+Person>>greet: otherPerson [
+  ^ "Hello " , otherPerson name , ", I'm " , name
 ].
 
 Person>>birthday [
@@ -270,7 +268,7 @@ Person>>birthday [
 ].
 
 Person>>description [
-  ^ name + " (age " + age asString + ")"
+  ^ name , " (age " , age asString , ")"
 ].
 ```
 
@@ -283,10 +281,8 @@ Person>>description [
 # Load Person (future: will auto-register in Nimtalk global)
 load: "src/Person.nt".
 
-# Create instances (from Nimtalk global)
-alice := Nimtalk Person newWithName: "Alice" age: 30.
-
-# Or just (since Person is in scope)
+# Create instances using class method
+alice := Person newWithName: "Alice" age: 30.
 bob := Person newWithName: "Bob" age: 25.
 
 # Use instances
@@ -315,9 +311,9 @@ load: "src/Person.nt".
 # Derive with additional ivars
 Employee := Person derive: #(employeeID department salary).
 
-# Instance creation
-Employee>>newWithName: aName age: anAge id: anID dept: aDept salary: aSalary [
-  ^ self derive
+# Class method for instance creation
+Employee class>>newWithName: aName age: anAge id: anID dept: aDept salary: aSalary [
+  ^ self new
       name: aName;
       age: anAge;
       employeeID: anID;
@@ -328,7 +324,7 @@ Employee>>newWithName: aName age: anAge id: anID dept: aDept salary: aSalary [
 
 # Override parent method
 Employee>>greet [
-  ^ (super perform: "greet") + " from " + department + " department"
+  ^ (super perform: "greet") , " from " , department , " department"
 ].
 
 # New method
@@ -401,6 +397,77 @@ MessageSendNode(
 )
 ```
 
+## Class Methods vs Instance Methods
+
+Nimtalk uses a **simplified class model** compared to full Smalltalk. Understanding this distinction is important:
+
+### The Model
+
+In Nimtalk, each `Class` has two separate method tables:
+- **`methods` / `allMethods`** - Instance methods (sent to instances of the class)
+- **`classMethods` / `allClassMethods`** - Class methods (sent to the class itself)
+
+```smalltalk
+# Define a class method (sent to Object)
+Object class>>description [ ^"The root class" ]
+
+# Define an instance method (sent to instances)
+Object>>description [ ^"An instance of Object" ]
+
+# Usage:
+Object description           # Returns "The root class" (class method)
+obj := Object new.
+obj description              # Returns "An instance of Object" (instance method)
+```
+
+### Key Characteristics
+
+**1. Separate Method Spaces**
+- Class methods and instance methods are completely separate
+- When you send a message to a class (like `Object derive:`), it looks in `allClassMethods`
+- When you send a message to an instance (like `obj x: 10`), it looks in `allMethods`
+
+**2. Methods Must Be Defined Twice for Both Contexts**
+If you need a method like `printString` to work on BOTH classes AND instances, you must define it twice:
+
+```smalltalk
+# For classes
+Object class>>printString [ ^"<class " , self name , ">" ]
+
+# For instances
+Object>>printString [ ^"<instance of " , self class name , ">" ]
+```
+
+**3. No Metaclass Hierarchy**
+- Unlike full Smalltalk, there's no metaclass hierarchy
+- All classes are instances of the same internal `Class` type
+- You cannot add methods to just the `Class` class that would be inherited by all classes (but not their instances)
+
+**4. Inheritance Works Within Each Space**
+- Class methods are inherited from parent classes via `allClassMethods`
+- Instance methods are inherited from parent classes via `allMethods`
+- When you call `Object derive:`, the new class copies `allClassMethods` from Object
+
+### Comparison with Full Smalltalk
+
+| Feature | Full Smalltalk | Nimtalk |
+|---------|---------------|---------|
+| Metaclass hierarchy | Yes (each class has its own metaclass) | No (single Class type) |
+| Class methods | Inherited via metaclass chain | Inherited via allClassMethods |
+| Methods on both | Automatic via metaclass | Must define twice |
+| Complexity | High (metaclass of metaclass...) | Low (two method tables) |
+
+### Why This Simplified Approach?
+
+For Nimtalk's goals, this simplified approach should be sufficient:
+
+✅ **Easier to understand** - No metaclass confusion
+✅ **Easier to implement** - No complex metaclass chain
+✅ **Covers most use cases** - Factory methods, class-side utilities work fine
+✅ **Explicit is better** - Defining methods twice makes intent clear
+
+The full Smalltalk metaclass system is powerful but complex. Most of its benefits can be achieved with the current design at a fraction of the complexity.
+
 ## Summary
 
 ### Key Points
@@ -412,6 +479,7 @@ MessageSendNode(
 5. **Multiple creation patterns** - direct, factory methods, new, cascading
 6. **Full keyword support** - `Person>>moveX: x y: y [...]`
 7. **Optional trailing `.`** - Flexible syntax
+8. **Separate class/instance methods** - Define twice if needed for both
 
 ### Benefits of This Approach
 
@@ -421,6 +489,7 @@ MessageSendNode(
 ✅ **Optional sugar** - `>>` syntax is just convenience
 ✅ **Encapsulated classes** - Stored in Nimtalk global
 ✅ **Clear structure** - Class vs instance distinction
+✅ **Simpler than metaclasses** - Easier to understand and implement
 
 This gives us the best of both worlds: the flexibility of prototypes with the clarity of conventional OOP patterns!
 
