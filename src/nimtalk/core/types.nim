@@ -13,7 +13,7 @@ type
     line*, col*: int
 
   # ============================================================================
-  # Class-Based Object Model (New)
+  # Object Model
   # ============================================================================
 
   InstanceKind* = enum
@@ -23,6 +23,7 @@ type
     ikInt          # Integer instance (optimized)
     ikFloat        # Float instance (optimized)
     ikString       # String instance (optimized)
+    ikMixin        # Mixin instance - no slots, only shared methods (can mix with any type)
 
   Class* {.acyclic.} = ref object of RootObj
     ## Class object - defines structure and behavior for instances
@@ -54,8 +55,8 @@ type
     ## Using case object variant for memory efficiency - only allocate fields needed
     class*: Class                           # Reference to class
     case kind*: InstanceKind
-    of ikObject:
-      slots*: seq[NodeValue]                # Instance variables (indexed by allSlotNames position)
+    of ikObject, ikMixin:
+      slots*: seq[NodeValue]                # Instance variables (always empty for ikMixin)
     of ikArray:
       elements*: seq[NodeValue]             # Array elements
     of ikTable:
@@ -68,25 +69,6 @@ type
       strVal*: string                       # Direct storage
     isNimProxy*: bool                       # Instance wraps Nim value
     nimValue*: pointer                      # Pointer to actual Nim value (for FFI)
-
-  # ============================================================================
-  # Legacy Runtime Types (to be migrated to Class/Instance model)
-  # ============================================================================
-
-  RuntimeObject* {.acyclic.} = ref object of RootObj
-    methods*: Table[string, BlockNode]     # method dictionary
-    parents*: seq[RuntimeObject]           # inheritance chain
-    tags*: seq[string]                     # type tags
-    isNimProxy*: bool                      # wraps Nim value
-    nimValue*: pointer                     # proxied Nim value
-    nimType*: string                       # Nim type name
-    hasSlots*: bool                        # true if object has declared instance variables
-    slots*: seq[NodeValue]                 # instance variables (faster than property bag)
-    slotNames*: Table[string, int]         # maps ivar names to slot indices
-
-  DictionaryObj* = ref object of RuntimeObject
-    ## Dictionary - runtime object with property bag for dynamic key-value storage
-    properties*: Table[string, NodeValue]  # property bag for dynamic objects
 
   # Mutable cell for captured variables (shared between closures)
   MutableCell* {.acyclic.} = ref object
@@ -119,7 +101,7 @@ type
 
   # Value types for AST nodes and runtime values
   ValueKind* = enum
-    vkInt, vkFloat, vkString, vkSymbol, vkBool, vkNil, vkObject, vkBlock,
+    vkInt, vkFloat, vkString, vkSymbol, vkBool, vkNil, vkBlock,
     vkArray, vkTable, vkClass, vkInstance
 
   NodeValue* = object
@@ -130,7 +112,6 @@ type
     of vkSymbol: symVal*: string
     of vkBool: boolVal*: bool
     of vkNil: discard
-    of vkObject: objVal*: RuntimeObject
     of vkBlock: blockVal*: BlockNode
     of vkArray: arrayVal*: seq[NodeValue]
     of vkTable: tableVal*: Table[string, NodeValue]
@@ -172,6 +153,10 @@ type
     nimCode*: string               # Raw Nim code between tags
     fallback*: seq[Node]           # Smalltalk AST after closing tag
 
+  PrimitiveCallNode* = ref object of Node
+    selector*: string          # The primitive selector (e.g., "primitiveClone", "primitiveAt:")
+    arguments*: seq[Node]      # Arguments to the primitive
+
   # Identifier node for variable lookup
   IdentNode* = ref object of Node
     name*: string
@@ -195,32 +180,8 @@ type
   # Node type enum for pattern matching
   NodeKind* = enum
     nkLiteral, nkIdent, nkMessage, nkBlock, nkAssign, nkReturn,
-    nkArray, nkTable, nkObjectLiteral, nkPrimitive, nkCascade, nkSlotAccess, nkSuperSend, nkPseudoVar
-
-  # Root object (global singleton)
-  RootObject* = ref object of RuntimeObject
-    ## Global root object - parent of all objects
-
-  # Dictionary prototype (singleton)
-  DictionaryPrototype* = ref object of DictionaryObj
-    ## Global Dictionary - provides property bag functionality
-
-  # FileStream object for file I/O
-  FileStreamObj* = ref object of RuntimeObject
-    file*: File
-    mode*: string
-    isOpen*: bool
-
-  # Exception object for error handling
-  ExceptionObj* = ref object of RuntimeObject
-    message*: string
-    stackTrace*: string
-    signaler*: RuntimeObject
-
-  # Global registry object - shared between Nim and Nimtalk
-  GlobalObj* = ref object of RuntimeObject
-    tableRef*: ref Table[string, NodeValue]  # Shared heap-allocated table
-    categories*: Table[string, seq[string]]  # category name -> global names
+    nkArray, nkTable, nkObjectLiteral, nkPrimitive, nkPrimitiveCall, nkCascade,
+    nkSlotAccess, nkSuperSend, nkPseudoVar
 
   # Compiled method representation
   CompiledMethod* = ref object of RootObj
@@ -252,6 +213,7 @@ proc kind*(node: Node): NodeKind =
   elif node of TableNode: nkTable
   elif node of ObjectLiteralNode: nkObjectLiteral
   elif node of PrimitiveNode: nkPrimitive
+  elif node of PrimitiveCallNode: nkPrimitiveCall
   elif node of CascadeNode: nkCascade
   elif node of SlotAccessNode: nkSlotAccess
   elif node of SuperSendNode: nkSuperSend
@@ -280,7 +242,7 @@ proc toString*(val: NodeValue): string =
       of ikArray: "#(" & $val.instVal.elements.len & ")"
       of ikTable: "#{" & $val.instVal.entries.len & "}"
       of ikObject: "<instance of " & val.instVal.class.name & ">"
-  of vkObject: "<object>"  # Legacy, for backward compatibility
+      of ikMixin: "<mixin " & val.instVal.class.name & ">"
   of vkBlock: "<block>"
   of vkArray: "#(" & $val.arrayVal.len & ")"
   of vkTable: "#{" & $val.tableVal.len & "}"
@@ -294,105 +256,20 @@ proc toValue*(f: float): NodeValue =
 proc toValue*(s: string): NodeValue =
   NodeValue(kind: vkString, strVal: s)
 
+proc toSymbol*(s: string): NodeValue =
+  NodeValue(kind: vkSymbol, symVal: s)
+
 proc toValue*(b: bool): NodeValue =
   NodeValue(kind: vkBool, boolVal: b)
 
 proc nilValue*(): NodeValue =
   NodeValue(kind: vkNil)
 
-# ============================================================================
-# Procs and utilities for slot-based instance variables
-# ============================================================================
-
-proc initSlotObject*(ivars: seq[string]): RuntimeObject =
-  ## Create object with declared instance variables (slots)
-  result = RuntimeObject()
-  result.methods = initTable[string, BlockNode]()
-  result.parents = @[]
-  result.tags = @["slotted"]
-  result.isNimProxy = false
-  result.nimValue = nil
-  result.nimType = ""
-  result.hasSlots = true
-  result.slots = newSeq[NodeValue](ivars.len)
-  result.slotNames = initTable[string, int]()
-
-  # Initialize all slots to nil
-  for i in 0..<ivars.len:
-    result.slots[i] = nilValue()
-    result.slotNames[ivars[i]] = i
-
-proc initDictionaryObject*(): DictionaryObj =
-  ## Create a new Dictionary object with property bag
-  result = DictionaryObj()
-  result.methods = initTable[string, BlockNode]()
-  result.parents = @[]
-  result.tags = @["Dictionary"]
-  result.isNimProxy = false
-  result.nimValue = nil
-  result.nimType = ""
-  result.hasSlots = false
-  result.slots = @[]
-  result.slotNames = initTable[string, int]()
-  result.properties = initTable[string, NodeValue]()
-
-proc getSlot*(obj: RuntimeObject, name: string): NodeValue =
-  ## Get slot value by name (returns nil if not found)
-  when not defined(release):
-    debug "getSlot: looking up '", name, "'"
-    debug "  hasSlots: ", obj.hasSlots
-    debug "  slotNames: ", obj.slotNames
-  if not obj.hasSlots or not obj.slotNames.hasKey(name):
-    when not defined(release):
-      debug "  not found, returning nil"
-    return nilValue()
-  when not defined(release):
-    debug "  found at index ", obj.slotNames[name]
-  let idx = obj.slotNames[name]
-  return obj.slots[idx]
-
-proc setSlot*(obj: RuntimeObject, name: string, value: NodeValue) =
-  ## Set slot value by name (does nothing if slot doesn't exist)
-  when not defined(release):
-    debug "setSlot called: '", name, "' = ", value.toString()
-    debug "  hasSlots: ", obj.hasSlots
-    debug "  hasKey: ", obj.slotNames.hasKey(name)
-  if not obj.hasSlots or not obj.slotNames.hasKey(name):
-    when not defined(release):
-      debug "  setSlot: returning early (no slots or key not found)"
-    return
-  let idx = obj.slotNames[name]
-  when not defined(release):
-    debug "  setting at index ", idx
-  obj.slots[idx] = value
-
-proc hasSlotIVars*(obj: RuntimeObject): bool =
-  ## Check if object has declared instance variables (slots)
-  return obj.hasSlots
-
-proc getSlotNames*(obj: RuntimeObject): seq[string] =
-  ## Get all instance variable names
-  if not obj.hasSlots:
-    return @[]
-  # Create temp array of (index, name) pairs
-  var pairs: seq[tuple[idx: int, name: string]] = @[]
-  for name, idx in obj.slotNames:
-    pairs.add((idx, name))
-  # Sort by index
-  pairs.sort(proc(a, b: tuple[idx: int, name: string]): int = a.idx - b.idx)
-  # Extract just the names in order
-  result = @[]
-  for pair in pairs:
-    result.add(pair.name)
-
 proc toValue*(arr: seq[NodeValue]): NodeValue =
   NodeValue(kind: vkArray, arrayVal: arr)
 
 proc toValue*(tab: Table[string, NodeValue]): NodeValue =
   NodeValue(kind: vkTable, tableVal: tab)
-
-proc toValue*(obj: RuntimeObject): NodeValue =
-  NodeValue(kind: vkObject, objVal: obj)
 
 proc toValue*(blk: BlockNode): NodeValue =
   NodeValue(kind: vkBlock, blockVal: blk)
@@ -402,11 +279,6 @@ proc toValue*(cls: Class): NodeValue =
 
 proc toValue*(inst: Instance): NodeValue =
   NodeValue(kind: vkInstance, instVal: inst)
-
-proc toObject*(val: NodeValue): RuntimeObject =
-  if val.kind != vkObject:
-    raise newException(ValueError, "Not an object: " & val.toString)
-  val.objVal
 
 proc toBlock*(val: NodeValue): BlockNode =
   if val.kind != vkBlock:
@@ -432,38 +304,6 @@ proc toTable*(val: NodeValue): Table[string, NodeValue] =
   if val.kind != vkTable:
     raise newException(ValueError, "Not a table: " & val.toString)
   val.tableVal
-
-# Dictionary property helpers
-proc getProperty*(dict: DictionaryObj, name: string): NodeValue =
-  ## Get property value from dictionary or its class hierarchy
-  if dict.properties.hasKey(name):
-    return dict.properties[name]
-  # Search class hierarchy for Dictionary parents
-  for parent in dict.parents:
-    if parent of DictionaryObj:
-      let val = cast[DictionaryObj](parent).getProperty(name)
-      if val.kind != vkNil:
-        return val
-  # Not found
-  nilValue()
-
-proc setProperty*(dict: DictionaryObj, name: string, value: NodeValue) =
-  ## Set property on dictionary (not on parent classes)
-  debug("setProperty for Dictionary: ", $dict.tags, " name: ", name, " = ", value.toString())
-  dict.properties[name] = value
-
-# Generic lookup that delegates to DictionaryObj if applicable
-proc getPropertyGeneric*(obj: RuntimeObject, name: string): NodeValue =
-  ## Get property value - works for Dictionary objects, returns nil for others
-  if obj of DictionaryObj:
-    return cast[DictionaryObj](obj).getProperty(name)
-  return nilValue()
-
-proc lookupMethod*(obj: RuntimeObject, selector: string): BlockNode =
-  ## Look up method in object or class hierarchy
-  ## NOTE: This is a stub - actual implementation in objects.nim
-  nil
-
 
 # ============================================================================
 # Symbol Table for Canonicalization
@@ -520,12 +360,13 @@ proc configureLogging*(level: Level = lvlError) =
       handler.levelThreshold = level
 
 # ============================================================================
-# Root Class (New Class-Based Model)
+# Root Class
 # ============================================================================
 
 var
   rootClass*: Class = nil                      # Root class (zero methods)
   objectClass*: Class = nil                     # Object class, derives from Root
+  mixinClass*: Class = nil                      # Mixin class, sibling to Object (slotless, can mix with any type)
   booleanClass*: Class = nil
   integerClass*: Class = nil
   floatClass*: Class = nil
@@ -555,9 +396,25 @@ proc initObjectClass*(): Class =
     objectClass.tags = @["Object"]
   return objectClass
 
+proc initMixinClass*(): Class =
+  ## Initialize the global Mixin class (inherits from Root, sibling to Object)
+  ## Mixin is a slotless class that can be mixed into any other class type
+  ## Use Mixin derive: methods: [...] to create reusable trait/mixin classes
+  if mixinClass == nil:
+    # Ensure Root exists first
+    discard initRootClass()
+    mixinClass = newClass(parents = @[rootClass], name = "Mixin")
+    mixinClass.tags = @["Mixin", "Object"]  # Mark as Mixin for type compatibility
+  return mixinClass
+
 # ============================================================================
 # Class and Instance Helpers
 # ============================================================================
+
+proc isMixin*(cls: Class): bool =
+  ## Check if a class is a mixin (has no slots at all, can't define slots)
+  ## A mixin can be used as additional parent classes without affecting instance type
+  return "Mixin" in cls.tags or cls.allSlotNames.len == 0
 
 proc newClass*(parents: seq[Class] = @[], slotNames: seq[string] = @[], name: string = ""): Class =
   ## Create a new Class with given parents and slot names
@@ -598,12 +455,13 @@ proc newClass*(parents: seq[Class] = @[], slotNames: seq[string] = @[], name: st
 
   # Check for method selector conflicts between parents (only for directly-defined methods)
   # Inherited methods should not cause conflicts
+  # Note: use derive:parents:ivarArray:methods: to specify method overrides
   var seenInstanceMethods: seq[string] = @[]
   var seenClassMethods: seq[string] = @[]
   for parent in parents:
     for selector in parent.methods.keys:  # Only check directly-defined instance methods
       if selector in seenInstanceMethods:
-        raise newException(ValueError, "Method selector conflict: '" & selector & "' exists in multiple parents (override in child class first, then use addParent:)")
+        raise newException(ValueError, "Method selector conflict: '" & selector & "' exists in multiple parents (use derive:parents:ivarArray:methods: to specify method overrides)")
       seenInstanceMethods.add(selector)
     for selector in parent.classMethods.keys:  # Only check directly-defined class methods
       if selector in seenClassMethods:
@@ -830,5 +688,5 @@ proc valueToInstance*(val: NodeValue): Instance =
   of vkBlock:
     # Blocks are passed as-is, created as ikObject instances
     return Instance(kind: ikObject, class: blockClass, slots: @[], isNimProxy: false, nimValue: nil)
-  of vkObject, vkClass, vkNil, vkSymbol:
+  of vkClass, vkNil, vkSymbol:
     raise newException(ValueError, "Cannot convert " & $val.kind & " to Instance")
