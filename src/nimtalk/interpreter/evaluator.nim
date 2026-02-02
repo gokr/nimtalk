@@ -347,17 +347,20 @@ proc lookupVariableWithStatus(interp: Interpreter, name: string): LookupResult =
   debug("Looking up variable: ", name)
   var activation = interp.currentActivation
   while activation != nil:
-    # Check locals first
-    if name in activation.locals:
-      debug("Found variable in activation: ", name)
-      return (true, activation.locals[name])
-
-    # Check captured environment of the current method/block
+    # Check captured environment FIRST - captured variables from outer lexical scope
+    # should take precedence over local temporaries in the current activation
+    # This is the key difference: blocks capture variables from where they were defined,
+    # not where they're executed
     if activation.currentMethod != nil and activation.currentMethod.capturedEnv.len > 0:
       if name in activation.currentMethod.capturedEnv:
         let value = activation.currentMethod.capturedEnv[name].value
         debug("Found variable in captured environment: ", name, " = ", value.toString())
         return (true, value)
+
+    # Then check locals (temporaries defined in this activation)
+    if name in activation.locals:
+      debug("Found variable in activation: ", name)
+      return (true, activation.locals[name])
 
     activation = activation.sender
 
