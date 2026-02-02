@@ -23,7 +23,7 @@ proc newDoitContext*(trace: bool = false, maxStackDepth: int = 10000): DoitConte
     interpreter: newInterpreter(trace, maxStackDepth),
     globals: new(Table[string, NodeValue]),
     history: @["-- Nemo REPL History --"],
-    prompt: "nt> ",
+    prompt: "nemo> ",
     showResults: true
   )
 
