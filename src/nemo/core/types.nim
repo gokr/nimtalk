@@ -1,4 +1,4 @@
-import std/[tables, logging]
+import std/[tables, logging, hashes]
 
 # ============================================================================
 # Core Types for Nemo
@@ -59,7 +59,7 @@ type
     of ikArray:
       elements*: seq[NodeValue]             # Array elements
     of ikTable:
-      entries*: Table[string, NodeValue]    # Table entries
+      entries*: Table[NodeValue, NodeValue]    # Table entries
     of ikInt:
       intVal*: int                          # Direct storage (no boxing)
     of ikFloat:
@@ -113,7 +113,7 @@ type
     of vkNil: discard
     of vkBlock: blockVal*: BlockNode
     of vkArray: arrayVal*: seq[NodeValue]
-    of vkTable: tableVal*: Table[string, NodeValue]
+    of vkTable: tableVal*: Table[NodeValue, NodeValue]
     of vkClass: classVal*: Class
     of vkInstance: instVal*: Instance
 
@@ -246,6 +246,75 @@ proc toString*(val: NodeValue): string =
   of vkArray: "#(" & $val.arrayVal.len & ")"
   of vkTable: "#{" & $val.tableVal.len & "}"
 
+# Equality operator for NodeValue
+proc `==`*(a, b: NodeValue): bool =
+  ## Compare two NodeValues for equality
+  if a.kind != b.kind:
+    return false
+  case a.kind
+  of vkInt: a.intVal == b.intVal
+  of vkFloat: a.floatVal == b.floatVal
+  of vkString: a.strVal == b.strVal
+  of vkSymbol: a.symVal == b.symVal
+  of vkBool: a.boolVal == b.boolVal
+  of vkNil: true
+  of vkBlock: unsafeAddr(a.blockVal) == unsafeAddr(b.blockVal)
+  of vkInstance: a.instVal == b.instVal
+  of vkArray:
+    if a.arrayVal.len != b.arrayVal.len: return false
+    for i in 0..<a.arrayVal.len:
+      if a.arrayVal[i] != b.arrayVal[i]: return false
+    return true
+  of vkTable:
+    if a.tableVal.len != b.tableVal.len: return false
+    for k, v in a.tableVal:
+      var found = false
+      for k2, v2 in b.tableVal:
+        if k == k2:
+          if v != v2: return false
+          found = true
+          break
+      if not found: return false
+    return true
+  of vkClass: a.classVal == b.classVal
+
+# Hash functions for ref types (needed for table hashing)
+proc hash*(val: BlockNode): Hash = cast[int](val)
+proc hash*(val: Instance): Hash = cast[int](val)
+proc hash*(val: Class): Hash = cast[int](val)
+
+# Hash function for NodeValue (enables use as Table keys)
+proc hash*(val: NodeValue): Hash =
+  ## Hash a NodeValue for use as a hash table key
+  case val.kind
+  of vkInt:
+    result = hash(val.intVal)
+  of vkFloat:
+    result = hash(val.floatVal.uint64)
+  of vkString:
+    result = hash(val.strVal)
+  of vkSymbol:
+    result = hash(val.symVal)
+  of vkBool:
+    result = hash(val.boolVal.uint8)
+  of vkNil:
+    result = 0
+  of vkBlock:
+    result = cast[int](val.blockVal)
+  of vkInstance:
+    result = cast[int](val.instVal)
+  of vkArray:
+    result = val.arrayVal.len
+    for item in val.arrayVal:
+      result = result xor hash(item)
+  of vkTable:
+    result = val.tableVal.len
+    for k, v in val.tableVal:
+      result = result xor hash(k)
+      result = result xor hash(v)
+  of vkClass:
+    result = cast[int](val.classVal)
+
 proc toValue*(i: int): NodeValue =
   NodeValue(kind: vkInt, intVal: i)
 
@@ -267,7 +336,7 @@ proc nilValue*(): NodeValue =
 proc toValue*(arr: seq[NodeValue]): NodeValue =
   NodeValue(kind: vkArray, arrayVal: arr)
 
-proc toValue*(tab: Table[string, NodeValue]): NodeValue =
+proc toValue*(tab: Table[NodeValue, NodeValue]): NodeValue =
   NodeValue(kind: vkTable, tableVal: tab)
 
 proc toValue*(blk: BlockNode): NodeValue =
@@ -316,7 +385,7 @@ proc toArray*(val: NodeValue): seq[NodeValue] =
     raise newException(ValueError, "Not an array: " & val.toString)
   val.arrayVal
 
-proc toTable*(val: NodeValue): Table[string, NodeValue] =
+proc toTable*(val: NodeValue): Table[NodeValue, NodeValue] =
   if val.kind != vkTable:
     raise newException(ValueError, "Not a table: " & val.toString)
   val.tableVal
@@ -574,7 +643,7 @@ proc newArrayInstance*(cls: Class, elements: seq[NodeValue]): Instance =
   ## Create a new Array instance
   Instance(kind: ikArray, class: cls, elements: elements, isNimProxy: false, nimValue: nil)
 
-proc newTableInstance*(cls: Class, entries: Table[string, NodeValue]): Instance =
+proc newTableInstance*(cls: Class, entries: Table[NodeValue, NodeValue]): Instance =
   ## Create a new Table instance
   Instance(kind: ikTable, class: cls, entries: entries, isNimProxy: false, nimValue: nil)
 
@@ -629,12 +698,12 @@ proc getArrayElements*(inst: Instance): seq[NodeValue] =
     raise newException(ValueError, "Not an array instance")
   inst.elements
 
-proc getTableEntries*(inst: Instance): Table[string, NodeValue] =
+proc getTableEntries*(inst: Instance): Table[NodeValue, NodeValue] =
   if inst.kind != ikTable:
     raise newException(ValueError, "Not a table instance")
   inst.entries
 
-proc getTableValue*(inst: Instance, key: string): NodeValue =
+proc getTableValue*(inst: Instance, key: NodeValue): NodeValue =
   ## Get a value from a table instance
   if inst.kind != ikTable:
     return nilValue()
@@ -642,7 +711,7 @@ proc getTableValue*(inst: Instance, key: string): NodeValue =
     return inst.entries[key]
   return nilValue()
 
-proc setTableValue*(inst: Instance, key: string, value: NodeValue) =
+proc setTableValue*(inst: Instance, key: NodeValue, value: NodeValue) =
   ## Set a value in a table instance
   if inst.kind == ikTable:
     inst.entries[key] = value
