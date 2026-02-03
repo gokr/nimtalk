@@ -35,6 +35,11 @@ task local, "Build and copy binaries to root directory":
   exec "nim c -o:nemoc src/nemo/compiler/nemoc.nim"
   echo "Binaries available in root directory as nemo and nemoc"
 
+task gui, "Build the GUI IDE":
+  # Build the GUI IDE with GTK4
+  exec "nim c -o:nemo-ide src/nemo/gui/ide.nim"
+  echo "GUI IDE binary available as nemo-ide"
+
 task clean, "Clean build artifacts using build.nims":
   exec "nim e build.nims clean"
 
