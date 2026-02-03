@@ -278,23 +278,19 @@ The receiver is evaluated once, then each message in the cascade is sent to that
 
 ## Primitive Syntax
 
-Nemo supports three forms for working with primitives:
+Nemo supports a unified primitive syntax that works for both declarative method bodies and inline usage:
 
-### Declarative Primitives
+### Unified Syntax
 
-For methods that directly delegate to a primitive with no additional logic:
-
-```smalltalk
-Object>>clone <primitive: #primitiveClone>
-Object>>at: key <primitive: #primitiveAt:>
-Object>>at: key put: value <primitive: #primitiveAt:put:>
-```
-
-### Inline Primitives
-
-For calling primitives within method bodies using keyword message syntax:
+Both declarative and inline forms use the same keyword message syntax:
 
 ```smalltalk
+# Declarative - method body is just the primitive
+Object>>clone <primitive primitiveClone>
+Object>>at: key <primitive primitiveAt: key>
+Object>>at: key put: value <primitive primitiveAt: key put: value>
+
+# Inline - within method body
 Object>>at: key [
   key isNil ifTrue: [ self error: "Key cannot be nil" ].
   ^ <primitive primitiveAt: key>
@@ -304,6 +300,8 @@ Object>>at: key put: value [
   ^ <primitive primitiveAt: key put: value>
 ]
 ```
+
+For declarative primitives, argument names in the primitive tag must match the method parameter names exactly, in the same order. This provides validation at parse time.
 
 ### Nim Code Embedding (Legacy)
 

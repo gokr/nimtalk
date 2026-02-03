@@ -91,27 +91,27 @@ Keywords are identifiers followed by a colon. Multi-part keywords like `at:put:`
 
 ### Primitives
 
-Nemo supports three primitive syntaxes:
+Nemo supports a unified primitive syntax that works for both declarative and inline use:
 
 ```bnf
 (* XML-style primitive with Nim code embedding *)
 <primitive-xml>    ::= "<primitive>" <nim-code> "</primitive>"
 
-(* Declarative primitive - method IS the primitive *)
-<primitive-decl>   ::= "<primitive:" <symbol> ">"
-
-(* Inline primitive call with keyword message syntax *)
-<primitive-inline> ::= "<primitive" <primitive-selector> ">"
-<primitive-selector> ::= <identifier>                      (* unary: primitiveClone *)
-                       | <keyword-primitive-args>          (* keyword: primitiveAt: key *)
+(* Unified primitive - works both declarative and inline *)
+<primitive-call>   ::= "<primitive" <primitive-selector> ">"
+<primitive-selector> ::= <identifier>                      (* unary: <primitive primitiveClone> *)
+                       | <keyword-primitive-args>          (* keyword: <primitive primitiveAt: key> *)
 <keyword-primitive-args> ::= (<keyword> <primitive-arg>)+
 <primitive-arg>    ::= <identifier> | <literal>
 ```
 
+The primitive selector uses keyword message syntax, with arguments interleaved.
+
 Examples:
-- Declarative: `Object>>clone <primitive: #primitiveClone>`
+- Declarative: `Object>>clone <primitive primitiveClone>`
+- Declarative with args: `Object>>at: key <primitive primitiveAt: key>`
 - Inline unary: `<primitive primitiveClone>`
-- Inline keyword: `<primitive primitiveAt: key put: value>`
+- Inline keyword: `<primitive primitiveAt: key>`
 
 ## Syntactic Grammar
 
@@ -154,7 +154,6 @@ Object>>at: key [
 
 ```bnf
 <method-def>   ::= <receiver> ">>" <selector> <method-body>
-                 | <receiver> ">>" <selector> <primitive-decl>
 <receiver>     ::= <expression>
                  | <expression> "class"   (* for class methods *)
 <selector>     ::= <identifier>           (* unary selector *)
@@ -162,17 +161,19 @@ Object>>at: key [
                  | <binary-op> <param-name>
 <param-name>   ::= <identifier>
 <method-body>  ::= <block>
-<primitive-decl> ::= "<primitive:" <symbol> ">"
+                 | <primitive-call>       (* standalone primitive as body *)
 ```
 
 The `>>` syntax is syntactic sugar that transforms to: `Receiver selector:put: [body]`
 
-Declarative primitives allow methods to directly delegate to a primitive:
+Declarative primitives allow methods to directly delegate to a primitive using the unified syntax:
 ```smalltalk
-Object>>clone <primitive: #primitiveClone>
-Object>>at: key <primitive: #primitiveAt:>
-Object>>at: key put: value <primitive: #primitiveAt:put:>
+Object>>clone <primitive primitiveClone>
+Object>>at: key <primitive primitiveAt: key>
+Object>>at: key put: value <primitive primitiveAt: key put: value>
 ```
+
+For declarative primitives, argument names in the primitive tag must match the method parameter names exactly, in the same order. This provides validation at parse time.
 
 ### Expressions
 
