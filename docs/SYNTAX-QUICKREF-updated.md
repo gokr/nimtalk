@@ -438,8 +438,8 @@ a ~~ b                                      # Not identity
 
 #=== Primitives ==============================
 # Declarative (method IS the primitive)
-Object>>clone <primitive: #primitiveClone>
-Object>>at: key <primitive: #primitiveAt:>
+Object>>clone <primitive primitiveClone>
+Object>>at: key <primitive primitiveAt: key>
 
 # Inline (call primitive in method body)
 [ ^ <primitive primitiveClone> ]

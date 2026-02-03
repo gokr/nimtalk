@@ -1,10 +1,37 @@
-import std/[tables, strutils, sequtils, math, hashes]
+import std/[tables, strutils, sequtils, math, hashes, logging]
 import ../core/types
 
 # ============================================================================
 # Object System for Nemo
 # Class-based objects with delegation/inheritance
 # ============================================================================
+#
+# DESIGN NOTE: Core Class Initialization
+# --------------------------------------
+# Core classes are created in TWO phases to avoid circular dependencies:
+#
+# Phase 1 - initCoreClasses() (in this file):
+#   - Creates the class hierarchy (Root -> Object -> Integer/Float/String/Array/Table/Block)
+#   - Registers class methods (new, derive:, selector:put:, etc.)
+#   - Registers basic instance methods
+#
+# Phase 2 - initGlobals() (in evaluator.nim):
+#   - Adds primitive methods that need evaluator context
+#   - MUST reuse existing classes via: if arrayClass != nil: arrayCls = arrayClass
+#
+# IMPORTANT: hasInterpreterParam
+# ------------------------------
+# When registering native methods, the proc signature MUST match hasInterpreterParam:
+#
+#   hasInterpreterParam = false:
+#     proc myMethod(self: Instance, args: seq[NodeValue]): NodeValue
+#
+#   hasInterpreterParam = true:
+#     proc myMethod(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue
+#
+# MISMATCH causes calling convention errors (wrong return values, crashes).
+# Use registerInstanceMethod/registerClassMethod templates for automatic detection.
+#
 
 # Forward declarations for core method implementations (exported for testing)
 proc plusImpl*(self: Instance, args: seq[NodeValue]): NodeValue
@@ -26,7 +53,7 @@ proc writeImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc writelineImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 
 # Collection primitives
-proc arrayNewImpl*(self: Instance, args: seq[NodeValue]): NodeValue
+# Note: arrayNewImpl is defined later in the file to avoid forward declaration issues
 proc arraySizeImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc arrayAddImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc arrayRemoveAtImpl*(self: Instance, args: seq[NodeValue]): NodeValue
@@ -112,6 +139,7 @@ var numberClassCache*: Class = nil
 var integerClassCache*: Class = nil
 var stringClassCache*: Class = nil
 var arrayClassCache*: Class = nil
+var tableClassCache*: Class = nil
 var blockClassCache*: Class = nil
 
 # Scheduler-related classes (set by scheduler module)
@@ -223,6 +251,50 @@ proc addMethodToClass*(cls: Class, selector: string, meth: BlockNode, isClassMet
     cls.methods[selector] = meth
   # Rebuild all method tables for this class and all descendants
   rebuildAllDescendants(cls)
+
+# ============================================================================
+# Type-safe native method registration
+# ============================================================================
+
+template registerInstanceMethod*(cls: Class, selector: string, procName: typed) =
+  ## Register an instance method with automatic hasInterpreterParam detection.
+  ## The proc signature determines if interpreter param is needed:
+  ##   proc(self: Instance, args: seq[NodeValue]) - no interpreter
+  ##   proc(interp: var Interpreter, self: Instance, args: seq[NodeValue]) - with interpreter
+  block:
+    let meth = createCoreMethod(selector)
+    meth.nativeImpl = cast[pointer](procName)
+    # Auto-detect based on proc arity using type introspection
+    when compiles(procName(default(Interpreter), default(Instance), default(seq[NodeValue]))):
+      meth.hasInterpreterParam = true
+    else:
+      meth.hasInterpreterParam = false
+    addMethodToClass(cls, selector, meth, isClassMethod = false)
+
+template registerClassMethod*(cls: Class, selector: string, procName: typed) =
+  ## Register a class method with automatic hasInterpreterParam detection.
+  block:
+    let meth = createCoreMethod(selector)
+    meth.nativeImpl = cast[pointer](procName)
+    when compiles(procName(default(Interpreter), default(Instance), default(seq[NodeValue]))):
+      meth.hasInterpreterParam = true
+    else:
+      meth.hasInterpreterParam = false
+    addMethodToClass(cls, selector, meth, isClassMethod = true)
+
+# ============================================================================
+# Array class method implementation (must be defined before initCoreClasses)
+# ============================================================================
+proc arrayNewImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
+  ## Create new array (class method)
+  var elements: seq[NodeValue] = @[]
+  if args.len > 0:
+    let (ok, val) = args[0].tryGetInt()
+    if ok:
+      for i in 0..<val:
+        elements.add(nilValue())
+  let inst = newArrayInstance(arrayClass, elements)
+  return NodeValue(kind: vkInstance, instVal: inst)
 
 # ============================================================================
 # Core Classes Initialization
@@ -512,13 +584,13 @@ proc initCoreClasses*(): Class =
     # Array new: is a class method
     let newMethod = createCoreMethod("new")
     newMethod.nativeImpl = cast[pointer](arrayNewImpl)
-    newMethod.hasInterpreterParam = true  # Required for proper Instance wrapping
+    newMethod.hasInterpreterParam = true  # Required for Instance wrapper path
     addMethodToClass(arrayClass, "new", newMethod, isClassMethod = true)
 
     # Array new: with size argument
     let newSizeMethod = createCoreMethod("new:")
     newSizeMethod.nativeImpl = cast[pointer](arrayNewImpl)
-    newSizeMethod.hasInterpreterParam = true  # Required for proper Instance wrapping
+    newSizeMethod.hasInterpreterParam = true  # Required for Instance wrapper path
     addMethodToClass(arrayClass, "new:", newSizeMethod, isClassMethod = true)
 
     addGlobal("Array", NodeValue(kind: vkClass, classVal: arrayClass))
@@ -627,36 +699,42 @@ proc ltImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   let (ok, val) = args[0].tryGetInt()
   if self.kind == ikInt and ok:
     return toValue(self.intVal < val)
+  return falseValue
 
 proc gtImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Greater than comparison
   let (ok, val) = args[0].tryGetInt()
   if self.kind == ikInt and ok:
     return toValue(self.intVal > val)
+  return falseValue
 
 proc eqImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Equal comparison
   let (ok, val) = args[0].tryGetInt()
   if self.kind == ikInt and ok:
     return toValue(self.intVal == val)
+  return falseValue
 
 proc leImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Less than or equal comparison
   let (ok, val) = args[0].tryGetInt()
   if self.kind == ikInt and ok:
     return toValue(self.intVal <= val)
+  return falseValue
 
 proc geImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Greater than or equal comparison
   let (ok, val) = args[0].tryGetInt()
   if self.kind == ikInt and ok:
     return toValue(self.intVal >= val)
+  return falseValue
 
 proc neImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Not equal comparison
   let (ok, val) = args[0].tryGetInt()
   if self.kind == ikInt and ok:
     return toValue(self.intVal != val)
+  return trueValue
 
 proc intDivImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Integer division
@@ -1019,16 +1097,6 @@ proc instStringRepeatImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   return NodeValue(kind: vkInstance, instVal: newStringInstance(self.class, self.strVal))
 
 # Array primitives
-proc arrayNewImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
-  ## Create new array (class method)
-  var elements: seq[NodeValue] = @[]
-  if args.len > 0:
-    let (ok, val) = args[0].tryGetInt()
-    if ok:
-      for i in 0..<val:
-        elements.add(nilValue())
-  return NodeValue(kind: vkInstance, instVal: newArrayInstance(arrayClass, elements))
-
 proc arraySizeImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Array size
   if self.kind == ikArray:
@@ -1037,8 +1105,12 @@ proc arraySizeImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
 
 proc arrayAddImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Add element to array
+  let elemCount = if self.kind == ikArray: self.elements.len else: 0
+  debug("arrayAddImpl: self.kind=", $self.kind, " ikArray=", $(self.kind == ikArray),
+        " args.len=", $args.len, " elements.len=", $elemCount)
   if self.kind == ikArray and args.len > 0:
     self.elements.add(args[0])
+    debug("arrayAddImpl: after add, elements.len=", $self.elements.len)
   return self.toValue()
 
 proc arrayRemoveAtImpl*(self: Instance, args: seq[NodeValue]): NodeValue =

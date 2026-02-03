@@ -5,6 +5,7 @@
 #
 
 import std/unittest
+import std/strutils
 import ../src/nemo/core/types
 import ../src/nemo/parser/[lexer, parser]
 import ../src/nemo/interpreter/[evaluator, objects]
@@ -18,7 +19,6 @@ suite "Primitive Syntax: Declarative Form":
     initSymbolTable()
 
   test "declarative primitive without arguments works (clone)":
-    # Test: instance clone using primitive
     let result = interp.evalStatements("""
     obj := Table new.
     clone := obj clone.
@@ -31,7 +31,6 @@ suite "Primitive Syntax: Declarative Form":
     check(result[0][^1].intVal == 42)
 
   test "declarative primitive with one argument works (at:)":
-    # Test: at: primitive
     let result = interp.evalStatements("""
     obj := Table new.
     obj at: #key put: 42.
@@ -43,7 +42,6 @@ suite "Primitive Syntax: Declarative Form":
     check(result[0][^1].intVal == 42)
 
   test "declarative primitive with two arguments works (at:put:)":
-    # Test: at:put: primitive
     let result = interp.evalStatements("""
     obj := Table new.
     obj at: "test" put: 99.
@@ -72,7 +70,6 @@ suite "Primitive Syntax: Declarative Form":
 
   test "primitive method can be called on instances":
     let result = interp.evalStatements("""
-    # Create instance and use primitive methods
     obj := Table new.
     obj at: #value put: 123.
     result := obj at: #value
@@ -105,7 +102,6 @@ suite "Primitive Syntax: Inline Form":
     initSymbolTable()
 
   test "inline primitive clone":
-    # Test: method with <primitive primitiveClone> inside (unary selector)
     let result = interp.evalStatements("""
     MyObj := Object derive.
     MyObj selector: #myClone put: [
@@ -117,7 +113,6 @@ suite "Primitive Syntax: Inline Form":
     result := obj == clone
     """)
 
-    # Cloned objects are not identity-equal
     check(result[1].len == 0)
     check(result[0][^1].kind == vkBool)
     check(result[0][^1].boolVal == false)
@@ -135,7 +130,6 @@ suite "Primitive Syntax: Error Handling":
     var parser = initParser(tokens)
     discard parser.parseStatements()
 
-    # Should have a parse error due to missing argument after keyword
     check(parser.hasError)
 
   test "non-existent primitive selector should error at runtime":
@@ -149,7 +143,6 @@ suite "Primitive Syntax: Error Handling":
     result := obj callBadPrimitive
     """)
 
-    # Should have an error message
     check(result[1].len > 0)
 
 suite "Primitive Syntax: Integration Tests":
@@ -175,13 +168,80 @@ suite "Primitive Syntax: Integration Tests":
     check(result[0][^1].intVal == 3)
 
   test "inline primitive with keyword message syntax parses correctly":
-    # Test that the keyword message syntax parses correctly
     let tokens = lex("[ :key :val | <primitive primitiveAt: key put: val> ]")
     var parser = initParser(tokens)
     let nodes = parser.parseStatements()
 
     check(not parser.hasError)
     check(nodes.len == 1)
-    # Verify the block parsed correctly
     let blk = nodes[0].BlockNode
     check(blk.parameters == @["key", "val"])
+
+suite "Primitive Syntax: Unified Declarative Syntax":
+  var interp: Interpreter
+
+  setup:
+    interp = newInterpreter()
+    initGlobals(interp)
+    initSymbolTable()
+
+  test "unified syntax - parser accepts keyword arguments in primitive tag":
+    let tokens = lex("MyObj>>myMethod [ <primitive primitiveClone> ]")
+    var parser = initParser(tokens)
+    discard parser.parseStatements()
+
+    check(not parser.hasError)
+
+  test "unified syntax - declarative primitive without arguments works":
+    let result = interp.evalStatements("""
+    MyObj := Object derive.
+    MyObj>>myClone <primitive primitiveClone>.
+
+    obj := MyObj new.
+    clone := obj myClone.
+    result := obj == clone
+    """)
+
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == false)
+
+  test "unified syntax - declarative primitive with wrong argument count fails at parse time":
+    let tokens = lex("MyObj>>at: key put: val <primitive primitiveAt:>")
+    var parser = initParser(tokens)
+    discard parser.parseStatements()
+
+    check(parser.hasError)
+
+  test "unified syntax - declarative primitive with wrong argument names fails at parse time":
+    let tokens = lex("MyObj>>at: a put: b <primitive primitiveAt: x put: y>")
+    var parser = initParser(tokens)
+    discard parser.parseStatements()
+
+    check(parser.hasError)
+    check("must match" in parser.errorMsg or "expected" in parser.errorMsg)
+
+  test "unified syntax - inline primitive works inside method":
+    let result = interp.evalStatements("""
+    MyObj := Object derive.
+    MyObj>>testInline [
+      ^<primitive primitiveClone>
+    ].
+
+    obj := MyObj new.
+    result := obj testInline
+    """)
+
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInstance)
+
+  test "unified syntax - Table uses at: and at:put: methods":
+    let result = interp.evalStatements("""
+    obj := Table new.
+    obj at: #test put: 42.
+    result := obj at: #test
+    """)
+
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 42)

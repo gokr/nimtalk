@@ -114,7 +114,6 @@ proc parseMethod(parser: var Parser): BlockNode
 proc parsePrimitive(parser: var Parser): Node
 proc checkForCascade(parser: var Parser, primary: Node, firstMsg: MessageNode): Node
 proc parseMethodDefinition(parser: var Parser, receiver: Node): Node
-proc parseDeclarativePrimitive(parser: var Parser, selector: string, params: seq[string]): PrimitiveCallNode
 
 # Reserved pseudo-variables that cannot be used as slot names or regular identifiers
 const PseudoVariables* = ["self", "nil", "true", "false", "super"]
@@ -997,42 +996,65 @@ proc parseMethodDefinition(parser: var Parser, receiver: Node): Node =
     parser.parseError("Expected method selector after >>")
     return nil
 
-  # Parse method body - check for declarative primitive syntax: <primitive: #primitiveSelector>
+  # Parse method body - check for declarative primitive syntax
+  # Unified syntax: <primitive selector: arg1 keyword2: arg2>
   var blk: BlockNode
-  if parser.peek().kind == tkTag and parser.peek().value.startsWith("primitive:"):
-    # Declarative primitive - parse directly from tag value
-    let tagValue = parser.next().value  # Consume <primitive: #selector> tag
+  let peekToken = parser.peek()
+  if peekToken.kind == tkTag and peekToken.value.startsWith("primitive"):
+    let tagValue = parser.next().value  # Consume primitive tag
 
-    # Extract the selector from the tag value (after "primitive: ")
-    var tagParts = tagValue.split({' ', '\t'}, maxSplit = 1)
-    if tagParts.len < 2:
-      parser.parseError("Expected primitive selector after <primitive:, got: " & tagValue)
+    if tagValue.startsWith("primitive ") or tagValue.startsWith("primitive\t"):
+      # Unified syntax: <primitive selector: arg1 keyword2: arg2>
+      let (primSelector, primArguments, errorMsg) = parsePrimitiveTagContent(tagValue)
+      if errorMsg.len > 0:
+        parser.parseError(errorMsg)
+        return nil
+
+      # Validate arity (colon count in selector must match param count)
+      let primitiveColonCount = primSelector.count(':')
+      if primitiveColonCount != params.len:
+        parser.parseError("Method takes " & $params.len & " arguments but " &
+                         "primitive '" & primSelector & "' has " & $primitiveColonCount)
+        return nil
+
+      # Validate argument names match method parameters (for declarative primitives)
+      if primArguments.len > 0:
+        var argNames: seq[string] = @[]
+        for arg in primArguments:
+          if arg of IdentNode:
+            argNames.add(arg.IdentNode.name)
+          else:
+            parser.parseError("Declarative primitive arguments must be parameter names, got: " & $arg.kind)
+            return nil
+
+        # Compare argument names with method parameters (must match exactly, same order)
+        if argNames != params:
+          if params.len == 1:
+            parser.parseError("Primitive argument name must match parameter: expected '" & params[0] & "', got '" & argNames[0] & "'")
+          else:
+            parser.parseError("Primitive argument names must match parameters in order: expected " & $params & ", got " & $argNames)
+          return nil
+
+      # Use method parameters as arguments instead of the parsed ones (to ensure they reference the right scope)
+      var finalArguments: seq[Node] = @[]
+      for param in params:
+        finalArguments.add(IdentNode(name: param))
+
+      blk = BlockNode(
+        parameters: params,
+        temporaries: @[],
+        body: @[cast[Node](ReturnNode(expression: PrimitiveCallNode(
+          selector: primSelector,
+          arguments: finalArguments,
+          line: parser.lastLine,
+          col: parser.lastCol
+        )))],
+        isMethod: true,
+        nativeImpl: nil
+      )
+    else:
+      parser.parseError("Expected <primitive selector: ...> syntax in method body")
       return nil
-
-    let primSelectorRaw = tagParts[1]
-    # Strip the # prefix from the selector symbol (e.g., "#primitiveClone" -> "primitiveClone")
-    let primSelector = if primSelectorRaw.startsWith("#"):
-                        primSelectorRaw[1..^1]
-                      else:
-                        primSelectorRaw
-
-    # Validate arity (colon count in selector must match param count)
-    let primitiveColonCount = primSelector.count(':')
-    if primitiveColonCount != params.len:
-      parser.parseError("Method takes " & $params.len & " arguments but #" &
-                       primSelector & " expects " & $primitiveColonCount)
-      return nil
-
-    # Create a block with primitive call as return
-    let primCall = parseDeclarativePrimitive(parser, primSelector, params)
-
-    blk = BlockNode(
-      parameters: params,
-      temporaries: @[],
-      body: @[cast[Node](ReturnNode(expression: primCall))],
-      isMethod: true,
-      nativeImpl: nil
-    )
   else:
     # Parse method body as a block (parseBlock expects the [ itself)
     blk = parser.parseBlock()
@@ -1142,27 +1164,6 @@ proc parsePrimitive(parser: var Parser): Node =
   prim.nimCode = nimCode
   prim.fallback = fallback
   return prim
-
-# Parse declarative primitive call in method definition: <primitive: #selector>
-proc parseDeclarativePrimitive(parser: var Parser, selector: string, params: seq[string]): PrimitiveCallNode =
-  let startLine = parser.lastLine
-  let startCol = parser.lastCol
-
-  let primSelector = selector
-
-  # Create primitive call with parameter references as arguments
-  var arguments: seq[Node] = @[]
-  for param in params:
-    arguments.add(IdentNode(name: param))
-
-  let node = PrimitiveCallNode(
-    selector: primSelector,
-    arguments: arguments,
-    line: startLine,
-    col: startCol
-  )
-  return node
-
 
 # Parse sequence of statements (method body or REPL input)
 proc parseStatements*(parser: var Parser): seq[Node] =

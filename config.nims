@@ -7,3 +7,6 @@ when withDir(thisDir(), system.fileExists("nimble.paths")):
 # of deeply nested interpreter object graphs.
 # See CLAUDE.md for details on ORC issues with cyclic references.
 switch("mm", "refc")
+
+# Add src to path for proper module resolution
+switch("path", "src")

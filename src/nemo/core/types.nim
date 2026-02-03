@@ -1,4 +1,4 @@
-import std/[tables, logging, hashes]
+import std/[tables, logging, hashes, strutils]
 
 # ============================================================================
 # Core Types for Nemo
@@ -263,6 +263,8 @@ proc kind*(node: Node): NodeKind =
   else: raise newException(ValueError, "Unknown node type")
 
 # Value conversion utilities
+proc formatLiteral*(val: NodeValue): string
+
 proc toString*(val: NodeValue): string =
   ## Convert NodeValue to string for display
   case val.kind
@@ -285,11 +287,54 @@ proc toString*(val: NodeValue): string =
       of ikFloat: $(val.instVal.floatVal)
       of ikString: val.instVal.strVal
       of ikArray: "#(" & $val.instVal.elements.len & ")"
-      of ikTable: "#{" & $val.instVal.entries.len & "}"
+      of ikTable:
+        var parts: seq[string] = @[]
+        for k, v in val.instVal.entries:
+          parts.add(formatLiteral(k) & " -> " & formatLiteral(v))
+        "#{" & parts.join(" . ") & "}"
       of ikObject: "<instance of " & val.instVal.class.name & ">"
   of vkBlock: "<block>"
   of vkArray: "#(" & $val.arrayVal.len & ")"
-  of vkTable: "#{" & $val.tableVal.len & "}"
+  of vkTable:
+    var parts: seq[string] = @[]
+    for k, v in val.tableVal:
+      parts.add(formatLiteral(k) & " -> " & formatLiteral(v))
+    "#{" & parts.join(" . ") & "}"
+
+proc formatLiteral*(val: NodeValue): string =
+  ## Format a literal value for display (quoted strings, bare numbers/symbols/booleans)
+  case val.kind
+  of vkString: '"' & val.strVal & '"'
+  of vkInt: $val.intVal
+  of vkFloat: $val.floatVal
+  of vkBool: $val.boolVal
+  of vkNil: "nil"
+  of vkSymbol: val.symVal
+  of vkClass: "<class " & val.classVal.name & ">"
+  of vkInstance:
+    if val.instVal == nil or val.instVal.class == nil:
+      "<instance nil>"
+    elif val.instVal == nilInstance or val.instVal.class == undefinedObjectClass:
+      "nil"
+    else:
+      case val.instVal.kind
+      of ikInt: $(val.instVal.intVal)
+      of ikFloat: $(val.instVal.floatVal)
+      of ikString: '"' & val.instVal.strVal & '"'
+      of ikArray: "#(" & $val.instVal.elements.len & ")"
+      of ikTable:
+        var parts: seq[string] = @[]
+        for k, v in val.instVal.entries:
+          parts.add(formatLiteral(k) & " -> " & formatLiteral(v))
+        "#{" & parts.join(" . ") & "}"
+      of ikObject: "<instance of " & val.instVal.class.name & ">"
+  of vkBlock: "<block>"
+  of vkArray: "#(" & $val.arrayVal.len & ")"
+  of vkTable:
+    var parts: seq[string] = @[]
+    for k, v in val.tableVal:
+      parts.add(formatLiteral(k) & " -> " & formatLiteral(v))
+    "#{" & parts.join(" . ") & "}"
 
 # Equality operator for NodeValue
 proc `==`*(a, b: NodeValue): bool =

@@ -1,69 +1,73 @@
 # Primitive Syntax in Nemo
 
-This document describes the syntax for direct primitive invocation in Nemo, which eliminates the overhead of going through `perform:` while maintaining clean, readable code.
+This document describes the unified syntax for direct primitive invocation in Nemo.
 
 ## Overview
 
-Nemo provides two related syntax forms for calling primitives:
-
-1. **Declarative form** `<primitive: #selector>` - for methods that ARE primitives
-2. **Inline form** `<primitive #selector args>` - for calling primitives within method bodies
-
-Both forms bypass the `perform:` machinery, eliminating an extra method lookup and activation record.
-
-## Declarative Form
-
-Use when a method's entire purpose is to invoke a primitive with no Nemo code before or after.
-
-### Syntax
+Nemo provides a single unified syntax for calling primitives that works for both declarative method bodies and inline usage:
 
 ```smalltalk
-Receiver>>selector <primitive: #primitiveSelector>
-Receiver>>selector: arg <primitive: #primitiveSelector:>
-Receiver>>selector: arg1 with: arg2 <primitive: #primitiveSelector:with:>
+<primitive selector: arg1 keyword2: arg2>
 ```
 
-### Examples
+This syntax eliminates the overhead of going through `perform:` while maintaining clean, readable code. Arguments are provided using keyword message syntax, making the code self-documenting.
+
+## Syntax
+
+### Unified Syntax
+
+Both declarative and inline forms use the same keyword message syntax:
 
 ```smalltalk
 # No arguments
-Object>>clone <primitive: #primitiveClone>
+<primitive primitiveClone>
 
 # One argument
-Object>>at: key <primitive: #primitiveAt:>
-String>>size <primitive: #primitiveStringSize>
+<primitive primitiveAt: key>
 
 # Multiple arguments
-Object>>at: key put: value <primitive: #primitiveAt:put:>
-String>>replace: old with: new <primitive: #primitiveReplace:with:>
-
-# Class methods
-Array class>>new: size <primitive: #primitiveNew:>
-String class>>with: character <primitive: #primitiveStringWith:>
+<primitive primitiveAt: key put: value>
 ```
 
-### Benefits
+### Declarative Form
 
-- No method body block needed
-- No activation record for wrapper method
-- Clear intent: "this method IS that primitive"
-- Parser validates that argument counts match
-
-## Inline Form
-
-Use when you need to execute Nemo code before or after the primitive call.
-
-### Syntax
+Use `<<primitive>>` as the entire method body when a method's sole purpose is to invoke a primitive. Argument names in the primitive tag MUST match the method parameter names exactly, in the same order.
 
 ```smalltalk
-<primitive primitiveSelector>
-<primitive primitiveSelector: argument>
-<primitive primitiveSelector: arg1 with: arg2>
+# No arguments
+Object>>clone <primitive primitiveClone>
+
+# One argument - parameter name 'key' must match
+Object>>at: key <primitive primitiveAt: key>
+
+# Multiple arguments - parameter names must match
+Object>>at: key put: value <primitive primitiveAt: key put: value>
+
+# Class methods
+Array class>>new: size <primitive primitiveNew: size>
 ```
 
-Arguments are provided using keyword message syntax, making the code self-documenting.
+**Validation Rules for Declarative Primitives:**
 
-### Examples
+1. Argument names in the primitive tag must match method parameter names exactly
+2. Argument order must match parameter order
+3. Argument count must match the number of colons in the primitive selector
+
+Error messages when validation fails:
+
+```smalltalk
+# Wrong argument names
+Object>>at: key put: value <primitive primitiveAt: x put: y>
+# Error: Primitive argument names must match parameters: expected 'key' and 'value', got 'x' and 'y'
+
+# Wrong argument count
+Object>>at: key put: value <primitive primitiveAt: key>
+# Error: Method has 2 parameters but primitive 'primitiveAt:' defines 1
+```
+
+### Inline Form
+
+Use `<<primitive>>` within a method body when you need to execute Nemo code before or after the primitive call. Arguments can be any variable reference: method parameters, temporaries, slots, or computed values.
 
 ```smalltalk
 # Validation before primitive
@@ -80,10 +84,11 @@ Object>>shallowCopy [
   ^ <primitive primitiveClone>
 ]
 
-# Multiple arguments
-String>>replace: old with: new [
-  old isEmpty ifTrue: [ ^ self ].
-  ^ <primitive primitiveReplace: old with: new>
+# Using temporary variable
+Object>>double [
+  | temp |
+  temp := self value.
+  ^ <primitive primitiveAt: #value put: temp * 2>
 ]
 
 # Post-processing result
@@ -115,15 +120,15 @@ Object>>at: key put: value [
 
 **Call chain:** `clone` → `perform:` → `primitiveClone` (3 activations)
 
-### New Approach (with primitive syntax)
+### New Approach (with unified primitive syntax)
 
 ```smalltalk
 # Declarative
-Object>>clone <primitive: #primitiveClone>
-Object>>at: key <primitive: #primitiveAt:>
-Object>>at: key put: value <primitive: #primitiveAt:put:>
+Object>>clone <primitive primitiveClone>
+Object>>at: key <primitive primitiveAt: key>
+Object>>at: key put: value <primitive primitiveAt: key put: value>
 
-# Or inline when needed
+# Inline when needed
 Object>>at: key [
   key isNil ifTrue: [ self error: "Key cannot be nil" ].
   ^ <primitive primitiveAt: key>
@@ -132,50 +137,55 @@ Object>>at: key [
 
 **Call chain:** `clone` → `primitiveClone` (2 activations, or 1 if inlined)
 
+## Benefits
+
+1. **Single syntax to learn** - No confusing distinction between `primitive:>` and `primitive`
+2. **Explicit arguments** - Arguments are visible in both declarative and inline forms
+3. **Consistent with Smalltalk** - Uses keyword message syntax everywhere
+4. **Better validation at parse time** - Argument names and counts are validated for declarative forms
+5. **More efficient** - Bypasses `perform:` machinery, eliminating one activation record
+
 ## Validation
 
-The parser and compiler verify:
+The parser verifies:
 
-1. **Primitive exists**: The referenced primitive must be registered
-2. **Arity matches**: The number of arguments must match the number of colons in the primitive selector
-3. **Valid syntax**: Proper use of `<primitive:>` vs `<primitive>`
+1. **Primitive syntax is valid** - Proper use of `<primitive>` tag
+2. **Selector is well-formed** - Keywords properly separated by arguments
+3. **Argument count matches** - For declarative forms, the number of arguments must match method parameter count
+4. **Argument names match** - For declarative forms, argument names must match method parameters (for clarity and validation)
 
 ## Error Messages
 
 | Error | Example |
 |-------|---------|
-| Primitive not found | `Primitive not found: #primitiveFoo` |
-| Arity mismatch | `Method takes 2 arguments but #primitiveAt: expects 1` |
-| Invalid syntax | `Expected symbol after 'primitive:'` |
+| Primitive not found (runtime) | `Primitive not found: #primitiveFoo` |
+| Argument count mismatch | `Method has 2 parameters but primitive 'primitiveAt:' defines 1` |
+| Argument name mismatch | `Primitive argument names must match parameters: expected 'key', got 'x'` |
 
 ## Migration Guide
 
-### Converting Existing perform: Calls
+### Using Declarative Primitives
 
-1. **Simple delegation** (no Nemo code):
-   ```smalltalk
-   # Before
-   Object>>clone [ ^ self perform: #primitiveClone ]
+```smalltalk
+# Declarative - method body is just the primitive
+Object>>clone <primitive primitiveClone>
+Object>>at: key <primitive primitiveAt: key>
+Object>>at: key put: value <primitive primitiveAt: key put: value>
+```
 
-   # After
-   Object>>clone <primitive: #primitiveClone>
-   ```
+### Using Inline Primitives
 
-2. **With validation** (needs Nemo code):
-   ```smalltalk
-   # Before
-   Array>>at: index [
-     ^ self perform: #primitiveAt: with: index
-   ]
+```smalltalk
+# Inline - within method body
+Object>>at: key [
+  key isNil ifTrue: [ self error: "Key cannot be nil" ].
+  ^ <primitive primitiveAt: key>
+]
 
-   # After
-   Array>>at: index [
-     (index < 1 or: [index > self size]) ifTrue: [
-       self error: "Out of bounds"
-     ].
-     ^ <primitive primitiveAt: index>
-   ]
-   ```
+Object>>at: key put: value [
+  ^ <primitive primitiveAt: key put: value>
+]
+```
 
 ## Backward Compatibility
 
@@ -191,109 +201,71 @@ selector := #primitiveClone.
 obj perform: selector
 ```
 
+## Examples by Category
+
+### Object Primitives
+
+```smalltalk
+Object>>clone <primitive primitiveClone>
+Object>>at: key <primitive primitiveAt: key>
+Object>>at: key put: value <primitive primitiveAt: key put: value>
+Object>>== other <primitive primitiveEquals: other>
+Object>>properties <primitive primitiveProperties>
+```
+
+### String Primitives
+
+```smalltalk
+String>>, other <primitive primitiveConcat:>
+String>>size <primitive primitiveStringSize>
+String>>at: index <primitive primitiveStringAt: index>
+String>>from: start to: end <primitive primitiveFromTo: start to: end>
+String>>indexOf: substring <primitive primitiveIndexOf: substring>
+String>>replace: old with: new <primitive primitiveReplace: old with: new>
+String>>uppercase <primitive primitiveUppercase>
+String>>lowercase <primitive primitiveLowercase>
+String>>trim <primitive primitiveTrim>
+String>>split: delimiter <primitive primitiveSplit: delimiter>
+```
+
+### Collection Primitives
+
+```smalltalk
+Array>>add: element <primitive primitiveAdd: element>
+Array>>size <primitive primitiveSize>
+Array>>at: index put: value <primitive primitiveAt: index put: value>
+Array>>removeAt: index <primitive primitiveRemoveAt: index>
+Array>>includes: element <primitive primitiveIncludes: element>
+Array>>join: separator <primitive primitiveJoin: separator>
+
+Table>>at: key put: value <primitive at: key put: value>
+Table>>keys <primitive primitiveKeys>
+```
+
 ## Implementation Notes
 
 ### Parser Handling
 
-The parser treats `<primitive:` and `<primitive` as special tokens that trigger primitive-specific parsing:
+The parser treats `<primitive` as a special token that triggers primitive parsing:
 
-1. **Declarative**: `Object>>selector <primitive: #foo>`
-   - Parse method header normally
-   - Check for `<primitive:` token
-   - Parse the primitive selector symbol
-   - Validate arity matches method parameters
-   - No method body block expected
-
-2. **Inline**: `<primitive foo: arg1 bar: arg2>`
-   - Parse `<primitive` token
-   - Parse as keyword or unary message format
-   - Keywords interleaved with arguments (keyword message syntax)
-   - Expect closing `>`
+1. Parse the opening `<primitive`
+2. Parse the selector and arguments as keyword message syntax
+3. Parse the closing `>`
+4. For declarative forms, validate against method parameters
 
 ### Runtime Behavior
 
-Both forms result in direct primitive invocation:
+Both declarative and inline forms result in direct primitive invocation:
 
-1. Look up the primitive method in the root object's method dictionary
+1. Look up the primitive method in the receiver's method dictionary
 2. Execute the native implementation directly
 3. Skip the `perform:` machinery entirely
 
 This eliminates:
 - One method lookup (the `perform:` lookup)
 - One activation record (the `perform:` call)
-- Argument wrapping in LiteralNode objects
-
-## Examples by Category
-
-### Object Primitives
-
-```smalltalk
-Object>>clone <primitive: #primitiveClone>
-Object>>derive <primitive: #primitiveDerive>
-Object>>at: key <primitive: #primitiveAt:>
-Object>>at: key put: value <primitive: #primitiveAt:put:>
-Object>>== other <primitive: #primitiveEquals:>
-Object>>properties <primitive: #primitiveProperties>
-```
-
-### String Primitives
-
-```smalltalk
-String>>, other <primitive: #primitiveConcat:>           # Concatenation (comma operator)
-String>>size <primitive: #primitiveStringSize>
-String>>at: index <primitive: #primitiveStringAt:>
-String>>from: start to: end <primitive: #primitiveFromTo:>
-String>>indexOf: substring <primitive: #primitiveIndexOf:>
-String>>replace: old with: new <primitive: #primitiveReplaceWith:>
-String>>uppercase <primitive: #primitiveUppercase>
-String>>lowercase <primitive: #primitiveLowercase>
-String>>trim <primitive: #primitiveTrim>
-String>>split: delimiter <primitive: #primitiveSplit:>
-String>>repeat: count <primitive: #primitiveRepeat:>    # Repeat string n times
-```
-
-### Collection Primitives
-
-```smalltalk
-Array>>add: element <primitive: #primitiveAdd:>
-Array>>size <primitive: #primitiveSize>
-Array>>at: index put: value <primitive: #primitiveAt:put:>
-Array>>removeAt: index <primitive: #primitiveRemoveAt:>
-Array>>includes: element <primitive: #primitiveIncludes:>
-Array>>join: separator <primitive: #primitiveJoin:>    # Join elements with separator
-
-Table>>at: key put: value <primitive: #primitiveTableAt:put:>
-Table>>keys <primitive: #primitiveKeys>
-Table>>includesKey: key <primitive: #primitiveIncludesKey:>
-```
-
-### Block Primitives
-
-```smalltalk
-Block>>value <primitive: #primitiveValue>
-Block>>value: arg <primitive: #primitiveValue:>
-Block>>value: arg1 value: arg2 <primitive: #primitiveValue:value:>
-Block>>whileTrue: bodyBlock <primitive: #primitiveWhileTrue:>
-```
-
-### Exception Primitives
-
-```smalltalk
-Exception>>signal <primitive: #primitiveSignal>
-Exception class>>on: exceptionClass do: handlerBlock <primitive: #primitiveOnDo:>
-```
-
-### File Stream Primitives
-
-```smalltalk
-FileStream class>>open: filename mode: mode <primitive: #primitiveFileOpen:mode:>
-FileStream>>close <primitive: #primitiveFileClose>
-FileStream>>readLine <primitive: #primitiveFileReadLine>
-FileStream>>write: string <primitive: #primitiveFileWrite:>
-FileStream>>atEnd <primitive: #primitiveFileAtEnd>
-```
 
 ## See Also
 
-- [PERFORM.md](PERFORM.md) - Documentation on the `perform:` mechanism
-- [SYNTAX-REALITY.md](SYNTAX-REALITY.md) - Current syntax implementation details
+- [SYNTAX.md](SYNTAX.md) - General syntax reference
+- [RUNTIME.md](RUNTIME.md) - Runtime behavior details

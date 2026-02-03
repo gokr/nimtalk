@@ -788,10 +788,12 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
       debug("currentReceiver class: ", interp.currentReceiver.class.name, " kind: ", interp.currentReceiver.kind)
       # Special case: for class methods, self should return the Class object
       # The hidden class receiver is an ikObject with empty slots and no nimValue
+      # BUT: nil instance also matches this, so we must exclude it explicitly
       if interp.currentReceiver.kind == ikObject and
          interp.currentReceiver.slots.len == 0 and
          interp.currentReceiver.isNimProxy == false and
-         interp.currentReceiver.nimValue == nil:
+         interp.currentReceiver.nimValue == nil and
+         interp.currentReceiver != nilInstance:
         debug("self returning as class: <class ", interp.currentReceiver.class.name, ">")
         return interp.currentReceiver.class.toValue()
       result = interp.currentReceiver.toValue().unwrap()
@@ -1126,12 +1128,8 @@ proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue =
         # Rewrite method AST to use SlotAccessNodes for O(1) slot access
         rewriteMethodForSlotAccess(methodBlock, cls)
         cls.methods[methodName] = methodBlock
-        cls.allMethods[methodName] = methodBlock
-        # Also add to all subclasses' allMethods for inheritance
-        # but only if they don't already have their own method defined
-        for subclass in cls.subclasses:
-          if methodName notin subclass.methods:
-            subclass.allMethods[methodName] = methodBlock
+        # Rebuild all allMethods tables to ensure inheritance works correctly
+        rebuildAllDescendants(cls)
         debug("Added instance method: ", methodName, " to class: ", cls.name)
         return cls.toValue()
       else:
@@ -1144,7 +1142,9 @@ proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue =
         let methodBlock = arguments[1].blockVal
         methodBlock.isMethod = true
         cls.classMethods[methodName] = methodBlock
-        cls.allClassMethods[methodName] = methodBlock
+        # Rebuild all allClassMethods tables to ensure inheritance works correctly
+        for subclass in cls.subclasses:
+          subclass.allClassMethods[methodName] = methodBlock
         debug("Added class method: ", methodName, " to class: ", cls.name)
         return cls.toValue()
       else:
@@ -1509,7 +1509,7 @@ proc evalStatements*(interp: var Interpreter, source: string): (seq[NodeValue], 
     return (@[], "Error: " & e.msg)
 
 # Block evaluation helper
-proc evalBlock(interp: var Interpreter, receiver: Instance, blockNode: BlockNode): NodeValue =
+proc evalBlock*(interp: var Interpreter, receiver: Instance, blockNode: BlockNode): NodeValue =
   ## Evaluate a block in the context of the given receiver
   ## Creates a proper activation to allow access to outer scope
 
@@ -1970,7 +1970,7 @@ proc primitiveSlotNamesImpl(interp: var Interpreter, self: Instance, args: seq[N
   # For simplicity, we'll just use the class's slot names
   var slotNames: seq[NodeValue] = @[]
   for name in self.class.slotNames:
-    slotNames.add(toSymbol(name))
+    slotNames.add(toValue(name))
   return newArrayInstance(arrayClass, slotNames).toValue()
 
 proc primitiveSuperclassNamesImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
@@ -2019,6 +2019,8 @@ proc primitiveValueWithThreeArgsImpl(interp: var Interpreter, self: Instance, ar
   return nilValue()
 
 # Exception handling methods
+proc formatStackTrace*(interp: Interpreter): string  ## Forward declaration
+
 proc onDoImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Install exception handler: [ protectedBlock ] on: ExceptionClass do: [ :ex | handler ]
   ## self is the protected block (receiver), args[0] is exception class, args[1] is handler block
@@ -2059,9 +2061,10 @@ proc onDoImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): No
       if h.stackDepth <= interp.activationStack.len:
         # Found a handler - execute it
         # Create an exception object (using the new class system)
+        let stackTrace = formatStackTrace(interp)
         var exSlots = newSeq[NodeValue]()
         exSlots.add(toValue(e.msg))  # message slot
-        exSlots.add(toValue("Stack trace placeholder"))  # stackTrace slot
+        exSlots.add(toValue(stackTrace))  # stackTrace slot
         let exObj = Instance(kind: ikObject, class: interp.rootClass, slots: exSlots)
 
         # Remove this handler and all above it
@@ -2084,6 +2087,16 @@ proc onDoImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): No
         interp.exceptionHandlers.setLen(lastIdx)
 
   return blockResult
+
+proc formatStackTrace*(interp: Interpreter): string =
+  ## Format the current activation stack as a readable stack trace
+  result = ""
+  for i, activation in interp.activationStack:
+    let frameNum = i + 1
+    if activation.currentMethod != nil:
+      result.add($frameNum & ": <method>\n")
+    else:
+      result.add($frameNum & ": <unknown>\n")
 
 proc signalImpl(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Signal an exception: exception signal
@@ -2143,15 +2156,19 @@ proc arrayDoImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]):
   return lastResult
 
 # Built-in globals - NEW Class-based implementation
-# Built-in globals - NEW Class-based implementation
 proc initGlobals*(interp: var Interpreter) =
   ## Initialize built-in global variables using new Class-based model
+  ##
+  ## IMPORTANT: This function ADDS methods to existing classes created by initCoreClasses().
+  ## Do NOT create new classes here - reuse existing ones:
+  ##   var arrayCls: Class
+  ##   if arrayClass != nil: arrayCls = arrayClass  # Reuse existing
+  ##   else: arrayCls = newClass(...)               # Only if not exists
+  ##
+  ## See objects.nim for full design documentation.
 
   # Set rootClass and create the basic class hierarchy from Root
   let rootCls = initRootClass()
-
-  # Note: derive, derive:, and new class methods are registered in initCoreClasses
-  # They properly generate slot accessors for the new class
 
   # Register addSuperclass: class method on classes
   # This allows adding a superclass to an existing class after creation
@@ -2288,33 +2305,44 @@ proc initGlobals*(interp: var Interpreter) =
   objectCls.methods["primitiveIsKindOf:"] = objIsKindOfMethod
   objectCls.allMethods["primitiveIsKindOf:"] = objIsKindOfMethod
 
-  # Add primitiveSlotNames for class introspection - returns slot names of this class
-  let objSlotNamesMethod = createCoreMethod("primitiveSlotNames")
+  # Add slotNames for class introspection - returns slot names of this class
+  let objSlotNamesMethod = createCoreMethod("slotNames")
   objSlotNamesMethod.nativeImpl = cast[pointer](primitiveSlotNamesImpl)
   objSlotNamesMethod.hasInterpreterParam = true
+  objectCls.methods["slotNames"] = objSlotNamesMethod
+  objectCls.allMethods["slotNames"] = objSlotNamesMethod
+  # Also register with primitiveSlotNames for <primitive: #primitiveSlotNames> syntax
   objectCls.methods["primitiveSlotNames"] = objSlotNamesMethod
   objectCls.allMethods["primitiveSlotNames"] = objSlotNamesMethod
 
-  # Add primitiveSuperclassNames for class introspection - returns names of superclasses
-  let objSuperclassNamesMethod = createCoreMethod("primitiveSuperclassNames")
+  # Add superclassNames for class introspection - returns names of superclasses
+  let objSuperclassNamesMethod = createCoreMethod("superclassNames")
   objSuperclassNamesMethod.nativeImpl = cast[pointer](primitiveSuperclassNamesImpl)
   objSuperclassNamesMethod.hasInterpreterParam = true
+  objectCls.methods["superclassNames"] = objSuperclassNamesMethod
+  objectCls.allMethods["superclassNames"] = objSuperclassNamesMethod
+  # Also register with primitiveSuperclassNames for <primitive: #primitiveSuperclassNames> syntax
   objectCls.methods["primitiveSuperclassNames"] = objSuperclassNamesMethod
   objectCls.allMethods["primitiveSuperclassNames"] = objSuperclassNamesMethod
 
-  # Add primitiveClassName for Class - returns the class name
+  # Add className for Class - returns the class name
   proc primitiveClassNameImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
     if self.class != nil:
       return toValue(self.class.name)
     return toValue("")
 
-  let classNameMethod = createCoreMethod("primitiveClassName")
+  let classNameMethod = createCoreMethod("className")
   classNameMethod.nativeImpl = cast[pointer](primitiveClassNameImpl)
   classNameMethod.hasInterpreterParam = true
   # Add to instance methods (for objects to get their class name via className)
+  objectCls.methods["className"] = classNameMethod
+  objectCls.allMethods["className"] = classNameMethod
+  # Also register with primitiveClassName for <primitive: #primitiveClassName> syntax
   objectCls.methods["primitiveClassName"] = classNameMethod
   objectCls.allMethods["primitiveClassName"] = classNameMethod
   # Add to class methods (for Class objects like String to respond to name)
+  objectCls.classMethods["className"] = classNameMethod
+  objectCls.allClassMethods["className"] = classNameMethod
   objectCls.classMethods["primitiveClassName"] = classNameMethod
   objectCls.allClassMethods["primitiveClassName"] = classNameMethod
 
@@ -2513,21 +2541,25 @@ proc initGlobals*(interp: var Interpreter) =
   stringCls.methods["primitiveRepeat:"] = stringRepeatMethod
   stringCls.allMethods["primitiveRepeat:"] = stringRepeatMethod
 
-  # Create Array class (derives from Object)
-  let arrayCls = newClass(superclasses = @[objectCls], name = "Array")
-  arrayCls.tags = @["Array", "Collection"]
-  arrayClass = arrayCls
+  # Use existing Array class from initCoreClasses or create if needed
+  var arrayCls: Class
+  if arrayClass != nil:
+    arrayCls = arrayClass
+  else:
+    arrayCls = newClass(superclasses = @[objectCls], name = "Array")
+    arrayCls.tags = @["Array", "Collection"]
+    arrayClass = arrayCls
 
-  # Register Array primitive methods
-  let arraySizeMethod = createCoreMethod("primitiveSize")
+  # Register Array methods
+  let arraySizeMethod = createCoreMethod("size")
   arraySizeMethod.nativeImpl = cast[pointer](arraySizeImpl)
-  arrayCls.methods["primitiveSize"] = arraySizeMethod
-  arrayCls.allMethods["primitiveSize"] = arraySizeMethod
+  arrayCls.methods["size"] = arraySizeMethod
+  arrayCls.allMethods["size"] = arraySizeMethod
 
-  let arrayAddMethod = createCoreMethod("primitiveAdd:")
+  let arrayAddMethod = createCoreMethod("add:")
   arrayAddMethod.nativeImpl = cast[pointer](arrayAddImpl)
-  arrayCls.methods["primitiveAdd:"] = arrayAddMethod
-  arrayCls.allMethods["primitiveAdd:"] = arrayAddMethod
+  arrayCls.methods["add:"] = arrayAddMethod
+  arrayCls.allMethods["add:"] = arrayAddMethod
 
   let arrayAtMethod = createCoreMethod("at:")
   arrayAtMethod.nativeImpl = cast[pointer](arrayAtImpl)
@@ -2539,25 +2571,35 @@ proc initGlobals*(interp: var Interpreter) =
   arrayCls.methods["at:put:"] = arrayAtPutMethod
   arrayCls.allMethods["at:put:"] = arrayAtPutMethod
 
-  let arrayIncludesMethod = createCoreMethod("primitiveIncludes:")
+  let arrayIncludesMethod = createCoreMethod("includes:")
   arrayIncludesMethod.nativeImpl = cast[pointer](arrayIncludesImpl)
-  arrayCls.methods["primitiveIncludes:"] = arrayIncludesMethod
-  arrayCls.allMethods["primitiveIncludes:"] = arrayIncludesMethod
+  arrayCls.methods["includes:"] = arrayIncludesMethod
+  arrayCls.allMethods["includes:"] = arrayIncludesMethod
 
-  let arrayReverseMethod = createCoreMethod("primitiveReverse")
+  let arrayReverseMethod = createCoreMethod("reverse")
   arrayReverseMethod.nativeImpl = cast[pointer](arrayReverseImpl)
-  arrayCls.methods["primitiveReverse"] = arrayReverseMethod
-  arrayCls.allMethods["primitiveReverse"] = arrayReverseMethod
+  arrayCls.methods["reverse"] = arrayReverseMethod
+  arrayCls.allMethods["reverse"] = arrayReverseMethod
 
-  let arrayJoinMethod = createCoreMethod("primitiveJoin:")
+  let arrayJoinMethod = createCoreMethod("join:")
   arrayJoinMethod.nativeImpl = cast[pointer](arrayJoinImpl)
-  arrayCls.methods["primitiveJoin:"] = arrayJoinMethod
-  arrayCls.allMethods["primitiveJoin:"] = arrayJoinMethod
+  arrayCls.methods["join:"] = arrayJoinMethod
+  arrayCls.allMethods["join:"] = arrayJoinMethod
 
-  # Create Table class (derives from Object) - exposed as Dictionary for compatibility
-  let tableCls = newClass(superclasses = @[objectCls], name = "Table")
-  tableCls.tags = @["Table", "Dictionary", "Collection"]
-  tableClass = tableCls
+  let arrayDoMethod = createCoreMethod("do:")
+  arrayDoMethod.nativeImpl = cast[pointer](arrayDoImpl)
+  arrayDoMethod.hasInterpreterParam = true
+  arrayCls.methods["do:"] = arrayDoMethod
+  arrayCls.allMethods["do:"] = arrayDoMethod
+
+  # Use existing Table class from initCoreClasses or create if needed
+  var tableCls: Class
+  if tableClass != nil:
+    tableCls = tableClass
+  else:
+    tableCls = newClass(superclasses = @[objectCls], name = "Table")
+    tableCls.tags = @["Table", "Dictionary", "Collection"]
+    tableClass = tableCls
 
   # Register Table primitive methods
   let tableAtMethod = createCoreMethod("at:")
@@ -2794,6 +2836,12 @@ proc loadStdlib*(interp: var Interpreter, basePath: string = "") =
       blockClassCache = blockVal.classVal
       debug("Set blockClassCache from Block global")
 
+  if "Table" in interp.globals[]:
+    let tableVal = interp.globals[]["Table"]
+    if tableVal.kind == vkClass:
+      tableClassCache = tableVal.classVal
+      debug("Set tableClassCache from Table global")
+
 # Simple test function (incomplete - commented out)
 ## proc testBasicArithmetic*(): bool =
 ##   ## Test basic arithmetic: 3 + 4 = 7
@@ -2920,12 +2968,13 @@ proc globalTableKeysImpl(interp: var Interpreter, self: Instance, args: seq[Node
               else:
                 nil
 
-  if proxy != nil:
+  if proxy != nil and proxy.globals != nil:
     # This is a GlobalTable proxy - access the globals table
-    var elements: seq[NodeValue] = @[]
-    for key in proxy.globals[].keys():
-      elements.add(toValue(key))
-    return NodeValue(kind: vkInstance, instVal: newArrayInstance(arrayClass, elements))
+    if proxy.globals != nil:  # Double-check before dereferencing
+      var elements: seq[NodeValue] = @[]
+      for key in proxy.globals[].keys():
+        elements.add(toValue(key))
+      return NodeValue(kind: vkInstance, instVal: newArrayInstance(arrayClass, elements))
   else:
     # Fall through to regular Table behavior
     return tableKeysImpl(self, args)
@@ -2937,13 +2986,14 @@ proc globalTableIncludesKeyImpl(interp: var Interpreter, self: Instance, args: s
               else:
                 nil
 
-  if proxy != nil:
+  if proxy != nil and proxy.globals != nil:
     # This is a GlobalTable proxy - access the globals table
     if args.len > 0:
       let key = if args[0].kind == vkString: args[0].strVal
                 elif args[0].kind == vkSymbol: args[0].symVal
                 else: ""
-      return toValue(key in proxy.globals[])
+      if proxy.globals != nil:  # Double-check before dereferencing
+        return toValue(key in proxy.globals[])
     return toValue(false)
   else:
     # Fall through to regular Table behavior
