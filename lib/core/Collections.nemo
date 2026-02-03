@@ -201,6 +201,18 @@ Array>>removeAll [
   ^ self
 ]
 
+Table>>printString [
+  # Return a string representation showing key-value pairs.
+  | result isFirst |
+  result := "#{".
+  isFirst := true.
+  self keys do: [ :key |
+    isFirst ifTrue: [ isFirst := false ] ifFalse: [ result := result , ", " ].
+    result := result , (key printString) , ": " , ((self at: key) printString)
+  ].
+  ^ result , "}"
+]
+
 #====================================================================
 # Table (Dictionary) extensions
 #====================================================================
