@@ -18,6 +18,10 @@ type ProcessProxy = ref object
 # the GC doesn't know about these references and may reclaim the memory
 var processProxies: seq[ProcessProxy] = @[]
 
+# Keep Interpreter references alive - stored as raw pointers in Process objects,
+# the GC needs to see actual Nim refs to prevent collection
+var interpreterRefs: seq[Interpreter] = @[]
+
 # Forward declarations for functions defined later in this file
 proc createProcessClass*(): Class
 proc createSchedulerClass*(): Class
@@ -43,10 +47,13 @@ proc newSchedulerContext*(): SchedulerContext =
     root = mainInterp.rootObject
   )
 
-  # Create main process
+  # Create main process (not added to ready queue since it's the host)
   result.mainProcess = result.theScheduler.newProcess("main")
   result.mainProcess.interpreter = cast[InterpreterRef](mainInterp)
-  result.theScheduler.addProcess(result.mainProcess)
+  # Keep interpreter reference alive for GC
+  interpreterRefs.add(mainInterp)
+  # Main process is tracked but not scheduled - it's the host execution context
+  result.theScheduler.allProcesses[result.mainProcess.pid] = result.mainProcess
 
 proc getInterpreter*(process: Process): Interpreter =
   ## Get the interpreter for a process
@@ -66,7 +73,6 @@ proc forkProcess*(ctx: SchedulerContext, blockNode: BlockNode,
                   receiver: Instance, name: string = ""): Process =
   ## Create a new green process from a Nemo block
   ## The new process will execute the block when scheduled
-
   let sched = ctx.theScheduler
 
   # Create new interpreter sharing globals and rootObject
@@ -81,6 +87,9 @@ proc forkProcess*(ctx: SchedulerContext, blockNode: BlockNode,
   # Create the process
   result = sched.newProcess(name)
   result.setInterpreter(newInterp)
+
+  # Keep interpreter reference alive for GC
+  interpreterRefs.add(newInterp)
 
   # Ensure blockNode has initialized capturedEnv
   if not blockNode.capturedEnvInitialized:
@@ -109,7 +118,17 @@ proc runCurrentProcess*(ctx: SchedulerContext): NodeValue =
   if sched.currentProcess == nil:
     return nilValue()
 
-  var interp = sched.currentProcess.getInterpreter()
+  if sched.currentProcess.interpreter == nil:
+    debug("Process ", sched.currentProcess.name, " has nil interpreter pointer, terminating")
+    sched.terminateProcess(sched.currentProcess)
+    return nilValue()
+
+  var interp = cast[Interpreter](sched.currentProcess.interpreter)
+  if interp == nil:
+    debug("Process ", sched.currentProcess.name, " getInterpreter returned nil, terminating")
+    sched.terminateProcess(sched.currentProcess)
+    return nilValue()
+
   let activation = interp.currentActivation
 
   if activation == nil or activation.currentMethod == nil:
@@ -450,30 +469,30 @@ proc asSchedulerProxy*(inst: Instance): SchedulerProxy =
 
 proc schedulerProcessCountImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Get total number of processes
-  let proxy = self.asSchedulerProxy()
-  if proxy != nil:
-    return toValue(proxy.theScheduler.processCount())
+  let ctx = cast[SchedulerContext](interp.schedulerContextPtr)
+  if ctx != nil:
+    return toValue(ctx.theScheduler.processCount())
   return nilValue()
 
 proc schedulerReadyCountImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Get number of ready processes
-  let proxy = self.asSchedulerProxy()
-  if proxy != nil:
-    return toValue(proxy.theScheduler.readyCount())
+  let ctx = cast[SchedulerContext](interp.schedulerContextPtr)
+  if ctx != nil:
+    return toValue(ctx.theScheduler.readyCount())
   return nilValue()
 
 proc schedulerBlockedCountImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Get number of blocked processes
-  let proxy = self.asSchedulerProxy()
-  if proxy != nil:
-    return toValue(proxy.theScheduler.blockedCount())
+  let ctx = cast[SchedulerContext](interp.schedulerContextPtr)
+  if ctx != nil:
+    return toValue(ctx.theScheduler.blockedCount())
   return nilValue()
 
 proc schedulerCurrentProcessImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Get the current process
-  let proxy = self.asSchedulerProxy()
-  if proxy != nil and proxy.theScheduler.currentProcess != nil:
-    return createProcessProxy(proxy.theScheduler.currentProcess)
+  let ctx = cast[SchedulerContext](interp.schedulerContextPtr)
+  if ctx != nil and ctx.theScheduler.currentProcess != nil:
+    return createProcessProxy(ctx.theScheduler.currentProcess)
   return nilValue()
 
 proc schedulerForkNameImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
@@ -497,20 +516,20 @@ proc schedulerForkNameImpl(interp: var Interpreter, self: Instance, args: seq[No
 
 proc schedulerStepImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Run one time slice
-  let proxy = self.asSchedulerProxy()
-  if proxy != nil:
-    discard proxy.context.runOneSlice()
+  let ctx = cast[SchedulerContext](interp.schedulerContextPtr)
+  if ctx != nil:
+    discard ctx.runOneSlice()
   return nilValue()
 
 proc schedulerRunToCompletionImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Run all processes to completion
-  let proxy = self.asSchedulerProxy()
-  if proxy != nil:
+  let ctx = cast[SchedulerContext](interp.schedulerContextPtr)
+  if ctx != nil:
     let maxSteps = if args.len > 0 and args[0].kind == vkInt:
                      args[0].intVal
                    else:
                      100000
-    let stepsExecuted = proxy.context.runToCompletion(maxSteps)
+    let stepsExecuted = ctx.runToCompletion(maxSteps)
     return toValue(stepsExecuted)
   return nilValue()
 
