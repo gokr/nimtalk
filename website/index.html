@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nemo - Smalltalk Semantics, Nim Performance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="#" class="logo">
+                <span class="logo-icon">◉</span>
+                <span class="logo-text">nemo</span>
+            </a>
+            <button class="nav-toggle" aria-label="Toggle navigation">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <ul class="nav-menu">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#examples">Examples</a></li>
+                <li><a href="#playground">Try It</a></li>
+                <li><a href="#install">Install</a></li>
+                <li><a href="https://github.com/gokr/nemo" class="nav-cta">GitHub</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-bg">
+            <div class="gradient-orb orb-1"></div>
+            <div class="gradient-orb orb-2"></div>
+            <div class="grid-pattern"></div>
+        </div>
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <span class="badge-dot"></span>
+                    Now in active development
+                </div>
+                <h1 class="hero-title">
+                    Smalltalk semantics.<br>
+                    <span class="gradient-text">Nim performance.</span>
+                </h1>
+                <p class="hero-subtitle">
+                    Nemo is a prototype-based Smalltalk dialect that compiles to native code.
+                    File-based, git-friendly, and designed for the modern era.
+                </p>
+                <div class="hero-cta">
+                    <a href="#install" class="btn btn-primary">Get Started</a>
+                    <a href="#examples" class="btn btn-secondary">See Examples</a>
+                </div>
+            </div>
+            <div class="hero-code">
+                <div class="code-window">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <span class="code-title">example.nemo</span>
+                    </div>
+                    <div class="code-body">
+                        <pre><code><span class="comment">"Define a Point class with x and y slots"</span>
+<span class="type">Point</span> := <span class="type">Object</span> derive: <span class="keyword">#</span>(x y)
+
+<span class="comment">"Add methods using the >> syntax"</span>
+<span class="type">Point</span> extend: [
+    <span class="keyword">self</span> <span class="operator">>></span> moveBy: dx and: dy [
+        x := x <span class="operator">+</span> dx
+        y := y <span class="operator">+</span> dy
+        <span class="keyword">^</span> <span class="keyword">self</span>
+    ]
+
+    <span class="keyword">self</span> <span class="operator">>></span> distanceFromOrigin [
+        <span class="keyword">^</span> ((x <span class="operator">*</span> x) <span class="operator">+</span> (y <span class="operator">*</span> y)) sqrt
+    ]
+]
+
+<span class="comment">"Create and use a Point"</span>
+p := <span class="type">Point</span> new
+p x: <span class="number">100</span> y: <span class="number">200</span>
+p distanceFromOrigin println</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="scroll-indicator">
+            <span>Scroll to explore</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M19 12l-7 7-7-7"/>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">Features</span>
+                <h2>Everything you love about Smalltalk,<br>reimagined for today.</h2>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                            <path d="M2 17l10 5 10-5"/>
+                            <path d="M2 12l10 5 10-5"/>
+                        </svg>
+                    </div>
+                    <h3>Prototype-Based Objects</h3>
+                    <p>Class-based with prototype inheritance. Create objects, derive new ones, and build your object model dynamically.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <h3>Native Compilation</h3>
+                    <p>Compiles to Nim, which compiles to C, which compiles to machine code. Fast, efficient, no VM required.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/>
+                        </svg>
+                    </div>
+                    <h3>File-Based & Git-Friendly</h3>
+                    <p>No image files. Source code lives in .nemo files you can version control, diff, and edit with any editor.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="4" y="4" width="16" height="16" rx="2"/>
+                            <path d="M8 9h8M8 12h8M8 15h5"/>
+                        </svg>
+                    </div>
+                    <h3>Multiple Inheritance</h3>
+                    <p>Full support for multiple inheritance with conflict detection and resolution. Compose behaviors, don't inherit monoliths.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                    </div>
+                    <h3>Green Threads</h3>
+                    <p>Cooperative multitasking with first-class Process objects. Built-in scheduler with round-robin execution.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 21a9 9 0 100-18 9 9 0 000 18z"/>
+                            <path d="M9 12l2 2 4-4"/>
+                        </svg>
+                    </div>
+                    <h3>Full Nim Interop</h3>
+                    <p>Call Nim code directly via FFI. Access the entire Nim ecosystem: libraries, packages, and system APIs.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Code Examples Section -->
+    <section id="examples" class="examples">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">Examples</span>
+                <h2>Beautiful, expressive code.</h2>
+            </div>
+
+            <div class="example-tabs">
+                <button class="tab-btn active" data-tab="classes">Classes</button>
+                <button class="tab-btn" data-tab="blocks">Blocks</button>
+                <button class="tab-btn" data-tab="processes">Processes</button>
+                <button class="tab-btn" data-tab="collections">Collections</button>
+            </div>
+
+            <div class="example-panels">
+                <div class="tab-panel active" id="tab-classes">
+                    <div class="code-comparison">
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>Define a class</span>
+                            </div>
+                            <pre><code><span class="comment">"Create a Person class with name and age slots"</span>
+<span class="type">Person</span> := <span class="type">Object</span> derive: <span class="keyword">#</span>(name age)
+
+<span class="comment">"Add instance methods"</span>
+<span class="type">Person</span> extend: [
+    <span class="keyword">self</span> <span class="operator">>></span> greet [
+        <span class="keyword">^</span> <span class="string">"Hello, I am "</span> <span class="operator">,</span> name
+    ]
+
+    <span class="keyword">self</span> <span class="operator">>></span> haveBirthday [
+        age := age <span class="operator">+</span> <span class="number">1</span>
+        <span class="keyword">^</span> <span class="keyword">self</span>
+    ]
+]
+
+<span class="comment">"Class-side method for convenient creation"</span>
+<span class="type">Person</span> extendClass: [
+    <span class="keyword">self</span> <span class="operator">>></span> newNamed: n aged: a [
+        <span class="keyword">|</span> person <span class="keyword">|</span>
+        person := <span class="keyword">self</span> derive
+        person name: n
+        person age: a
+        <span class="keyword">^</span> person
+    ]
+]</code></pre>
+                        </div>
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>Use it</span>
+                            </div>
+                            <pre><code><span class="comment">"Create instances"</span>
+alice := <span class="type">Person</span> newNamed: <span class="string">"Alice"</span> aged: <span class="number">30</span>
+bob := <span class="type">Person</span> newNamed: <span class="string">"Bob"</span> aged: <span class="number">25</span>
+
+<span class="comment">"Send messages"</span>
+alice greet println
+<span class="string">"Alice is "</span> <span class="operator">,</span> (alice age asString) println
+
+<span class="comment">"Mutate state"</span>
+alice haveBirthday
+<span class="string">"Now Alice is "</span> <span class="operator">,</span> (alice age asString) println</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-panel" id="tab-blocks">
+                    <div class="code-comparison">
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>Block closures</span>
+                            </div>
+                            <pre><code><span class="comment">"Simple block evaluation"</span>
+result := [ <span class="number">1</span> <span class="operator">+</span> <span class="number">2</span> ] value
+
+<span class="comment">"Block with parameters"</span>
+double := [ <span class="keyword">:x</span> <span class="keyword">|</span> x <span class="operator">*</span> <span class="number">2</span> ]
+double value: <span class="number">5</span>  <span class="comment">"Returns 10"</span>
+
+<span class="comment">"Block with temporaries"</span>
+compute := [ <span class="keyword">:n</span> <span class="keyword">|</span>
+    <span class="keyword">|</span> squared doubled <span class="keyword">|</span>
+    squared := n <span class="operator">*</span> n
+    doubled := n <span class="operator">+</span> n
+    squared <span class="operator">+</span> doubled
+]
+compute value: <span class="number">5</span>  <span class="comment">"Returns 35"</span></code></pre>
+                        </div>
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>Control flow</span>
+                            </div>
+                            <pre><code><span class="comment">"Conditionals are message sends"</span>
+(x <span class="operator">></span> <span class="number">0</span>)
+    ifTrue: [ <span class="string">"positive"</span> println ]
+    ifFalse: [ <span class="string">"negative"</span> println ]
+
+<span class="comment">"While loops"</span>
+count := <span class="number">0</span>
+[ count <span class="operator"><</span> <span class="number">10</span> ] whileTrue: [
+    count println
+    count := count <span class="operator">+</span> <span class="number">1</span>
+]
+
+<span class="comment">"Non-local return (^) from block"</span>
+findPositive := [ <span class="keyword">:arr</span> <span class="keyword">|</span>
+    arr do: [ <span class="keyword">:n</span> <span class="keyword">|</span>
+        (n <span class="operator">></span> <span class="number">0</span>) ifTrue: [ <span class="keyword">^</span> n ]
+    ].
+    <span class="keyword">^</span> <span class="keyword">nil</span>
+]</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-panel" id="tab-processes">
+                    <div class="code-comparison">
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>Green threads</span>
+                            </div>
+                            <pre><code><span class="comment">"Fork a new process"</span>
+worker := <span class="type">Processor</span> fork: [
+    <span class="number">1</span> to: <span class="number">10</span> do: [ <span class="keyword">:i</span> <span class="keyword">|</span>
+        <span class="type">Stdout</span> writeline: i
+        <span class="type">Processor</span> yield
+    ]
+]
+
+<span class="comment">"Process control"</span>
+worker suspend
+worker resume
+worker terminate
+
+<span class="comment">"Run scheduler until completion"</span>
+<span class="type">Scheduler</span> runToCompletion: <span class="number">1000</span></code></pre>
+                        </div>
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>Shared state</span>
+                            </div>
+                            <pre><code><span class="comment">"Globals for inter-process communication"</span>
+<span class="type">Nemo</span> at: <span class="string">"counter"</span> put: <span class="number">0</span>
+
+<span class="comment">"Two processes updating shared counter"</span>
+p1 := <span class="type">Processor</span> fork: [
+    <span class="number">1</span> to: <span class="number">5</span> do: [ <span class="keyword">:i</span> <span class="keyword">|</span>
+        current := <span class="type">Nemo</span> at: <span class="string">"counter"</span>
+        <span class="type">Nemo</span> at: <span class="string">"counter"</span> put: (current <span class="operator">+</span> <span class="number">1</span>)
+        <span class="type">Processor</span> yield
+    ]
+]
+
+p2 := <span class="type">Processor</span> fork: [
+    <span class="number">1</span> to: <span class="number">5</span> do: [ <span class="keyword">:i</span> <span class="keyword">|</span>
+        current := <span class="type">Nemo</span> at: <span class="string">"counter"</span>
+        <span class="type">Nemo</span> at: <span class="string">"counter"</span> put: (current <span class="operator">+</span> <span class="number">1</span>)
+        <span class="type">Processor</span> yield
+    ]
+]</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-panel" id="tab-collections">
+                    <div class="code-comparison">
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>Arrays and Tables</span>
+                            </div>
+                            <pre><code><span class="comment">"Array literal - ordered collection"</span>
+numbers := <span class="keyword">#</span>(<span class="number">1</span> <span class="number">2</span> <span class="number">3</span> <span class="number">4</span> <span class="number">5</span>)
+
+<span class="comment">"Table literal - key-value dictionary"</span>
+scores := <span class="keyword">#</span>{
+    <span class="string">"Alice"</span> <span class="operator">-></span> <span class="number">95</span>
+    <span class="string">"Bob"</span> <span class="operator">-></span> <span class="number">87</span>
+    <span class="string">"Carol"</span> <span class="operator">-></span> <span class="number">92</span>
+}
+
+<span class="comment">"Object literal - creates an object with slots"</span>
+config := {<span class="keyword">|</span> host: <span class="string">"localhost"</span> port: <span class="number">8080</span> <span class="keyword">|</span>}</code></pre>
+                        </div>
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>Collection methods</span>
+                            </div>
+                            <pre><code><span class="comment">"Iterate with do:"</span>
+numbers do: [ <span class="keyword">:each</span> <span class="keyword">|</span> each println ]
+
+<span class="comment">"Transform with collect:"</span>
+squares := numbers collect: [ <span class="keyword">:n</span> <span class="keyword">|</span> n <span class="operator">*</span> n ]
+
+<span class="comment">"Filter with select:"</span>
+evens := numbers select: [ <span class="keyword">:n</span> <span class="keyword">|</span> (n <span class="operator">\</span> <span class="number">2</span>) <span class="operator">=</span> <span class="number">0</span> ]
+
+<span class="comment">"Reduce with inject:into:"</span>
+sum := numbers inject: <span class="number">0</span> into: [ <span class="keyword">:acc</span> <span class="keyword">:n</span> <span class="keyword">|</span> acc <span class="operator">+</span> n ]
+
+<span class="comment">"Find first match"</span>
+firstEven := numbers detect: [ <span class="keyword">:n</span> <span class="keyword">|</span> (n <span class="operator">\</span> <span class="number">2</span>) <span class="operator">=</span> <span class="number">0</span> ]</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Playground -->
+    <section id="playground" class="playground">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">Interactive</span>
+                <h2>Try Nemo in your browser.</h2>
+                <p class="section-subtitle">(Simulated demo - actual Nemo execution coming soon)</p>
+            </div>
+
+            <div class="playground-container">
+                <div class="playground-editor">
+                    <div class="editor-header">
+                        <span>playground.nemo</span>
+                        <button class="run-btn" id="run-btn">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                            Run
+                        </button>
+                    </div>
+                    <textarea class="editor-textarea" id="playground-code" spellcheck="false">"Welcome to Nemo!"
+
+"Create a simple counter class"
+Counter := Object derive: #(#count)
+
+Counter extend: [
+    self >> initialize [
+        count := 0
+    ]
+
+    self >> increment [
+        count := count + 1
+        ^ count
+    ]
+
+    self >> value [
+        ^ count
+    ]
+]
+
+"Use the counter"
+c := Counter new
+c initialize
+
+c increment
+c increment
+c value println</textarea>
+                    <div class="editor-toolbar">
+                        <button class="toolbar-btn" data-example="hello">Hello World</button>
+                        <button class="toolbar-btn" data-example="factorial">Factorial</button>
+                        <button class="toolbar-btn" data-example="fibonacci">Fibonacci</button>
+                        <button class="toolbar-btn" data-example="point">Point Class</button>
+                    </div>
+                </div>
+                <div class="playground-output">
+                    <div class="output-header">
+                        <span>Output</span>
+                        <button class="clear-btn" id="clear-btn">Clear</button>
+                    </div>
+                    <div class="output-content" id="output">
+                        <div class="output-placeholder">Click "Run" to see the output</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Install Section -->
+    <section id="install" class="install">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">Get Started</span>
+                <h2>Install Nemo.</h2>
+            </div>
+
+            <div class="install-options">
+                <div class="install-card">
+                    <div class="install-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                            <path d="M2 17l10 5 10-5"/>
+                            <path d="M2 12l10 5 10-5"/>
+                        </svg>
+                    </div>
+                    <h3>Build from Source</h3>
+                    <div class="code-snippet">
+                        <pre><code>git clone https://github.com/gokr/nemo.git
+cd nemo
+nimble local</code></pre>
+                        <button class="copy-btn" data-clipboard="git clone https://github.com/gokr/nemo.git
+cd nemo
+nimble local">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <p>Requires <a href="https://nim-lang.org/install.html">Nim</a> 2.0+ and nimble.</p>
+                </div>
+
+                <div class="install-card">
+                    <div class="install-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                    </div>
+                    <h3>Quick Start</h3>
+                    <div class="code-snippet">
+                        <pre><code>nemo                           <span class="comment"># Start REPL</span>
+nemo script.nemo               <span class="comment"># Run a script</span>
+nemoc compile prog.nemo        <span class="comment"># Compile to binary</span></code></pre>
+                        <button class="copy-btn" data-clipboard="nemo                           # Start REPL
+nemo script.nemo               # Run a script
+nemoc compile prog.nemo        # Compile to binary">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <p>Use <code>--loglevel DEBUG</code> for verbose output.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <a href="#" class="logo">
+                        <span class="logo-icon">◉</span>
+                        <span class="logo-text">nemo</span>
+                    </a>
+                    <p>Smalltalk semantics, Nim performance.<br>File-based, git-friendly, modern tooling.</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Resources</h4>
+                        <ul>
+                            <li><a href="https://github.com/gokr/nemo">GitHub</a></li>
+                            <li><a href="/docs/MANUAL.md">Documentation</a></li>
+                            <li><a href="/docs/SPECIFICATION.md">Language Spec</a></li>
+                            <li><a href="/examples/">Examples</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Community</h4>
+                        <ul>
+                            <li><a href="https://github.com/gokr/nemo/issues">Issues</a></li>
+                            <li><a href="https://github.com/gokr/nemo/discussions">Discussions</a></li>
+                            <li><a href="https://github.com/gokr/nemo/blob/main/CLAUDE.md">Contributing</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>Released under the MIT License.</p>
+                <p>Made with ♥ by the Nemo team.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
