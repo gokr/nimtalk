@@ -1,0 +1,20 @@
+#!/usr/bin/env nemo
+#
+# Bootstrap.nemo - Loads the core library
+# This is the entry point for loading the Nemo standard library.
+# All core library files are loaded from here using Nemo load: syntax.
+
+# Core object system
+Nemo load: "lib/core/Object.nemo"
+Nemo load: "lib/core/Boolean.nemo"
+Nemo load: "lib/core/Block.nemo"
+
+# Core numeric and collection classes
+Nemo load: "lib/core/Number.nemo"
+Nemo load: "lib/core/Collections.nemo"
+Nemo load: "lib/core/String.nemo"
+
+# I/O and utilities
+Nemo load: "lib/core/FileStream.nemo"
+Nemo load: "lib/core/Exception.nemo"
+Nemo load: "lib/core/TestCase.nemo"
