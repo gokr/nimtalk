@@ -11,7 +11,13 @@ Stdout writeline: "2. Forking worker processes...".
 
 P1 := Processor fork: [
     Stdout writeline: "Worker 1 starting".
-    1 to: 3 do: [:i |
+    1 to: 5 do: [:i |
+        current := Nemo at: "counter".
+        Nemo at: "counter" put: (current + 1).
+        Stdout writeline: ("  Worker 1 increment #" , (i asString)).
+    ].
+    Processor yield.
+    1 to: 5 do: [:i |
         current := Nemo at: "counter".
         Nemo at: "counter" put: (current + 1).
         Stdout writeline: ("  Worker 1 increment #" , (i asString)).
@@ -22,7 +28,7 @@ P1 := Processor fork: [
 
 P2 := Processor fork: [
     Stdout writeline: "Worker 2 starting".
-    1 to: 3 do: [:i |
+    1 to: 10 do: [:i |
         current := Nemo at: "counter".
         Nemo at: "counter" put: (current + 1).
         Stdout writeline: ("  Worker 2 increment #" , (i asString)).
