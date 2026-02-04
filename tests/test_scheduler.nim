@@ -100,9 +100,10 @@ suite "Green Threads - Scheduler Integration":
       )
       discard ctx.forkProcess(blockNode, newInstance(objectClass), "proc-" & $i)
 
-    # Should have 4 processes (main + 3 forked)
+    # Should have 4 processes total (main + 3 forked)
+    # But only 3 ready (main is not in ready queue since it's the host)
     check ctx.theScheduler.processCount == 4
-    check ctx.theScheduler.readyCount == 4
+    check ctx.theScheduler.readyCount == 3
 
   test "Process lifecycle states":
     let ctx = newSchedulerContext()
