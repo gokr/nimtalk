@@ -10,6 +10,14 @@ import ../interpreter/evaluator  # Interpreter functionality
 # This module connects the green threads scheduler with the Nemo interpreter
 # ============================================================================
 
+# ProcessProxy type - forward declaration, full definition below
+type ProcessProxy = ref object
+  process: Process
+
+# Keep ProcessProxy references alive - since nimValue is a raw pointer,
+# the GC doesn't know about these references and may reclaim the memory
+var processProxies: seq[ProcessProxy] = @[]
+
 # Forward declarations for functions defined later in this file
 proc createProcessClass*(): Class
 proc createSchedulerClass*(): Class
@@ -73,6 +81,11 @@ proc forkProcess*(ctx: SchedulerContext, blockNode: BlockNode,
   # Create the process
   result = sched.newProcess(name)
   result.setInterpreter(newInterp)
+
+  # Ensure blockNode has initialized capturedEnv
+  if not blockNode.capturedEnvInitialized:
+    blockNode.capturedEnv = initTable[string, MutableCell]()
+    blockNode.capturedEnvInitialized = true
 
   # Set up initial activation frame for the block
   let activation = newActivation(blockNode, receiver, nil)
@@ -273,13 +286,10 @@ proc initProcessorGlobal*(interp: var Interpreter) =
 # Process Proxy and Class
 # ============================================================================
 
-type
-  ProcessProxy* = ref object
-    process*: Process
-
 proc createProcessProxy*(process: Process): NodeValue =
   ## Create a proxy object that wraps a Nim Process
   let proxy = ProcessProxy(process: process)
+  processProxies.add(proxy)  # Keep reference alive for GC
   let obj = Instance(kind: ikObject, class: processClass, slots: @[])
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](proxy)
@@ -296,21 +306,21 @@ proc asProcessProxy*(inst: Instance): ProcessProxy =
 proc processPidImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Get process ID
   let proxy = self.asProcessProxy()
-  if proxy != nil:
+  if proxy != nil and proxy.process != nil:
     return toValue(int(proxy.process.pid))
   return nilValue()
 
 proc processNameImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Get process name
   let proxy = self.asProcessProxy()
-  if proxy != nil:
+  if proxy != nil and proxy.process != nil:
     return toValue(proxy.process.name)
   return nilValue()
 
 proc processStateImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Get process state
   let proxy = self.asProcessProxy()
-  if proxy != nil:
+  if proxy != nil and proxy.process != nil:
     let stateStr = case proxy.process.state
                      of psReady: "ready"
                      of psRunning: "running"
@@ -325,7 +335,7 @@ proc processYieldImpl(interp: var Interpreter, self: Instance, args: seq[NodeVal
   let ctx = cast[SchedulerContext](interp.schedulerContextPtr)
   if ctx != nil and ctx.theScheduler.currentProcess != nil:
     let proxy = self.asProcessProxy()
-    if proxy != nil and proxy.process == ctx.theScheduler.currentProcess:
+    if proxy != nil and proxy.process != nil and proxy.process == ctx.theScheduler.currentProcess:
       ctx.theScheduler.yieldCurrentProcess()
   return nilValue()
 
@@ -334,7 +344,7 @@ proc processSuspendImpl(interp: var Interpreter, self: Instance, args: seq[NodeV
   let ctx = cast[SchedulerContext](interp.schedulerContextPtr)
   if ctx != nil:
     let proxy = self.asProcessProxy()
-    if proxy != nil:
+    if proxy != nil and proxy.process != nil:
       ctx.theScheduler.suspendProcess(proxy.process)
   return nilValue()
 
@@ -343,7 +353,7 @@ proc processResumeImpl(interp: var Interpreter, self: Instance, args: seq[NodeVa
   let ctx = cast[SchedulerContext](interp.schedulerContextPtr)
   if ctx != nil:
     let proxy = self.asProcessProxy()
-    if proxy != nil:
+    if proxy != nil and proxy.process != nil:
       ctx.theScheduler.resumeProcess(proxy.process)
   return nilValue()
 
@@ -352,7 +362,7 @@ proc processTerminateImpl(interp: var Interpreter, self: Instance, args: seq[Nod
   let ctx = cast[SchedulerContext](interp.schedulerContextPtr)
   if ctx != nil:
     let proxy = self.asProcessProxy()
-    if proxy != nil:
+    if proxy != nil and proxy.process != nil:
       ctx.theScheduler.terminateProcess(proxy.process)
   return nilValue()
 
