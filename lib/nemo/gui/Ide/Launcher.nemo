@@ -9,28 +9,64 @@ Launcher class>>open [
 ].
 
 Launcher>>openInstance [
-  # Use native methods to set up the window
-  self title: "Nemo IDE !!"; setDefaultSize: 400 height: 600; present
+  | menuBar mainBox |
+  # Set up the window
+  self title: "Nemo IDE"; setDefaultSize: 800 height: 600.
+
+  # Create main layout box (vertical)
+  mainBox := GtkBox vertical; mainBox setSpacing: 0.
+
+  # Create menu bar
+  menuBar := self createMenuBar.
+
+  # Add widgets
+  mainBox append: menuBar.
+  self setChild: mainBox.
+  self present.
+
   Transcript showCr: "Nemo IDE opened"
 ].
 
-Launcher>>menuFile [
-  Transcript showCr: "File menu selected".
-  ^self
+Launcher>>createMenuBar [
+  | menuBar fileMenu fileItem workspaceItem transcriptItem quitItem |
+  menuBar := GtkMenuBar new.
+
+  # File menu
+  fileMenu := self createFileMenu.
+
+  # Add file menu item to menu bar (using a labeled button for simplicity)
+  fileItem := GtkButton newLabel: 'File'.
+  fileItem activate: [ Transcript showCr: 'File menu clicked' ].
+
+  # Note: In GTK4, proper menu handling requires more complex setup
+  # For now, we're using direct button handlers
+
+  Transcript showCr: 'Created menu bar'.
+  ^menuBar
 ].
 
-Launcher>>menuTools [
-  Transcript showCr: "Tools menu selected".
-  ^self
-].
+Launcher>>createFileMenu [
+  | menu workspaceItem transcriptItem quitItem |
+  menu := GtkMenu new.
 
-Launcher>>menuHelp [
-  Transcript showCr: "Help menu selected".
-  ^self
+  workspaceItem := GtkMenuItem newLabel: 'Open Workspace'.
+  workspaceItem activate: [ Workspace open ].
+  menu append: workspaceItem.
+
+  transcriptItem := GtkMenuItem newLabel: 'Open Transcript'.
+  transcriptItem activate: [ Transcript open ].
+  menu append: transcriptItem.
+
+  quitItem := GtkMenuItem newLabel: 'Quit'.
+  quitItem activate: [ self quit ].
+  menu append: quitItem.
+
+  ^menu
 ].
 
 Launcher>>openWorkspace [
-  Transcript showCr: "Opening workspace...".
+  Transcript showCr: 'Opening workspace...'.
+  Workspace open.
   ^self
 ].
 
@@ -40,7 +76,7 @@ Launcher>>openTranscript [
 ].
 
 Launcher>>quit [
-  Transcript showCr: "Quitting Nemo IDE...".
+  Transcript showCr: 'Quitting Nemo IDE...'.
   self close.
   ^self
 ].

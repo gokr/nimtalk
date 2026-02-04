@@ -1,0 +1,68 @@
+# ============================================================================
+# Workspace - Code editing and evaluation window
+# Workspace provides a text editor with do-it and print-it functionality
+# ============================================================================
+
+Window subclass: Workspace.
+
+Workspace class>>open [
+  | workspace window box textView scrolled |
+  window := (GtkWindow new) title: 'Nemo Workspace'; setDefaultSize: 600 height: 400.
+  box := GtkBox vertical; box setSpacing: 5.
+
+  textView := GtkTextView new.
+
+  workspace := self basicNew.
+  workspace window: window; box: box; textView: textView.
+
+  window setChild: box.
+  box append: textView.
+
+  window present.
+
+  Transcript showCr: 'Nemo Workspace opened'.
+  ^workspace
+].
+
+Workspace>>doIt: codeString [
+  | result |
+  result := Object eval: codeString.
+  Transcript showCr: result toString.
+  ^result
+].
+
+Workspace>>printIt: codeString [
+  | result |
+  result := self doIt: codeString.
+  ^result
+].
+
+Workspace>>evalSelection [
+  | text |
+  text := self textView getText: nil.
+  ^self doIt: text
+].
+
+Workspace>>window: aWindow [
+  ^self newSlot: 'window' value: aWindow
+].
+
+Workspace>>box: aBox [
+  ^self newSlot: 'box' value: aBox
+].
+
+Workspace>>textView: aTextView [
+  ^self newSlot: 'textView' value: aTextView
+].
+
+Workspace>>window [
+  ^self slotAt: 'window'
+].
+
+Workspace>>box [
+  ^self slotAt: 'box'
+].
+
+Workspace>>textView [
+  ^self slotAt: 'textView'
+].
