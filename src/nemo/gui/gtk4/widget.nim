@@ -8,7 +8,7 @@ import nemo/interpreter/evaluator
 import ./ffi
 
 ## Signal handler callback type
- type
+type
   SignalHandler* = object
     blockNode*: BlockNode
     interp*: ptr Interpreter

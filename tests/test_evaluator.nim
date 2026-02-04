@@ -285,7 +285,16 @@ suite "Evaluator: Block Evaluation":
       result3 := c value
       """)
 
+    if result[1].len > 0:
+      echo "Error: ", result[1]
     check(result[1].len == 0)
+    # Debug: print actual results
+    echo "Results count: ", result[0].len
+    for i, r in result[0]:
+      if r.kind == vkInstance:
+        echo "  [", i, "] kind=", r.kind, " class=", r.instVal.class.name
+      else:
+        echo "  [", i, "] kind=", r.kind
     # Counter should increment each time
     check(result[0][^3].kind == vkInt)
     check(result[0][^2].kind == vkInt)
@@ -411,7 +420,13 @@ suite "Evaluator: Lexical Closures":
     result := add5and10 value: 15
     """)
 
+    if result[1].len > 0:
+      echo "Error: ", result[1]
     check(result[1].len == 0)
+    # Debug: print results
+    echo "Results count: ", result[0].len
+    for i, r in result[0]:
+      echo "  [", i, "] kind=", r.kind
     check(result[0][^1].intVal == 30)  # 5 + 10 + 15
 
   test "closures as object methods capture instance variables" :

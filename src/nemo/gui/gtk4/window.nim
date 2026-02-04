@@ -68,7 +68,7 @@ proc windowSetTitleImpl*(interp: var Interpreter, self: Instance, args: seq[Node
 
   nilValue()
 
-## Native method: setDefaultSize:
+## Native method: setDefaultSize:height:
 proc windowSetDefaultSizeImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   if args.len < 2:
     return nilValue()
