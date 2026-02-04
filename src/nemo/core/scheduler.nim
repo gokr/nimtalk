@@ -151,15 +151,17 @@ proc runCurrentProcess*(ctx: SchedulerContext): NodeValue =
     sched.terminateProcess(sched.currentProcess)
     return interp.lastResult
 
-  # Execute one statement
+  # Execute one statement (don't increment PC yet - if we yield/error, we'll retry)
   let stmt = body[activation.pc]
-  inc activation.pc
 
   try:
     result = interp.eval(stmt)
     interp.lastResult = result
+    # Only increment PC on successful completion
+    inc activation.pc
   except YieldException:
     # Process yielded - put it back in ready queue for later
+    # PC is NOT incremented, so we'll retry this statement when resumed
     debug("Process ", sched.currentProcess.name, " yielded")
     sched.yieldCurrentProcess()
     return nilValue()
@@ -223,11 +225,10 @@ proc runToCompletion*(ctx: SchedulerContext, maxSteps: int = 100000): int =
 # Processor yield implementation
 proc processorYieldImpl(interp: var Interpreter, self: Instance,
                         args: seq[NodeValue]): NodeValue =
-  ## Processor yield - sets flag for immediate context switch
-  ## The flag is checked after each message send in evalMessage
-  debug("Processor yield called - setting shouldYield flag")
-  interp.shouldYield = true
-  return nilValue()
+  ## Processor yield - triggers immediate context switch
+  ## Throws YieldException to unwind stack and return to scheduler
+  debug("Processor yield called - throwing YieldException")
+  raise newException(YieldException, "Process yielded")
 
 # Forward declarations for proxy creation functions
 proc createProcessProxy*(process: Process): NodeValue
