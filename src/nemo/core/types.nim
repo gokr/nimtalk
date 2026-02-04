@@ -105,6 +105,7 @@ type
     nativeImpl*: pointer                  # compiled implementation
     hasInterpreterParam*: bool            # true if native method needs interpreter parameter
     capturedEnv*: Table[string, MutableCell]  # captured variables from outer scope
+    capturedEnvInitialized*: bool         # flag to track if capturedEnv has been initialized
     homeActivation*: Activation           # for non-local returns: method that created this block
 
   # Activation records for method execution (defined after BlockNode)
