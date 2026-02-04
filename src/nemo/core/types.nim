@@ -83,6 +83,39 @@ type
     activation*: Activation         # Activation where handler was installed
     stackDepth*: int                # Stack depth when handler installed
 
+  # Exception thrown when Processor yield is called for immediate context switch
+  YieldException* = object of CatchableError
+
+  # Work frame kinds for the explicit stack VM
+  WorkFrameKind* = enum
+    wfEvalNode        # Evaluate AST node, push result to evalStack
+    wfSendMessage     # Send message (receiver and args on evalStack)
+    wfApplyBlock      # Apply block with args from evalStack
+    wfReturnValue     # Return value from current activation
+    wfAfterReceiver   # After receiver eval, evaluate args
+    wfAfterArg        # After arg N eval, evaluate arg N+1 or send
+    wfCascade         # Cascade messages to same receiver
+
+  # Work frame for explicit stack VM execution
+  WorkFrame* {.acyclic.} = ref object
+    kind*: WorkFrameKind
+    # For wfEvalNode
+    node*: Node
+    # For wfSendMessage
+    selector*: string
+    argCount*: int
+    # For wfApplyBlock
+    blockVal*: BlockNode
+    # For wfAfterReceiver/wfAfterArg - what message to send
+    pendingSelector*: string
+    pendingArgs*: seq[Node]
+    currentArgIndex*: int
+    # For wfReturnValue
+    returnValue*: NodeValue
+    # For wfCascade
+    cascadeMessages*: seq[MessageNode]
+    cascadeReceiver*: NodeValue
+
   # Interpreter type defined here to avoid circular dependency between scheduler and evaluator
   Interpreter* {.acyclic.} = ref object
     globals*: ref Table[string, NodeValue]
@@ -98,6 +131,9 @@ type
     schedulerContextPtr*: pointer  # Scheduler context (cast to SchedulerContext when needed)
     nemoHome*: string  # Home directory for loading libraries
     shouldYield*: bool  # Set to true when Processor yield is called for immediate context switch
+    # Explicit stack VM fields
+    workQueue*: seq[WorkFrame]  # Work queue for AST interpreter
+    evalStack*: seq[NodeValue]  # Value stack for expression results
 
   BlockNode* {.acyclic.} = ref object of Node
     parameters*: seq[string]              # method parameters
