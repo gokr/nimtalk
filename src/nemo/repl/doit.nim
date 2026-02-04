@@ -1,5 +1,6 @@
 import std/[strutils, os, terminal, rdstdin, tables]
 import ../core/types
+import ../core/scheduler
 import ../parser/[lexer, parser]
 import ../interpreter/evaluator
 
@@ -11,6 +12,7 @@ import ../interpreter/evaluator
 type
   DoitContext* = ref object
     interpreter*: Interpreter
+    schedulerContext*: SchedulerContext  # Always enable process support
     globals*: ref Table[string, NodeValue]
     history*: seq[string]
     prompt*: string
@@ -18,23 +20,21 @@ type
 
 # Create a REPL context
 proc newDoitContext*(trace: bool = false, maxStackDepth: int = 10000): DoitContext =
-  ## Create new REPL context
+  ## Create new REPL context with scheduler support for processes
+  # Create scheduler context (initializes Processor, Process, Scheduler globals)
+  let schedCtx = newSchedulerContext()
+
   result = DoitContext(
-    interpreter: newInterpreter(trace, maxStackDepth),
-    globals: new(Table[string, NodeValue]),
+    interpreter: schedCtx.mainProcess.getInterpreter(),
+    schedulerContext: schedCtx,
+    globals: schedCtx.mainProcess.getInterpreter().globals,
     history: @["-- Nemo REPL History --"],
     prompt: "nemo> ",
     showResults: true
   )
 
-  # Initialize interpreter
-  initGlobals(result.interpreter)
-
   # Load standard library
   loadStdlib(result.interpreter)
-
-  # Copy interpreter globals to REPL context
-  result.globals = result.interpreter.globals
 
 # Print welcome message
 proc printWelcomeRepl() =

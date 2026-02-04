@@ -1,0 +1,53 @@
+# Process Demo - Parallel Green Threads in Nemo
+# Now works in the REPL with process support always enabled!
+
+Stdout writeline: "=== Nemo Process API Demo ===".
+Stdout writeline: "".
+
+Stdout writeline: "1. Creating shared counter...".
+Nemo at: "counter" put: 0.
+
+Stdout writeline: "2. Forking worker processes...".
+
+p1 := Processor fork: [
+    Stdout writeline: "Worker 1 starting".
+    1 to: 3 do: [:i |
+        current := Nemo at: "counter".
+        Nemo at: "counter" put: (current + 1).
+        Stdout writeline: ("  Worker 1 increment #" , (i asString)).
+        Processor yield
+    ].
+    Stdout writeline: "Worker 1 done"
+].
+
+p2 := Processor fork: [
+    Stdout writeline: "Worker 2 starting".
+    1 to: 3 do: [:i |
+        current := Nemo at: "counter".
+        Nemo at: "counter" put: (current + 1).
+        Stdout writeline: ("  Worker 2 increment #" , (i asString)).
+        Processor yield
+    ].
+    Stdout writeline: "Worker 2 done"
+].
+
+Stdout writeline: "".
+Stdout writeline: "3. Process info:".
+Stdout writeline: ("   Process 1 - PID: " , (p1 pid asString) , ", Name: " , p1 name , ", State: " , p1 state).
+Stdout writeline: ("   Process 2 - PID: " , (p2 pid asString) , ", Name: " , p2 name , ", State: " , p2 state).
+
+Stdout writeline: "".
+Stdout writeline: "4. Demonstrating suspend/resume...".
+p1 suspend.
+Stdout writeline: ("   After suspend - Process 1 state: " , p1 state).
+p1 resume.
+Stdout writeline: ("   After resume - Process 1 state: " , p1 state).
+
+Stdout writeline: "".
+Stdout writeline: "5. Running processes...".
+Stdout writeline: "   (In REPL, processes don't auto-run - they need Scheduler)".
+
+Stdout writeline: "".
+Stdout writeline: "=== Demo Complete ===".
+Stdout writeline: "   Note: Full process execution requires SchedulerContext.runToCompletion()".
+Stdout writeline: "   This demo shows the Process API works in the REPL!".

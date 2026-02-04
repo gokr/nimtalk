@@ -1,5 +1,6 @@
 import std/[strutils, os, terminal]
 import ../core/types
+import ../core/scheduler
 import ../parser/[lexer, parser]
 import ../interpreter/evaluator
 
@@ -11,20 +12,24 @@ import ../interpreter/evaluator
 type
   ReplContext* = object
     interpreter*: Interpreter
+    schedulerContext*: SchedulerContext  # Always enable process support
     globals*: Table[string, NodeValue]
     history*: seq[string]
     prompt*: string
     showResults*: bool
 
 proc newReplContext*(trace: bool = false): ReplContext =
+  # Create scheduler context (initializes Processor, Process, Scheduler globals)
+  let schedCtx = newSchedulerContext()
+
   result = ReplContext(
-    interpreter: newInterpreter(trace),
+    interpreter: schedCtx.mainProcess.getInterpreter(),
+    schedulerContext: schedCtx,
     globals: initTable[string, NodeValue](),
     history: @[],
     prompt: "nt> ",
     showResults: true
   )
-  initGlobals(result.interpreter)
   loadStdlib(result.interpreter)
 
 proc printWelcome() =
