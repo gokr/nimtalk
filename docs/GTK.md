@@ -1,66 +1,50 @@
-# GTK Bridge Architecture
-
-This document explains how the Nemo GTK bridge works and how to create GTK widgets from Nemo code.
+# GTK Bridge and GUI Development
 
 ## Overview
 
-The GTK bridge provides a way to create and manipulate GTK widgets from Nemo code. It consists of several layers that work together to provide seamless integration between Nemo objects and GTK widgets.
+The GTK bridge provides a way to create and manipulate GTK widgets from Nemo code. It enables building GUI applications and development tools (like an IDE) directly in Nemo.
 
-## File Structure
+### Key Design Principles
 
-### Core Files
+1. **Malleability** - GUI tools are written in Nemo and can be modified at runtime
+2. **Thin Bridge** - Only a thin Nim wrapper exposes GTK to Nemo
+3. **Signal Integration** - GTK signals connect to Nemo blocks
+4. **Safety** - Error handling prevents GTK crashes from Nemo exceptions
 
-#### `ffi.nim` - Foreign Function Interface
-- Provides raw bindings to GTK C functions
-- Defines types like `GtkWidget`, `GtkWindow`, `GtkButton`
-- Handles both GTK3 and GTK4 via compile-time flags (`-d:gtk4`)
-- Contains function declarations like `gtkWindowNew()`, `gtkBoxAppend()`, etc.
+### Architecture
 
-```nim
-# Example from ffi.nim
-proc gtkWindowNew*(): GtkWindow {.cdecl, importc: "gtk_window_new".}
-proc gtkBoxAppend*(box: GtkBox, child: GtkWidget) {.cdecl, importc: "gtk_box_append".}
+```
++--------------------------------------------------------+
+|                   Nemo Layer                            |
+|           (All written in .nemo files)                  |
+|  +------------+  +------------+  +-------------------+ |
+|  |  Widgets   |  |   IDE      |  |   Application     | |
+|  | (GTK4/...) |  |  Tools     |  |     Logic         | |
+|  +------------+  +------------+  +-------------------+ |
++-----------------------|--------------------------------+
+                        | GTK Bridge Calls (Nim)
++-----------------------v--------------------------------+
+|                GTK4 Bridge Layer (Nim)                   |
+|   - Widget wrappers                                    |
+|   - Signal handling                                    |
+|   - Creation factories                                 |
++-----------------------|--------------------------------+
+                        |
++-----------------------v--------------------------------+
+|                      GTK4 Library                        |
++--------------------------------------------------------+
 ```
 
-#### `widget.nim` - Base Widget Proxy
-- Defines `GtkWidgetProxy` - the base type for all widget proxies
-- Contains `proxyTable` - global table mapping widget pointers to proxies
-- Contains `instanceWidgetTable` - maps Instance addresses to widget pointers
-- Provides signal handling infrastructure
+## Bridge Architecture
 
-```nim
-type
-  GtkWidgetProxyObj = object of RootObj
-    widget*: GtkWidget
-    interp*: ptr Interpreter
-    signalHandlers*: Table[string, seq[SignalHandler]]
-```
+### GTK4 Bridge Layer (Nim)
 
-#### `bridge.nim` - Class Registration
-- Registers all GTK classes with the Nemo interpreter
-- Creates Nemo classes (GtkWidget, GtkWindow, GtkButton, etc.)
-- Maps native methods (Nim functions) to Nemo method names
-- Loads wrapper files from `lib/nemo/gui/Gtk4/`
+The bridge consists of several components in `src/nemo/gui/gtk4/`:
 
-```nim
-# Register GtkWindow class
-let windowCls = newClass(superclasses = @[widgetCls], name = "GtkWindow")
-let windowPresentMethod = createCoreMethod("present")
-windowPresentMethod.nativeImpl = cast[pointer](windowPresentImpl)
-addMethodToClass(windowCls, "present", windowPresentMethod)
-```
-
-### Widget-Specific Files
-
-Each widget type has its own file:
-
-- `window.nim` - GtkWindow (title, setDefaultSize, present, close)
-- `button.nim` - GtkButton (label, clicked)
-- `box.nim` - GtkBox (append, prepend, setSpacing)
-- `menubar.nim`, `menuitem.nim` - Menu widgets
-- `textview.nim`, `textbuffer.nim` - Text editing widgets
-
-## Architecture
+1. **ffi.nim** - Raw GTK4 C function bindings
+2. **widget.nim** - Base widget proxy and two-table system
+3. **window.nim**, **button.nim**, **box.nim**, etc. - Widget-specific wrappers
+4. **bridge.nim** - Class registration with Nemo interpreter
 
 ### Two-Table System
 
@@ -68,36 +52,29 @@ The bridge uses two complementary tables to solve the GC issue:
 
 1. **`proxyTable: Table[GtkWidget, GtkWidgetProxy]`**
    - Maps widget pointers to their proxy objects
-   - Used for signal handling and looking up proxy data
+   - Used for signal handling and proxy lookup
 
 2. **`instanceWidgetTable: Table[int, GtkWidget]`**
    - Maps Instance addresses (as integers) to widget pointers
-   - Solves the problem of Instance identity across copies
-
-### Why Two Tables?
-
-When a Nemo Instance is passed around, the GC may create copies that have different addresses but refer to the same logical object. By storing widgets keyed by Instance address, we ensure we can always find the correct widget even if the Instance was copied.
+   - Ensures correct widget lookup even if Instance is copied by GC
 
 ### Widget Creation Flow
 
-1. **Nemo code calls class method** (e.g., `GtkButton newLabel: "File"`)
-2. **Bridge routes to native method** (`buttonNewLabelImpl`)
-3. **Factory creates GTK widget** (`gtkButtonNewWithLabel`)
-4. **Create proxy and store in tables:**
-   - `proxyTable[widget] = proxy`
-   - `instanceWidgetTable[InstanceAddr] = widget`
-5. **Return Instance to Nemo** with `isNimProxy = true`
-
-### Signal Handling
-
-1. Nemo code connects signal: `button clicked: [ ... ]`
-2. `buttonClickedImpl` creates `SignalCallbackData` on heap
-3. Calls `gSignalConnect` with C callback `signalCallbackProc`
-4. When signal fires, `signalCallbackProc` invokes the Nemo block
+```
+Nemo code (e.g., GtkButton newLabel: "X")
+    ↓
+Nim native method (buttonNewLabelImpl)
+    ↓
+GTK function (gtk_button_new_with_label)
+    ↓
+Create proxy and store in both tables
+    ↓
+Return Instance to Nemo with isNimProxy = true
+```
 
 ## Creating Widgets from Nemo
 
-### Basic Usage
+### Basic Window and Layout
 
 ```nemo
 # Create window
@@ -105,101 +82,168 @@ window := GtkWindow new.
 window title: "My App".
 window setDefaultSize: 800 height: 600.
 
-# Create button with click handler
+# Create layout box
+box := GtkBox vertical.
+box setSpacing: 10.
+
+# Create button
 button := GtkButton newLabel: "Click Me".
 button clicked: [
     Transcript showCr: "Button was clicked!"
 ].
 
-# Layout
-box := GtkBox vertical.
+# Layout children
 box append: button.
+
+# Attach box to window
 window setChild: box.
-window present.
+
+# Show window
+window present
 ```
 
-### Creating Widgets Purely in Nemo (Without Native Methods)
+### Signal Handling
 
-You can construct widgets using Nemo primitives by:
-1. Creating an instance of the class
-2. Setting `isNimProxy` to true
-3. Storing the widget pointer via primitive methods
+Connect GTK signals to Nemo blocks:
 
 ```nemo
-# Pure Nemo construction of a button (conceptual)
-MyButtonBuilder>>buildButton: labelText [
-    | button widgetPtr |
+# Simple signal (no arguments)
+button clicked: [
+    Transcript showCr: "Clicked!"
+].
 
-    # Create instance
-    button := GtkButton new.
+# Motion signal (passes x, y coordinates)
+canvas connectMotion: [ :x :y |
+    Transcript showCr: "Position: ", x asString, " ", y asString
+].
 
-    # Create the actual GTK widget via FFI primitive
-    # (This would require a primitive that calls gtk_button_new_with_label)
-    widgetPtr := self ffiCall: "gtk_button_new_with_label" with: labelText.
-
-    # Store in the instance
-    button setWidgetPointer: widgetPtr.
-    button isNimProxy: true.
-
-    ^button
-]
+# Key press signal
+entry connectKeyPressed: [ :keyval :keycode :mods |
+    (keyval = 65293) "Enter key"
+        ifTrue: [ self submit ]
+        ifFalse: [ false ]  "Don't consume other keys"
+].
 ```
 
-In practice, the FFI primitives needed for pure Nemo construction would need to be exposed. Currently, widget creation is done in Nim for efficiency and type safety.
+### Common Widgets
 
-## Adding New Widgets
+| Widget | Creation | Key Methods |
+|--------|----------|-------------|
+| Window | `GtkWindow new` | `title:`, `setDefaultSize:height:`, `setChild:`, `present` |
+| Button | `GtkButton newLabel:` | `label:`, `clicked:` |
+| Box | `GtkBox vertical` / `horizontal` | `append:`, `prepend:`, `remove:`, `setSpacing:` |
+| Label | `GtkLabel newLabel:` | `label:`, `markup:` |
+| Entry | `GtkEntry new` | `text:`, `text`, `connectTextChanged:` |
+| TextView | `GtkTextView new` | `text:`, `text`, `editable:`, `monospace:` |
+| ScrolledWindow | `GtkScrolledWindow new` | `setChild:` |
 
-To add support for a new GTK widget:
+## Memory Management and Lifecycle
 
-1. **Create `newwidget.nim`:**
+### Widget Lifecycle
+
+GTK widgets are reference-counted via GObject. The bridge tracks destruction state:
+
 ```nim
 type
-  GtkNewWidgetProxyObj = object of GtkWidgetProxyObj
-  GtkNewWidgetProxy = ref GtkNewWidgetProxyObj
-
-proc newGtkNewWidgetProxy*(widget: GtkNewWidget, interp: ptr Interpreter): GtkNewWidgetProxy =
-  result = GtkNewWidgetProxy(...)
-  proxyTable[cast[GtkWidget](widget)] = result
-
-proc createGtkNewWidget*(interp: var Interpreter): NodeValue =
-  let widget = gtkNewWidgetNew()
-  discard newGtkNewWidgetProxy(widget, addr(interp))
-  # ... create instance and store in tables
-
-proc newWidgetNewImpl*(interp: var Interpreter, ...): NodeValue =
-  createGtkNewWidget(interp)
+  GtkWidgetProxy* = ref object
+    widget*: gtk4.Widget
+    interp*: ptr Interpreter
+    signalHandlers*: Table[string, seq[SignalHandler]]
+    destroyed*: bool
 ```
 
-2. **Register in `bridge.nim`:**
+When a GTK widget is destroyed:
+1. `destroyed` flag is set to true
+2. Signal handlers are cleared
+3. Methods check `destroyed` flag before operating
+
+### Rules
+
+1. **GTK owns widget lifetime** via GObject refcount
+2. **Nemo proxy tracks destroyed state**
+3. **Methods validate** before operating
+4. **Explicit destroy available** for manual cleanup
+5. **Closing window** destroys child widgets automatically
+
+## Error Handling
+
+All signal handlers use safe evaluation:
+
 ```nim
-let newWidgetCls = newClass(superclasses = @[widgetCls], name = "GtkNewWidget")
-# Add methods...
-interp.globals[]["GtkNewWidget"] = newWidgetCls.toValue()
+proc safeEvalBlock(interp: ptr Interpreter, blockNode: BlockNode,
+                   args: seq[NodeValue] = @[]): NodeValue =
+  try:
+    result = interp[].evalBlock(blockNode, args)
+  except EvalError as e:
+    stderr.writeLine("Error in signal handler: ", e.msg)
+    # Also try to show in Transcript
+    result = nilValue()
+  except Exception as e:
+    stderr.writeLine("Unexpected error: ", e.msg)
+    result = nilValue()
 ```
 
-3. **Create wrapper file** `lib/nemo/gui/Gtk4/NewWidget.nemo`:
+**Implication**: Nemo exceptions in signal handlers will not crash the GTK event loop.
+
+## Current Status
+
+### Implemented (Core)
+
+- Basic widget wrappers (Window, Button, Box, Label, Entry)
+- TextView with buffer
+- ScrolledWindow
+- Base signal handling with safe evaluation
+- Two-table system for GC safety
+- Basic layout containers
+
+### In Progress
+
+- TreeView for hierarchical data
+- HeaderBar
+- Menu system
+
+### Planned
+
+- Inspector tool (object introspection)
+- System Browser (class/method browsing)
+- Debugger (stack frame inspection)
+
+## Future Extensions
+
+### Typed Signal Handlers
+
+Provide typed helpers for common signal patterns:
+
 ```nemo
-# Optional convenience methods
-GtkNewWidget>>customMethod [
-    # Implementation
-]
+# Motion - passes x, y
+connectMotion: [:x :y | ...]
+
+# Key press - passes keyval, keycode, modifiers
+connectKeyPressed: [:keyval :keycode :mods | ...]
+
+# TreeView row activated
+connectRowActivated: [:path | ...]
 ```
 
-## GTK3 vs GTK4
+### Glade/XML UI Support (Optional)
 
-The bridge supports both versions:
+Load UI definitions from Glade XML files:
 
-- **GTK4** (default with `-d:gtk4`): Uses `gtk_window_set_child`, `gtk_box_append`
-- **GTK3**: Uses `gtk_container_add`, `gtk_box_pack_start`
+```nemo
+builder := GtkBuilder new.
+builder addFromFile: 'ui/app.glade'.
+window := builder getObject: 'mainWindow'.
+```
 
-Widget files check `when defined(gtk4):` to use appropriate APIs.
+This is optional - primary workflow remains code-based construction for maximum malleability.
 
 ## Debugging Tips
 
-1. **Check proxy table:** Add debug prints to see if widgets are being stored/looked up
-2. **Instance addresses:** Compare Instance addresses between creation and use
-3. **Signal connection:** Verify `gSignalConnect` returns a non-zero handler ID
-4. **GTK warnings:** Watch for `Gtk-CRITICAL` warnings about invalid widgets
+1. **Check proxy table** - Add debug prints to see if widgets are being stored/looked up
+2. **Instance addresses** - Compare Instance addresses between creation and use
+3. **Signal connection** - Verify `gSignalConnect` returns non-zero handler ID
+4. **GTK warnings** - Watch for `Gtk-CRITICAL` warnings about invalid widgets
+5. **Safe evaluation** - Check stderr for signal handler errors
 
 ## Common Issues
 
@@ -213,7 +257,14 @@ Widget files check `when defined(gtk4):` to use appropriate APIs.
 
 ### Signal not firing
 - Block not captured correctly
-- Signal name mismatch (GTK4 uses "clicked", not "activate" for buttons)
+- Signal name mismatch (GTK4 signal names)
 
 ### Window doesn't exit on close
 - Need to connect "destroy" signal or use `connectDestroy`
+
+## For More Information
+
+- [MANUAL.md](MANUAL.md) - Core language manual
+- [FUTURE.md](FUTURE.md) - GUI IDE plans
+- [IMPLEMENTATION.md](IMPLEMENTATION.md) - VM internals
+- [VSCODE.md](VSCODE.md) - VSCode extension
