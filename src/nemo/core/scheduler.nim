@@ -4,6 +4,7 @@ import ../core/process
 import ../interpreter/objects
 import ../interpreter/activation
 import ../interpreter/evaluator  # Interpreter functionality
+import ../interpreter/vm  # Stackless VM
 
 # ============================================================================
 # Scheduler Integration with Interpreter
@@ -136,41 +137,51 @@ proc runCurrentProcess*(ctx: SchedulerContext): NodeValue =
     sched.terminateProcess(sched.currentProcess)
     return nilValue()
 
-  # Check if process has already returned
-  if activation.hasReturned:
-    sched.terminateProcess(sched.currentProcess)
-    return activation.returnValue
-
   # Get next statement to execute
   let body = activation.currentMethod.body
-  if activation.pc >= body.len:
-    # Finished all statements
+  if activation.pc >= body.len and interp.workQueue.len == 0:
+    # Finished all statements and no pending work
     sched.terminateProcess(sched.currentProcess)
     return interp.lastResult
 
-  # Execute one statement (advance PC before execution)
-  let stmt = body[activation.pc]
-  inc activation.pc
+  # Check if we have pending work (resuming from yield)
+  # If work queue has frames, continue from there without advancing PC
+  let stmt = if interp.workQueue.len > 0:
+               # Resuming - work queue has pending frames
+               nil
+             else:
+               # Get next statement and advance PC
+               let s = body[activation.pc]
+               inc activation.pc
+               s
 
-  try:
-    result = interp.eval(stmt)
-    interp.lastResult = result
-  except YieldException:
-    # Process yielded mid-execution - put back in ready queue
-    # PC is already advanced, so we'll continue to next statement after resume
+  let (evalResult, status) = interp.evalForProcess(stmt)
+  result = evalResult
+  interp.lastResult = result
+
+  # Handle VM status
+  case status
+  of vmYielded:
+    # Process yielded - put back in ready queue
+    # The work queue preserves state, so we can resume later
     debug("Process ", sched.currentProcess.name, " yielded")
-    # Reset the yield flag so we don't keep yielding on every statement
     interp.shouldYield = false
     sched.yieldCurrentProcess()
     return nilValue()
-  except ValueError as e:
+  of vmError:
     # Process encountered an error - terminate it
-    debug("Process ", sched.currentProcess.name, " error: ", e.msg)
+    debug("Process ", sched.currentProcess.name, " error")
     sched.terminateProcess(sched.currentProcess)
     return nilValue()
+  of vmCompleted:
+    # Normal completion - continue to next statement
+    discard
+  of vmRunning:
+    # Should not happen after runASTInterpreter returns
+    discard
 
   # Check if block finished
-  if activation.pc >= body.len or activation.hasReturned:
+  if activation.pc >= body.len:
     sched.terminateProcess(sched.currentProcess)
 
 proc runOneSlice*(ctx: SchedulerContext): bool =

@@ -158,7 +158,7 @@ proc handleEvalNode(interp: var Interpreter, frame: WorkFrame): bool =
     # Push continuation frame to handle assignment after expression is evaluated
     interp.pushWorkFrame(WorkFrame(
       kind: wfAfterArg,  # Reuse for assignment continuation
-      pendingSelector: "=",  # Special marker for assignment
+      pendingSelector: "__assign__",  # Internal marker for assignment (not a valid selector)
       pendingArgs: @[],
       currentArgIndex: 0
     ))
@@ -427,7 +427,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
 
   of wfAfterArg:
     # Special case: assignment continuation
-    if frame.pendingSelector == "=":
+    if frame.pendingSelector == "__assign__":
       let value = interp.popValue()
       setVariable(interp, frame.selector, value)
       interp.pushValue(value)
@@ -1084,18 +1084,35 @@ proc runASTInterpreter*(interp: var Interpreter): VMResult =
 # Entry point to evaluate an expression using the new VM
 proc evalWithVM*(interp: var Interpreter, node: Node): NodeValue =
   ## Evaluate an expression using the explicit stack VM
-  interp.clearVMState()
-  interp.pushWorkFrame(newEvalFrame(node))
-  let vmResult = interp.runASTInterpreter()
-  case vmResult.status
-  of vmCompleted:
-    return vmResult.value
-  of vmYielded:
-    return vmResult.value
-  of vmError:
-    raise newException(ValueError, vmResult.error)
-  of vmRunning:
+  ## Handles re-entrancy by saving/restoring VM state for nested calls
+  if node == nil:
     return nilValue()
+
+  # Save current VM state for re-entrancy support
+  let savedWorkQueue = interp.workQueue
+  let savedEvalStack = interp.evalStack
+
+  # Initialize fresh VM state for this evaluation
+  interp.workQueue = @[newEvalFrame(node)]
+  interp.evalStack = @[]
+
+  # Run the VM
+  let vmResult = interp.runASTInterpreter()
+
+  # Get result before restoring state
+  let resultValue = case vmResult.status
+    of vmCompleted, vmYielded:
+      vmResult.value
+    of vmError:
+      raise newException(ValueError, vmResult.error)
+    of vmRunning:
+      nilValue()
+
+  # Restore previous VM state
+  interp.workQueue = savedWorkQueue
+  interp.evalStack = savedEvalStack
+
+  return resultValue
 
 proc doitStackless*(interp: var Interpreter, source: string, dumpAst = false): (NodeValue, string) =
   ## Parse and evaluate source code using the stackless VM
@@ -1151,3 +1168,27 @@ proc evalStatementsStackless*(interp: var Interpreter, source: string): (seq[Nod
     return (@[], "Runtime error: " & e.msg)
   except Exception as e:
     return (@[], "Error: " & e.msg)
+
+proc evalForProcess*(interp: var Interpreter, node: Node): (NodeValue, VMStatus) =
+  ## Evaluate a node for a process, preserving VM state across yields.
+  ## This is used by the scheduler to execute one statement at a time,
+  ## allowing proper yield/resume semantics.
+  ##
+  ## If node is nil and work queue has pending frames, continues from work queue.
+  ## If node is not nil and work queue is empty, pushes node onto work queue.
+  ##
+  ## Returns (value, status) where status indicates if the VM yielded,
+  ## completed, or encountered an error.
+  if node == nil and interp.workQueue.len == 0:
+    return (nilValue(), vmCompleted)
+
+  # If work queue is empty, push the new node
+  if interp.workQueue.len == 0:
+    interp.workQueue.add(newEvalFrame(node))
+  # If work queue has pending work (resuming from yield), continue execution
+  # without pushing a new frame
+
+  # Run the VM (continues from where it left off if resuming)
+  let vmResult = interp.runASTInterpreter()
+
+  return (vmResult.value, vmResult.status)
