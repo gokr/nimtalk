@@ -1552,10 +1552,38 @@ proc evalStatements*(interp: var Interpreter, source: string): (seq[NodeValue], 
 
   debug("evalStatements: starting evaluation")
   try:
-    for i, node in nodes:
-      debug("evalStatements: evaluating node ", i, " of ", nodes.len)
-      let evalResult = interp.eval(node)
-      results.add(evalResult)
+    # Create a top-level activation context so variables can be locals instead of globals
+    # This allows lowercase variable names without enforcing uppercase rule for globals
+    if nodes.len > 0:
+      # Create a temporary block node to wrap the statements
+      let topLevelBlock = BlockNode(
+        parameters: @[],
+        temporaries: @[],
+        body: nodes,
+        isMethod: false,
+        nativeImpl: nil,
+        hasInterpreterParam: false,
+        capturedEnv: initTable[string, MutableCell](),
+        capturedEnvInitialized: false,
+        homeActivation: nil
+      )
+      # Create activation with nil instance as receiver for top-level code
+      let activation = newActivation(topLevelBlock, nilInstance, nil)
+      interp.pushActivation(activation)
+      let savedActivation = interp.currentActivation
+      let savedReceiver = interp.currentReceiver
+      interp.currentActivation = activation
+      interp.currentReceiver = nilInstance
+
+      try:
+        for i, node in nodes:
+          debug("evalStatements: evaluating node ", i, " of ", nodes.len)
+          let evalResult = interp.eval(node)
+          results.add(evalResult)
+      finally:
+        discard interp.popActivation()
+        interp.currentActivation = savedActivation
+        interp.currentReceiver = savedReceiver
 
     debug("evalStatements: done, returning ", results.len, " results")
     return (results, "")
