@@ -41,6 +41,7 @@ proc textBufferNewImpl*(interp: var Interpreter, self: Instance, args: seq[NodeV
   let obj = newInstance(cls)
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](proxy)
+  GC_ref(cast[ref RootObj](proxy))
   return obj.toValue()
 
 ## Native instance method: setText:
@@ -82,7 +83,7 @@ proc textBufferGetTextImpl*(interp: var Interpreter, self: Instance, args: seq[N
   if text == nil:
     return "".toValue()
 
-  result = $text.toValue()
+  result = toValue($text)
 
 ## Native instance method: insert:at:
 proc textBufferInsertAtImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =

@@ -44,19 +44,22 @@ proc createGtkBox*(interp: var Interpreter, orientation: cint, spacing: cint = 0
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](proxy)
 
+  # Keep proxy alive in GC when stored as raw pointer in nimValue
+  GC_ref(cast[ref RootObj](proxy))
+
   return obj.toValue()
 
 ## Native method: new (class method)
 proc boxNewImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  createGtkBox(interp, GTKORIENTATIONVERTICAL, 0)
+  createGtkBox(interp, 1, 0)  # GTK_ORIENTATION_VERTICAL = 1
 
 ## Native method: horizontal (class method)
 proc boxHorizontalImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  createGtkBox(interp, GTKORIENTATIONHORIZONTAL, 0)
+  createGtkBox(interp, 0, 0)  # GTK_ORIENTATION_HORIZONTAL = 0
 
 ## Native method: vertical (class method)
 proc boxVerticalImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  createGtkBox(interp, GTKORIENTATIONVERTICAL, 0)
+  createGtkBox(interp, 1, 0)  # GTK_ORIENTATION_VERTICAL = 1
 
 ## Native method: newOrientation:spacing: (class method)
 proc boxNewOrientationSpacingImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
@@ -69,20 +72,34 @@ proc boxNewOrientationSpacingImpl*(interp: var Interpreter, self: Instance, args
 
 ## Native method: append:
 proc boxAppendImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
+  echo "** boxAppendImpl: called"
+
   if args.len < 1 or args[0].kind != vkInstance:
+    echo("  -> no args or not instance")
     return nilValue()
 
-  if self.isNimProxy and self.nimValue != nil:
-    let proxy = cast[GtkBoxProxy](self.nimValue)
-    let childInstance = args[0].instVal
+  if not (self.isNimProxy or self.nimValue == nil):
+    echo("  -> self not a proxy or nilValue")
+    return nilValue()
 
-    if childInstance.isNimProxy and childInstance.nimValue != nil:
-      let childProxy = cast[GtkWidgetProxy](childInstance.nimValue)
-      if proxy.widget != nil and childProxy.widget != nil:
-        when defined(gtk4):
-          gtkBoxAppend(cast[GtkBox](proxy.widget), childProxy.widget)
-        else:
-          gtkBoxPackStart(cast[GtkBox](proxy.widget), childProxy.widget, 1, 1, 0)
+  let proxy = cast[GtkBoxProxy](self.nimValue)
+  let childInstance = args[0].instVal
+
+  echo("  box.widget=", repr(proxy.widget), " child.isNimProxy=", childInstance.isNimProxy)
+
+  if childInstance.isNimProxy and childInstance.nimValue != nil:
+    let childProxy = cast[GtkWidgetProxy](childInstance.nimValue)
+    echo("  childProxy.widget=", repr(childProxy.widget))
+    if proxy.widget != nil and childProxy.widget != nil:
+      when defined(gtk4):
+        echo("  Calling gtkBoxAppend...")
+        gtkBoxAppend(cast[GtkBox](proxy.widget), childProxy.widget)
+        gtkWidgetShow(childProxy.widget)
+        echo("  -> appended and showed widget")
+      else:
+        gtkBoxPackStart(cast[GtkBox](proxy.widget), childProxy.widget, 1, 1, 0)
+  else:
+    echo("  -> child not a proxy or nilValue")
 
   nilValue()
 

@@ -9,7 +9,7 @@ import ./ffi
 import ./widget
 
 type
-  GtkLabelProxyObj* {.acyclic.} = object of QWidgetProxyObj
+  GtkLabelProxyObj* {.acyclic.} = object of GtkWidgetProxyObj
 
   GtkLabelProxy* = ref GtkLabelProxyObj
 
@@ -38,6 +38,7 @@ proc labelNewImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]
   let obj = newInstance(cls)
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](proxy)
+  GC_ref(cast[ref RootObj](proxy))
   return obj.toValue()
 
 ## Native class method: newLabel:
@@ -64,6 +65,7 @@ proc labelNewLabelImpl*(interp: var Interpreter, self: Instance, args: seq[NodeV
   let obj = newInstance(cls)
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](proxy)
+  GC_ref(cast[ref RootObj](proxy))
   return obj.toValue()
 
 ## Native instance method: text:
@@ -99,4 +101,4 @@ proc labelGetTextImpl*(interp: var Interpreter, self: Instance, args: seq[NodeVa
   if text == nil:
     return "".toValue()
 
-  result = $text.toValue()
+  result = toValue($text)

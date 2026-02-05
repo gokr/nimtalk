@@ -9,7 +9,7 @@ import ./ffi
 import ./widget
 
 type
-  GtkMenuProxyObj* {.acyclic.} = object of QWidgetProxyObj
+  GtkMenuProxyObj* {.acyclic.} = object of GtkWidgetProxyObj
 
   GtkMenuProxy* = ref GtkMenuProxyObj
 
@@ -34,7 +34,7 @@ proc menuAppendImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValu
   if menuProxy.widget == nil:
     return nilValue()
 
-  let menuItemProxy = cast[QWidgetProxy](menuItemVal.instVal.nimValue)
+  let menuItemProxy = cast[GtkWidgetProxy](menuItemVal.instVal.nimValue)
   if menuItemProxy.widget == nil:
     return nilValue()
 

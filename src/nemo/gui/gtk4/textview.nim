@@ -7,9 +7,10 @@ import nemo/core/types
 import nemo/interpreter/evaluator
 import ./ffi
 import ./widget
+import ./textbuffer
 
 type
-  GtkTextViewProxyObj* {.acyclic.} = object of QWidgetProxyObj
+  GtkTextViewProxyObj* {.acyclic.} = object of GtkWidgetProxyObj
 
   GtkTextViewProxy* = ref GtkTextViewProxyObj
 
@@ -38,6 +39,7 @@ proc textViewNewImpl*(interp: var Interpreter, self: Instance, args: seq[NodeVal
   let obj = newInstance(cls)
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](proxy)
+  GC_ref(cast[ref RootObj](proxy))
   return obj.toValue()
 
 ## Native instance method: getText:
@@ -62,7 +64,7 @@ proc textViewGetTextImpl*(interp: var Interpreter, self: Instance, args: seq[Nod
   if text == nil:
     return "".toValue()
 
-  result = $text.toValue()
+  result = toValue($text)
 
 ## Native instance method: setText:
 proc textViewSetTextImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
@@ -101,7 +103,21 @@ proc textViewGetBufferImpl*(interp: var Interpreter, self: Instance, args: seq[N
   if buffer == nil:
     let newBuffer = gtkTextBufferNew()
     gtkTextViewSetBuffer(cast[GtkTextView](proxy.widget), newBuffer)
-    return newBuffer.toValue()
+
+    var cls: Class = nil
+    if "GtkTextBuffer" in interp.globals[]:
+      let val = interp.globals[]["GtkTextBuffer"]
+      if val.kind == vkClass:
+        cls = val.classVal
+    if cls == nil:
+      cls = objectClass
+
+    let wrapper = newGtkTextBufferProxy(newBuffer, addr(interp))
+    let obj = newInstance(cls)
+    obj.isNimProxy = true
+    obj.nimValue = cast[pointer](wrapper)
+    GC_ref(cast[ref RootObj](wrapper))
+    return obj.toValue()
 
   nilValue()
 
@@ -122,7 +138,7 @@ proc textViewSetBufferImpl*(interp: var Interpreter, self: Instance, args: seq[N
   if not (bufferVal.kind == vkInstance and bufferVal.instVal.isNimProxy):
     return nilValue()
 
-  let bufferProxy = cast[QWidgetProxy](bufferVal.instVal.nimValue)
+  let bufferProxy = cast[GtkWidgetProxy](bufferVal.instVal.nimValue)
   if bufferProxy.widget == nil:
     return nilValue()
 
