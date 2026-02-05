@@ -159,6 +159,8 @@ proc runCurrentProcess*(ctx: SchedulerContext): NodeValue =
     # Process yielded mid-execution - put back in ready queue
     # PC is already advanced, so we'll continue to next statement after resume
     debug("Process ", sched.currentProcess.name, " yielded")
+    # Reset the yield flag so we don't keep yielding on every statement
+    interp.shouldYield = false
     sched.yieldCurrentProcess()
     return nilValue()
   except ValueError as e:
@@ -560,42 +562,42 @@ proc createSchedulerClass*(): Class =
   let processCountMethod = createCoreMethod("processCount")
   processCountMethod.nativeImpl = cast[pointer](schedulerProcessCountImpl)
   processCountMethod.hasInterpreterParam = true
-  addMethodToClass(schedulerClass, "processCount", processCountMethod)
+  addMethodToClass(schedulerClass, "processCount", processCountMethod, isClassMethod = true)
 
   # Add readyCount method
   let readyCountMethod = createCoreMethod("readyCount")
   readyCountMethod.nativeImpl = cast[pointer](schedulerReadyCountImpl)
   readyCountMethod.hasInterpreterParam = true
-  addMethodToClass(schedulerClass, "readyCount", readyCountMethod)
+  addMethodToClass(schedulerClass, "readyCount", readyCountMethod, isClassMethod = true)
 
   # Add blockedCount method
   let blockedCountMethod = createCoreMethod("blockedCount")
   blockedCountMethod.nativeImpl = cast[pointer](schedulerBlockedCountImpl)
   blockedCountMethod.hasInterpreterParam = true
-  addMethodToClass(schedulerClass, "blockedCount", blockedCountMethod)
+  addMethodToClass(schedulerClass, "blockedCount", blockedCountMethod, isClassMethod = true)
 
   # Add currentProcess method
   let currentProcessMethod = createCoreMethod("currentProcess")
   currentProcessMethod.nativeImpl = cast[pointer](schedulerCurrentProcessImpl)
   currentProcessMethod.hasInterpreterParam = true
-  addMethodToClass(schedulerClass, "currentProcess", currentProcessMethod)
+  addMethodToClass(schedulerClass, "currentProcess", currentProcessMethod, isClassMethod = true)
 
   # Add fork:name: method
   let forkNameMethod = createCoreMethod("fork:name:")
   forkNameMethod.nativeImpl = cast[pointer](schedulerForkNameImpl)
   forkNameMethod.hasInterpreterParam = true
-  addMethodToClass(schedulerClass, "fork:name:", forkNameMethod)
+  addMethodToClass(schedulerClass, "fork:name:", forkNameMethod, isClassMethod = true)
 
   # Add step method
   let stepMethod = createCoreMethod("step")
   stepMethod.nativeImpl = cast[pointer](schedulerStepImpl)
   stepMethod.hasInterpreterParam = true
-  addMethodToClass(schedulerClass, "step", stepMethod)
+  addMethodToClass(schedulerClass, "step", stepMethod, isClassMethod = true)
 
   # Add runToCompletion: method
   let runToCompletionMethod = createCoreMethod("runToCompletion:")
   runToCompletionMethod.nativeImpl = cast[pointer](schedulerRunToCompletionImpl)
   runToCompletionMethod.hasInterpreterParam = true
-  addMethodToClass(schedulerClass, "runToCompletion:", runToCompletionMethod)
+  addMethodToClass(schedulerClass, "runToCompletion:", runToCompletionMethod, isClassMethod = true)
 
   return schedulerClass
