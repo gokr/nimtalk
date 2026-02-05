@@ -30,9 +30,9 @@ suite "Evaluator: Basic Message Dispatch":
   test "evaluates simple property access via messages":
     # Use Table instance with at:/at:put: for key-value storage
     let result = interp.evalStatements("""
-    t := Table new.
-    t at: #value put: 42.
-    result := t at: #value
+    T := Table new.
+    T at: #value put: 42.
+    Result := T at: #value
     """)
 
     check(result[1].len == 0)
@@ -45,8 +45,8 @@ suite "Evaluator: Basic Message Dispatch":
     let result = interp.evalStatements("""
     MyClass := Object derive.
     MyClass selector: #doesNotUnderstand: put: [ :msg | ^msg ].
-    obj := MyClass new.
-    result := obj someUndefinedMessage
+    Obj := MyClass new.
+    Result := Obj someUndefinedMessage
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkSymbol)
@@ -59,8 +59,8 @@ suite "Evaluator: Basic Message Dispatch":
     Parent selector: #parentMethod put: [ ^"from parent" ].
 
     Child := Parent derive.
-    child := Child new.
-    result := child parentMethod
+    Child2 := Child new.
+    Result := Child2 parentMethod
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkString)
@@ -80,8 +80,8 @@ suite "Evaluator: Method Execution with Parameters":
     Calculator := Object derive.
     Calculator selector: #add:to: put: [ :x :y | ^x + y ].
 
-    calc := Calculator new.
-    result := calc add: 5 to: 10
+    Calc := Calculator new.
+    Result := Calc add: 5 to: 10
     """)
 
     check(result[1].len == 0)
@@ -97,10 +97,12 @@ suite "Evaluator: Method Execution with Parameters":
         self y: newY
       ].
 
-      point := Point new.
-      point setX: 10 setY: 20.
-      resultX := point x.
-      resultY := point y
+      Point2 := Point derive.
+      Point2 x: 0.
+      Point2 y: 0.
+      Point2 setX: 10 setY: 20.
+      ResultX := Point2 x.
+      ResultY := Point2 y
       """)
 
       check(result[1].len == 0)
@@ -113,10 +115,10 @@ suite "Evaluator: Method Execution with Parameters":
       Person := Object derive: #(name age).
       Person at: #introduce put: [ ^"I am " , self name , " and I am " , self age , " years old" ].
 
-      person := Person derive.
-      person name: "Alice".
-      person age: 30.
-      result := person introduce
+      Person := Person derive.
+      Person name: "Alice".
+      Person age: 30.
+      Result := Person introduce
       """)
 
       check(result[1].len == 0)
@@ -134,9 +136,9 @@ suite "Evaluator: Method Execution with Parameters":
         ^self count
       ].
 
-      counter := Counter derive.
-      counter count: 0.
-      result := counter incrementBy: 5 andPrint: "Incrementing\n"
+      Counter2 := Counter derive.
+      Counter2 count: 0.
+      Result := Counter2 incrementBy: 5 andPrint: "Incrementing\n"
       """)
 
       check(result[1].len == 0)
@@ -153,7 +155,7 @@ suite "Evaluator: Control Flow":
 
   test "ifTrue: executes block when receiver is true":
     let result = interp.evalStatements("""
-    result := true ifTrue: [ ^42 ]
+    Result := true ifTrue: [ ^42 ]
     """)
 
     check(result[1].len == 0)
@@ -162,7 +164,7 @@ suite "Evaluator: Control Flow":
 
   test "ifTrue: does not execute block when receiver is false":
     let result = interp.evalStatements("""
-    result := false ifTrue: [ ^42 ]
+    Result := false ifTrue: [ ^42 ]
     """)
 
     check(result[1].len == 0)
@@ -171,7 +173,7 @@ suite "Evaluator: Control Flow":
 
   test "ifFalse: executes block when receiver is false":
     let result = interp.evalStatements("""
-    result := false ifFalse: [ ^99 ]
+    Result := false ifFalse: [ ^99 ]
     """)
 
     check(result[1].len == 0)
@@ -180,7 +182,7 @@ suite "Evaluator: Control Flow":
 
   test "ifFalse: does not execute block when receiver is true":
     let result = interp.evalStatements("""
-    result := true ifFalse: [ ^99 ]
+    Result := true ifFalse: [ ^99 ]
     """)
 
     check(result[1].len == 0)
@@ -196,12 +198,12 @@ suite "Evaluator: Control Flow":
         ^self value + " is odd"
       ].
 
-      num := Number derive.
-      num value: 4.
-      result1 := num describe.
+      Num := Number derive.
+      Num value: 4.
+      Result1 := Num describe.
 
-      num value: 7.
-      result2 := num describe
+      Num value: 7.
+      Result2 := Num describe
       """)
 
       check(result[1].len == 0)
@@ -219,12 +221,12 @@ suite "Evaluator: Control Flow":
         ^"large positive"
       ].
 
-      cat := Category derive.
-      result1 := cat classify: -5.
-      result2 := cat classify: 0.
-      result3 := cat classify: 5.
-      result4 := cat classify: 50.
-      result5 := cat classify: 500
+      Cat := Category derive.
+      Result1 := Cat classify: -5.
+      Result2 := Cat classify: 0.
+      Result3 := Cat classify: 5.
+      Result4 := Cat classify: 50.
+      Result5 := Cat classify: 500
       """)
 
       check(result[1].len == 0)
@@ -243,8 +245,8 @@ suite "Evaluator: Block Evaluation":
     # Use new class-based model
     MyClass := Object derive.
     MyClass selector: #block put: [ ^42 ].
-    obj := MyClass new.
-    result := obj block
+    Obj := MyClass new.
+    Result := Obj block
     """)
 
     check(result[1].len == 0)
@@ -257,9 +259,9 @@ suite "Evaluator: Block Evaluation":
       MyClass := Object derive.
       MyClass selector: #apply:to: put: [ :block :arg | ^block value: arg ].
 
-      obj := MyClass new.
-      doubler := [ :x | ^x * 2 ].
-      result := obj apply: doubler to: 21
+      Obj := MyClass new.
+      Doubler := [ :x | ^x * 2 ].
+      Result := Obj apply: Doubler to: 21
       """)
 
     check(result[1].len == 0)
@@ -278,11 +280,11 @@ suite "Evaluator: Block Evaluation":
         ]
       ].
 
-      counter := Counter new.
-      c := counter makeCounter.
-      result1 := c value.
-      result2 := c value.
-      result3 := c value
+      Counter2 := Counter new.
+      C := Counter2 makeCounter.
+      Result1 := C value.
+      Result2 := C value.
+      Result3 := C value
       """)
 
     if result[1].len > 0:
@@ -303,13 +305,13 @@ suite "Evaluator: Block Evaluation":
   test "blocks support non-local return":  # Requires non-local return implementation
     when false:  # DISABLED - non-local return from blocks not fully implemented
       let result = interp.evalStatements("""
-        obj := Table derive.
-        obj at: #callWithEarlyReturn: put: [ :block |
+        Obj := Table derive.
+        Obj at: #callWithEarlyReturn: put: [ :block |
           block value.
           ^"Should not reach here"
         ].
 
-        result := obj callWithEarlyReturn: [ ^"Early exit" ]
+        Result := Obj callWithEarlyReturn: [ ^"Early exit" ]
         """)
 
       check(result[1].len == 0)
@@ -341,13 +343,13 @@ suite "Evaluator: Lexical Closures":
         ]
       ].
 
-      maker := Maker derive.
-      counter1 := maker makeCounter.
-      counter2 := maker makeCounter.
+      Maker2 := Maker derive.
+      Counter1 := Maker2 makeCounter.
+      Counter2 := Maker2 makeCounter.
 
-      result1 := counter1 value.
-      result2 := counter1 value.
-      result3 := counter2 value
+      Result1 := Counter1 value.
+      Result2 := Counter1 value.
+      Result3 := Counter2 value
       """)
 
       check(result[1].len == 0)
@@ -364,13 +366,13 @@ suite "Evaluator: Lexical Closures":
         ^#{ #inc -> [ ^value := value + 1 ], #dec -> [ ^value := value - 1 ], #get -> [ ^value ] }
       ].
 
-      maker := Maker derive.
-      pair := maker makePair.
-      result1 := (pair at: #get) value.  # Should be 10
-      dummy1 := (pair at: #inc) value.
-      result2 := (pair at: #get) value.  # Should be 11
-      dummy2 := (pair at: #dec) value.
-      result3 := (pair at: #get) value   # Should be 10
+      Maker2 := Maker derive.
+      Pair := Maker2 makePair.
+      Result1 := (Pair at: #get) value.  # Should be 10
+      Dummy1 := (Pair at: #inc) value.
+      Result2 := (Pair at: #get) value.  # Should be 11
+      Dummy2 := (Pair at: #dec) value.
+      Result3 := (Pair at: #get) value   # Should be 10
       """)
 
       check(result[1].len == 0)
@@ -390,11 +392,11 @@ suite "Evaluator: Lexical Closures":
         }
       ].
 
-      maker := Maker derive.
-      closures := maker makeClosures: 10 :20.
-      result1 := (closures at: #sum) value.
-      result2 := (closures at: #diff) value.
-      result3 := (closures at: #product) value
+      Maker2 := Maker derive.
+      Closures := Maker2 makeClosures: 10 :20.
+      Result1 := (Closures at: #sum) value.
+      Result2 := (Closures at: #diff) value.
+      Result3 := (Closures at: #product) value
       """)
 
       check(result[1].len == 0)
@@ -414,10 +416,10 @@ suite "Evaluator: Lexical Closures":
       ]
     ].
 
-    maker := Maker new.
-    add5 := maker makeAdder: 5.
-    add5and10 := add5 value: 10.
-    result := add5and10 value: 15
+    Maker2 := Maker new.
+    Add5 := Maker2 makeAdder: 5.
+    Add5and10 := Add5 value: 10.
+    Result := Add5and10 value: 15
     """)
 
     if result[1].len > 0:
@@ -447,13 +449,13 @@ suite "Evaluator: Lexical Closures":
         ]
       ].
 
-      acc := Account derive.
-      acc initialize: 100.
-      withdraw50 := acc withdraw: 50.
-      result1 := withdraw50 value.
-      result2 := acc balance.
-      withdraw100 := acc withdraw: 100.
-      result3 := withdraw100 value
+      Acc := Account derive.
+      Acc initialize: 100.
+      Withdraw50 := Acc withdraw: 50.
+      Result1 := Withdraw50 value.
+      Result2 := Acc balance.
+      Withdraw100 := Acc withdraw: 100.
+      Result3 := Withdraw100 value
       """)
 
       check(result[1].len == 0)
@@ -471,12 +473,12 @@ suite "Evaluator: Lexical Closures":
         ^[ :val | ^val * multiplier ]
       ].
 
-      factory := Factory derive.
-      doubler := factory create: 1.  # multiplier = 2
-      tripler := factory create: 1.5. # multiplier = 3
+      Factory2 := Factory derive.
+      Doubler := Factory2 create: 1.  # multiplier = 2
+      Tripler := Factory2 create: 1.5. # multiplier = 3
 
-      result1 := doubler value: 10.  # 10 * 2
-      result2 := tripler value: 10   # 10 * 3
+      Result1 := Doubler value: 10.  # 10 * 2
+      Result2 := Tripler value: 10   # 10 * 3
       """)
 
       check(result[1].len == 0)
@@ -501,14 +503,14 @@ suite "Evaluator: Lexical Closures":
         }
       ].
 
-      maker := Maker derive.
-      p := maker makePoint: 3 :4.
-      result1 := (p at: #x) value.
-      result2 := (p at: #y) value.
-      result3 := (p at: #distanceFromOrigin) value.
-      (p at: #setX:) value: 6.
-      (p at: #setY:) value: 8.
-      result4 := (p at: #distanceFromOrigin) value
+      Maker2 := Maker derive.
+      P := Maker2 makePoint: 3 :4.
+      Result1 := (P at: #x) value.
+      Result2 := (P at: #y) value.
+      Result3 := (P at: #distanceFromOrigin) value.
+      (P at: #setX:) value: 6.
+      (P at: #setY:) value: 8.
+      Result4 := (P at: #distanceFromOrigin) value
       """)
 
       check(result[1].len == 0)
@@ -529,9 +531,9 @@ suite "Evaluator: Lexical Closures":
         ^nil
       ].
 
-      finder := Finder derive.
-      numbers := #(1 3 5 7 9 2 4 6 8).
-      result := finder findIn: numbers :[ :n | ^(n % 2) == 0 ]
+      Finder2 := Finder derive.
+      Numbers := #(1 3 5 7 9 2 4 6 8).
+      Result := Finder2 findIn: Numbers :[ :n | ^(n % 2) == 0 ]
       """)
 
       check(result[1].len == 0)
@@ -547,16 +549,16 @@ suite "Evaluator: Global Variables":
 
   test "variables persist across evaluations":
     let result1 = interp.evalStatements("""
-    counter := 0.
-    result := counter
+    Counter := 0.
+    Result := Counter
     """)
 
     check(result1[1].len == 0)
     check(result1[0][^1].intVal == 0)
 
     let result2 = interp.evalStatements("""
-    counter := counter + 1.
-    result := counter
+    Counter := Counter + 1.
+    Result := Counter
     """)
 
     check(result2[1].len == 0)
@@ -571,8 +573,8 @@ suite "Evaluator: Global Variables":
     MyClass := Object derive.
     MyClass selector: #getGlobal put: [ ^GlobalValue ].
 
-    obj := MyClass new.
-    result := obj getGlobal
+    Obj := MyClass new.
+    Result := Obj getGlobal
     """)
 
     check(result[1].len == 0)
@@ -589,10 +591,10 @@ suite "Evaluator: Collections":
 
   test "arrays can be created and accessed" :  # Requires array iteration protocol
     let result = interp.evalStatements("""
-    arr := #(1 "hello" true).
-    result1 := arr at: 1.
-    result2 := arr at: 2.
-    result3 := arr at: 3
+    Arr := #(1 "hello" true).
+    Result1 := Arr at: 1.
+    Result2 := Arr at: 2.
+    Result3 := Arr at: 3
     """)
 
     if result[1].len > 0:
@@ -609,9 +611,9 @@ suite "Evaluator: Collections":
 
   test "tables can be created and accessed" :  # Requires table iteration protocol
     let result = interp.evalStatements("""
-    tab := #{"name" -> "Alice", "age" -> 30}.
-    result1 := tab at: "name".
-    result2 := tab at: "age"
+    Tab := #{"name" -> "Alice", "age" -> 30}.
+    Result1 := Tab at: "name".
+    Result2 := Tab at: "age"
     """)
 
     if result[1].len > 0:
@@ -627,17 +629,17 @@ suite "Evaluator: Collections":
     when false:  # DISABLED - uses #[] empty array syntax not supported by parser
       let result = interp.evalStatements("""
       Mapper := Table derive.
-      Mapper at: "doubleAll:" put: [ :arr |
-        result := #[].
+      Mapper at: "doubleAll:" put: [ :arr | val |
+        Result := #[].
         1 to: arr do: [ :i |
           val := arr at: i.
-          result := result add: (val * 2)
+          Result := Result add: (val * 2)
         ].
-        ^result
+        ^Result
       ].
 
-      mapper := Mapper derive.
-      result := mapper doubleAll: #(1 2 3 4 5)
+      Mapper2 := Mapper derive.
+      Result := Mapper2 doubleAll: #(1 2 3 4 5)
       """)
 
       check(result[1].len == 0)
@@ -645,10 +647,10 @@ suite "Evaluator: Collections":
 
   test "nested collections" :  # Requires collection iteration and access
     let result = interp.evalStatements("""
-    matrix := #( #(1 2 3) #(4 5 6) #(7 8 9) ).
-    row1 := matrix at: 1.
-    elem := row1 at: 2.
-    result := elem
+    Matrix := #( #(1 2 3) #(4 5 6) #(7 8 9) ).
+    Row1 := Matrix at: 1.
+    Elem := Row1 at: 2.
+    Result := Elem
     """)
 
     check(result[1].len == 0)
@@ -670,8 +672,8 @@ suite "Evaluator: Error Handling":
 
   test "error includes message selector":
     let result = interp.evalStatements("""
-    obj := Table derive.
-    obj undefinedMethod
+    Obj := Table derive.
+    Obj undefinedMethod
     """)
 
     check(result[1].len > 0)
@@ -679,8 +681,8 @@ suite "Evaluator: Error Handling":
 
   test "parse errors are reported":
     let result = interp.evalStatements("""
-    obj := Table derive.
-    obj at:
+    Obj := Table derive.
+    Obj at:
     """)
 
     check(result[1].len > 0)
@@ -691,9 +693,9 @@ suite "Evaluator: Error Handling":
     Person>>name: n [ self at: #name put: n ].
     Person>>name [ ^self at: #name ].
 
-    obj := Person new.
-    obj name: "Alice".
-    result := obj name
+    Obj := Person new.
+    Obj name: "Alice".
+    Result := Obj name
     """)
 
     check(result[1].len == 0)
@@ -717,10 +719,10 @@ suite "Evaluator: Complex Expressions":
     Box>>value: v [ self at: #value put: v ].
     Box>>value [ ^self at: #value ].
 
-    obj := Container new.
-    obj inner: (Box new).
-    obj inner value: 42.
-    result := obj inner value
+    Obj := Container new.
+    Obj inner: (Box new).
+    Obj inner value: 42.
+    Result := Obj inner value
     """)
 
     check(result[1].len == 0)
@@ -737,9 +739,9 @@ suite "Evaluator: Complex Expressions":
     Point>>y [ ^self at: #y ].
     Point>>z [ ^self at: #z ].
 
-    obj := Point new.
-    obj x: 0; y: 0; z: 0.
-    result := (obj x) + (obj y) + (obj z)
+    Obj := Point new.
+    Obj x: 0; y: 0; z: 0.
+    Result := (Obj x) + (Obj y) + (Obj z)
     """)
 
     check(result[1].len == 0)
@@ -754,11 +756,11 @@ suite "Evaluator: Complex Expressions":
     MyNumber>>double [ ^self value * 2 ].
     MyNumber>>add: a to: b [ ^a + b ].
 
-    num := MyNumber new.
-    num value: 10.
-    result1 := num double.
-    result2 := num value + 5.
-    result3 := num add: 3 to: 7
+    Num := MyNumber new.
+    Num value: 10.
+    Result1 := Num double.
+    Result2 := Num value + 5.
+    Result3 := Num add: 3 to: 7
     """)
 
     if result[1].len > 0:
@@ -790,8 +792,8 @@ suite "Evaluator: Call Stack and Returns":
       TestObj>>level2 [ self level3. ^"Should not reach" ].
       TestObj>>level1 [ self level2. ^"Should not reach" ].
 
-      obj := TestObj new.
-      result := obj level1
+      Obj := TestObj new.
+      Result := Obj level1
       """)
 
       check(result[1].len == 0)
@@ -803,8 +805,8 @@ suite "Evaluator: Call Stack and Returns":
     TestObj := Table derive.
     TestObj>>testMethod [ ^99 ].
 
-    obj := TestObj new.
-    result := obj testMethod
+    Obj := TestObj new.
+    Result := Obj testMethod
     """)
 
     check(result[1].len == 0)
@@ -825,9 +827,9 @@ suite "Evaluator: Special Features":
     Box>>value: v [ self at: #value put: v ].
     Box>>value [ ^self at: #value ].
 
-    obj := Box new.
-    obj value: nil.
-    result := obj value
+    Obj := Box new.
+    Obj value: nil.
+    Result := Obj value
     """)
 
     check(result[1].len == 0)
@@ -837,8 +839,8 @@ suite "Evaluator: Special Features":
 
   test "booleans are native values" :
     let result = interp.evalStatements("""
-    result1 := true.
-    result2 := false.
+    Result1 := true.
+    Result2 := false.
     """)
 
     check(result[1].len == 0)
@@ -853,9 +855,9 @@ suite "Evaluator: Special Features":
     Box>>test: v [ self at: #test put: v ].
     Box>>test [ ^self at: #test ].
 
-    obj := Box new.
-    obj test: 1.
-    result := obj test
+    Obj := Box new.
+    Obj test: 1.
+    Result := Obj test
     """)
 
     check(result[1].len == 0)
@@ -863,9 +865,9 @@ suite "Evaluator: Special Features":
 
   test "arithmetic with wrapped Nim values":
     let result = interp.evalStatements("""
-    a := 10.
-    b := 20.
-    result := a + b
+    A := 10.
+    B := 20.
+    Result := A + B
     """)
 
     check(result[1].len == 0)
