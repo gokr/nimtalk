@@ -1139,7 +1139,7 @@ proc doitStackless*(interp: var Interpreter, source: string, dumpAst = false): (
       lastResult = interp.evalWithVM(node)
     interp.lastResult = lastResult
     return (lastResult, "")
-  except ValueError as e:
+  except ValueError:
     raise
   except EvalError as e:
     return (nilValue(), "Runtime error: " & e.msg)
@@ -1162,7 +1162,7 @@ proc evalStatementsStackless*(interp: var Interpreter, source: string): (seq[Nod
       let evalResult = interp.evalWithVM(node)
       results.add(evalResult)
     return (results, "")
-  except ValueError as e:
+  except ValueError:
     raise
   except EvalError as e:
     return (@[], "Runtime error: " & e.msg)
