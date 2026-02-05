@@ -95,6 +95,9 @@ This document tracks current work items and future directions for Nemo developme
 - ~~Process forking and yielding~~ ✅ Implemented
 - ~~Shared globals between processes~~ ✅ Implemented
 - ~~Process, Scheduler, GlobalTable Nemo-side objects~~ ✅ Implemented
+- ~~Global variable capitalization convention~~ ✅ Implemented
+- ~~Non-local return through nested blocks~~ ✅ Fixed
+- ~~Orphaned block handling~~ ✅ Fixed
 - Monitors and SharedQueues (planned)
 - Memory management for circular references
 - Error handling improvements needed
@@ -388,4 +391,36 @@ Fixed multiple SIGSEGV and nil access issues in the process/scheduler implementa
 
 ---
 
-*Last Updated: 2026-02-04*
+## Recent Completed Work (2026-02-05)
+
+### Non-Local Return Fixes
+
+Fixed multiple issues with non-local returns (`^`) from blocks:
+
+**Problem**: Non-local returns from nested blocks and orphaned blocks were not working correctly:
+- `inject:into:` was returning initial value instead of accumulated result
+- `detect:` was returning nil instead of found element
+- Blocks created inside methods that returned closures lost their return target
+
+**Solution**:
+- Added `nonLocalReturnTarget` field to Activation for tracking true non-local returns
+- Chain non-local returns through nested blocks to find actual method activation
+- Handle orphaned blocks (whose home activation is no longer on stack) by using current activation as target
+- Update captured variable changes back to parent activations
+
+**Tests Fixed**:
+- `inject:into: reduces elements`
+- `detect: finds first matching element`
+- `blocks can close over variables`
+- `nested closures capture multiple levels`
+
+### Global Variable Capitalization Convention
+
+- Globals must start with uppercase letter (A-Z)
+- Locals/temporaries use lowercase
+- Protected globals cannot be reassigned (Object, Class, Nemo, etc.)
+- This prevents typos from accidentally creating globals
+
+---
+
+*Last Updated: 2026-02-05*

@@ -20,10 +20,10 @@ Point>>moveBy: dx and: dy [
 ]
 
 # Create an instance and use it
-p := Point new
-p x: 100 y: 200
-p moveBy: 10 and: 20
-p x  # Returns 110
+P := Point new
+P x: 100 y: 200
+P moveBy: 10 and: 20
+P x  # Returns 110
 ```
 
 ## For Smalltalkers
@@ -51,6 +51,33 @@ p x  # Returns 110
 | VM execution | Interprets AST directly, compiles to Nim (in development) |
 | FFI via C bindings | Direct Nim interop: call Nim functions, use Nim types |
 
+### Variable Naming Convention
+
+Nemo enforces a capitalization convention to distinguish between globals and locals:
+
+| Type | Convention | Example |
+|------|------------|---------|
+| **Globals** (class names, global variables) | Uppercase first letter | `Point`, `MyGlobal`, `Counter` |
+| **Locals** (temporaries, method parameters, block parameters) | Lowercase first letter | `temp`, `index`, `value` |
+
+```smalltalk
+# Global variable (starts with uppercase)
+Counter := 0
+
+# Method with local parameters and temporaries
+Counter>>incrementBy: amount [
+    | oldValue |
+    oldValue := count
+    count := count + amount
+    ^ oldValue
+]
+
+# Block with lowercase parameter
+Doubler := [:n | n * 2]
+```
+
+This convention prevents accidental global creation from typos and makes variable scope visually clear.
+
 ### Syntax Notes
 
 **Comments:**
@@ -67,11 +94,11 @@ p x  # Returns 110
 **Statements:**
 ```smalltalk
 # Both styles work - newline or period:
-x := 1
-y := 2
+X := 1
+Y := 2
 
-x := 1.
-y := 2.
+X := 1.
+Y := 2.
 ```
 
 **The class system:**
@@ -88,10 +115,10 @@ Point>>printString [
 ]
 
 # Create an instance
-p := Point new
-p x: 42
-p y: 99
-p printString  # Returns '(42, 99)'
+P := Point new
+P x: 42
+P y: 99
+P printString  # Returns '(42, 99)'
 ```
 
 Key differences to understand:
@@ -148,7 +175,7 @@ Person extendClass: [
 ]
 
 # Usage
-p := Person newNamed: "Alice" aged: 30
+P := Person newNamed: "Alice" aged: 30
 ```
 
 The `extend:` and `extendClass:` methods use `asSelfDo:` internally, which temporarily rebinds `self` to the target object during block evaluation. This enables clean method batching syntax.
@@ -178,7 +205,7 @@ Child >> foo [ ^ "child" ]
 Child addParent: Parent1
 Child addParent: Parent2
 
-result := Child new foo  # Returns "child" (child's override takes precedence)
+Result := Child new foo  # Returns "child" (child's override takes precedence)
 ```
 
 **Important**: Only directly-defined methods on parents are checked for conflicts. Inherited methods (like `derive:` from Object) will not cause false conflicts.
@@ -189,7 +216,7 @@ Nemo supports cooperative green threads for concurrent execution with first-clas
 
 ```smalltalk
 # Fork a new process - returns a Process object
-process := Processor fork: [
+Process := Processor fork: [
   1 to: 10 do: [:i |
     Stdout writeline: i
     Processor yield  # Yield to other processes
@@ -197,14 +224,14 @@ process := Processor fork: [
 ]
 
 # Query process properties
-process pid       # Returns process ID (integer)
-process name      # Returns process name (string)
-process state     # Returns state: "ready", "running", "blocked", "suspended", "terminated"
+Process pid       # Returns process ID (integer)
+Process name      # Returns process name (string)
+Process state     # Returns state: "ready", "running", "blocked", "suspended", "terminated"
 
 # Control processes
-process suspend   # Suspend execution
-process resume    # Resume suspended process
-process terminate # Terminate the process
+Process suspend   # Suspend execution
+Process resume    # Resume suspended process
+Process terminate # Terminate the process
 
 # Yield current process
 Processor yield
