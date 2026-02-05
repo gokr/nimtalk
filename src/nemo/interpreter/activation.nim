@@ -11,8 +11,10 @@ import ../parser/[lexer, parser]
 proc newActivation*(blk: BlockNode,
                    receiver: Instance,
                    sender: Activation,
-                   definingClass: Class = nil): Activation =
+                   definingClass: Class = nil,
+                   isClassMethod: bool = false): Activation =
   ## Create a new activation record
+  ## isClassMethod: true if this activation is for a class method
   result = Activation(
     sender: sender,
     receiver: receiver,
@@ -22,14 +24,14 @@ proc newActivation*(blk: BlockNode,
     locals: initTable[string, NodeValue](),
     capturedVars: initTable[string, MutableCell](),
     returnValue: nilValue(),
-    hasReturned: false
+    hasReturned: false,
+    isClassMethod: isClassMethod
   )
 
   # Initialize 'self' for all activations (blocks invoked as methods need self)
-  # Special case: for class methods, receiver is a hidden class receiver (ikObject with empty slots)
-  # In this case, self should return the Class object, not the wrapper Instance
-  if receiver != nil and receiver.kind == ikObject and receiver.slots.len == 0 and receiver.isNimProxy == false and receiver.nimValue == nil:
-    # This is a hidden class receiver - return the Class object
+  # For class methods, self should return the Class object, not the wrapper Instance
+  if isClassMethod and receiver != nil and receiver.class != nil:
+    # This is a class method - return the Class object
     result.locals["self"] = receiver.class.toValue()
   else:
     result.locals["self"] = receiver.toValue()

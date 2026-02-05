@@ -6,13 +6,18 @@ import std/unittest
 import ../src/nemo/core/types
 import ../src/nemo/interpreter/[evaluator, objects]
 
+# Shared interpreter initialized once for all suites
+# This avoids repeated newInterpreter + initGlobals + loadStdlib per test
+var sharedInterp: Interpreter
+sharedInterp = newInterpreter()
+initGlobals(sharedInterp)
+loadStdlib(sharedInterp)
+
 suite "Stdlib: Numbers":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "arithmetic operations work":
     let (result, err) = interp.doit("3 + 4")
@@ -99,12 +104,10 @@ suite "Stdlib: Numbers":
     check(result[0][^1].intVal == 3)
 
 suite "Stdlib: Loops":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "whileTrue: loop works":
     let result = interp.evalStatements("""
@@ -141,12 +144,10 @@ suite "Stdlib: Loops":
     check(result[0][^1].intVal == 55)  # 1+2+...+10
 
 suite "Stdlib: Arrays":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Array new creates empty array":
     let result = interp.evalStatements("""
@@ -230,7 +231,7 @@ suite "Stdlib: Arrays":
       Arr add: 2.
       Arr add: 3.
       Arr add: 4.
-      Evens := Arr select: [ :n | N even ].
+      Evens := Arr select: [ :n | n even ].
       Result := Evens size
     """)
     check(result[1].len == 0)
@@ -244,7 +245,7 @@ suite "Stdlib: Arrays":
       Arr add: 2.
       Arr add: 3.
       Arr add: 4.
-      Odds := Arr reject: [ :n | N even ].
+      Odds := Arr reject: [ :n | n even ].
       Result := Odds size
     """)
     check(result[1].len == 0)
@@ -284,7 +285,7 @@ suite "Stdlib: Arrays":
       Arr add: 1.
       Arr add: 3.
       Arr add: 4.
-      HasEven := Arr anySatisfy: [ :n | N even ].
+      HasEven := Arr anySatisfy: [ :n | n even ].
       Result := HasEven
     """)
     check(result[1].len == 0)
@@ -296,19 +297,17 @@ suite "Stdlib: Arrays":
       Arr add: 2.
       Arr add: 4.
       Arr add: 6.
-      AllEven := Arr allSatisfy: [ :n | N even ].
+      AllEven := Arr allSatisfy: [ :n | n even ].
       Result := AllEven
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkBool)
 
 suite "Stdlib: Tables":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Table new creates empty Table":
     let result = interp.evalStatements("""
@@ -340,12 +339,10 @@ suite "Stdlib: Tables":
     check(result[0][^1].boolVal == true)
 
 suite "Stdlib: Strings":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "string size returns length":
     let result = interp.evalStatements("""
@@ -393,12 +390,10 @@ suite "Stdlib: Strings":
     check(result[0][^1].intVal == 3)
 
 suite "Stdlib: Object utilities":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "isNil returns false for objects":
     let result = interp.evalStatements("""

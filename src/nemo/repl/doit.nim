@@ -22,8 +22,9 @@ type
 # Create a REPL context
 proc newDoitContext*(trace: bool = false, maxStackDepth: int = 10000,
                      nemoHome: string = ".", bootstrapFile: string = "",
-                     stackless: bool = false): DoitContext =
+                     stackless: bool = true): DoitContext =
   ## Create new REPL context with scheduler support for processes
+  ## Note: stackless VM is now the default and only evaluator
   # Create scheduler context (initializes Processor, Process, Scheduler globals)
   let schedCtx = newSchedulerContext()
 
@@ -38,9 +39,6 @@ proc newDoitContext*(trace: bool = false, maxStackDepth: int = 10000,
 
   # Set nemoHome on the interpreter
   result.interpreter.nemoHome = nemoHome
-
-  # Set stackless mode on the interpreter
-  result.interpreter.stackless = stackless
 
   # Load standard library (using bootstrap file if provided)
   loadStdlib(result.interpreter, bootstrapFile)
@@ -105,11 +103,8 @@ proc doit*(ctx: DoitContext, source: string, dumpAst = false): (NodeValue, strin
     ctx.history.add(code)
 
   try:
-    # Use stackless VM or recursive evaluator based on flag
-    if ctx.interpreter.stackless:
-      return ctx.interpreter.doitStackless(code, dumpAst)
-    else:
-      return ctx.interpreter.doit(code, dumpAst)
+    # Use stackless VM (now the default and only evaluator)
+    return ctx.interpreter.doitStackless(code, dumpAst)
   except Exception as e:
     return (nilValue(), "Error: " & e.msg)
 
@@ -166,10 +161,11 @@ proc main*() =
 
 # File-based script execution
 proc runScript*(filename: string, ctx: DoitContext = nil, dumpAst = false, maxStackDepth: int = 10000,
-                nemoHome: string = ".", bootstrapFile: string = "", stackless: bool = false): (string, string) =
+                nemoHome: string = ".", bootstrapFile: string = "", stackless: bool = true): (string, string) =
   ## Run a Nemo script file
+  ## Note: stackless VM is now the default and only evaluator
   var scriptCtx = if ctx != nil: ctx else: newDoitContext(maxStackDepth = maxStackDepth, nemoHome = nemoHome,
-                                                           bootstrapFile = bootstrapFile, stackless = stackless)
+                                                           bootstrapFile = bootstrapFile)
 
   if not fileExists(filename):
     return ("", "File not found: " & filename)
@@ -191,13 +187,10 @@ proc runScript*(filename: string, ctx: DoitContext = nil, dumpAst = false, maxSt
       echo printAST(node)
     echo ""
 
-  # Execute the script using stackless or recursive evaluator
+  # Execute the script using stackless VM (now the default and only evaluator)
   var results: seq[NodeValue]
   var err: string
-  if scriptCtx.interpreter.stackless:
-    (results, err) = scriptCtx.interpreter.evalStatementsStackless(source)
-  else:
-    (results, err) = scriptCtx.interpreter.evalStatements(source)
+  (results, err) = scriptCtx.interpreter.evalStatementsStackless(source)
 
   if err.len > 0:
     return ("", "Script error: " & err)
@@ -210,10 +203,10 @@ proc runScript*(filename: string, ctx: DoitContext = nil, dumpAst = false, maxSt
 
 # Convenience function to run script and print result
 proc execScript*(filename: string, dumpAst = false, maxStackDepth: int = 10000,
-                 nemoHome: string = ".", bootstrapFile: string = "", stackless: bool = false) =
+                 nemoHome: string = ".", bootstrapFile: string = "") =
   ## Execute script and print result
   let (output, err) = runScript(filename, dumpAst = dumpAst, maxStackDepth = maxStackDepth,
-                                nemoHome = nemoHome, bootstrapFile = bootstrapFile, stackless = stackless)
+                                nemoHome = nemoHome, bootstrapFile = bootstrapFile)
   if err.len > 0:
     stderr.writeLine(err)
     quit(1)

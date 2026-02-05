@@ -3,6 +3,7 @@ import ../core/types
 import ../core/scheduler
 import ../parser/[lexer, parser]
 import ../interpreter/evaluator
+import ../interpreter/vm
 
 # ============================================================================
 # Simple Interactive REPL for Nemo
@@ -92,7 +93,7 @@ proc evalLine(ctx: var ReplContext, line: string): (NodeValue, string) =
     if node == nil:
       return (nilValue(), "No expression")
 
-    let result = ctx.interpreter.eval(node)
+    let result = ctx.interpreter.evalWithVM(node)
     return (result, "")
   except Exception as e:
     return (nilValue(), e.msg)

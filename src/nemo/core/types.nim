@@ -141,7 +141,8 @@ type
     schedulerContextPtr*: pointer  # Scheduler context (cast to SchedulerContext when needed)
     nemoHome*: string  # Home directory for loading libraries
     shouldYield*: bool  # Set to true when Processor yield is called for immediate context switch
-    stackless*: bool  # Use the stackless VM (explicit work queue instead of Nim recursion)
+    # Note: Stackless VM is now the default and only evaluator
+    # The recursive evaluator has been removed
     # Explicit stack VM fields
     workQueue*: seq[WorkFrame]  # Work queue for AST interpreter
     evalStack*: seq[NodeValue]  # Value stack for expression results
