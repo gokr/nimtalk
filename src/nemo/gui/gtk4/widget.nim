@@ -36,10 +36,23 @@ proc signalCallbackProc*(widget: GtkWidget, userData: pointer) {.cdecl.} =
   # Invoke the Nemo block with empty args (typical for signal callbacks)
   # The block captures the widget/variables it needs via closure
   try:
+    echo "DEBUG signalCallback: globals count=", interp.globals[].len
+    echo "DEBUG signalCallback: GtkBox in globals=", "GtkBox" in interp.globals[]
+    echo "DEBUG signalCallback: Transcript in globals=", "Transcript" in interp.globals[]
+    if "Transcript" in interp.globals[]:
+      let transcriptVal = interp.globals[]["Transcript"]
+      echo "DEBUG signalCallback: Transcript kind=", $transcriptVal.kind
+    if "GtkBox" in interp.globals[]:
+      let boxClass = interp.globals[]["GtkBox"]
+      echo "DEBUG signalCallback: GtkBox kind=", $boxClass.kind
+      if boxClass.kind == vkClass:
+        echo "DEBUG signalCallback: GtkBox allClassMethods.len=", boxClass.classVal.allClassMethods.len
     let result = invokeBlock(interp[], blockNode, @[])
+    echo "DEBUG signalCallback: block completed, result=", result.toString
     discard result  # Signal callbacks generally ignore return values
   except Exception as e:
     # Log error but don't crash the GUI
+    echo "DEBUG signalCallback: ERROR: ", e.msg
     error("Error in signal callback for '", data.signalName, "': ", e.msg)
 
 ## GtkWidgetProxy - base class for all GTK widget proxies
@@ -52,9 +65,11 @@ type
 
   GtkWidgetProxy* = ref GtkWidgetProxyObj
 
-## Create a new widget proxy - automatically handles GC reference
-## When the proxy is stored as a raw pointer in Instance.nimValue,
-## we need to keep it alive since the GC won't track raw pointers.
+## Global proxy table - maps widget pointers to their proxies
+## This avoids storing ref objects as raw pointers (which GC can move)
+var proxyTable* {.global.}: Table[GtkWidget, GtkWidgetProxy] = initTable[GtkWidget, GtkWidgetProxy]()
+
+## Create a new widget proxy - stores in global table instead of raw pointer
 proc newGtkWidgetProxy*(widget: GtkWidget, interp: ptr Interpreter): GtkWidgetProxy =
   result = GtkWidgetProxy(
     widget: widget,
@@ -62,27 +77,48 @@ proc newGtkWidgetProxy*(widget: GtkWidget, interp: ptr Interpreter): GtkWidgetPr
     signalHandlers: initTable[string, seq[SignalHandler]](),
     destroyed: false
   )
+  # Store in global table keyed by widget pointer
+  proxyTable[widget] = result
 
-## Keep a widget proxy alive when stored as raw pointer in Instance.nimValue
-## Call this after creating a proxy that will be stored in Instance.nimValue
-proc keepProxyAlive*(proxy: ref RootObj) {.inline.} =
-  ## Increment GC ref count to prevent collection when stored as raw pointer
-  GC_ref(proxy)
+## Get a proxy for a widget from the global table
+proc getGtkWidgetProxy*(widget: GtkWidget): GtkWidgetProxy =
+  if widget in proxyTable:
+    return proxyTable[widget]
+  return nil
+
+## Remove a proxy from the global table
+proc removeGtkWidgetProxy*(widget: GtkWidget) =
+  if widget in proxyTable:
+    proxyTable.del(widget)
+
+## Alternative: Store widget pointer keyed by Instance address
+## This is more reliable since Instance (ref) identity is preserved
+var instanceWidgetTable* {.global.}: Table[int, GtkWidget] = initTable[int, GtkWidget]()
+
+## Store widget for an instance
+proc storeInstanceWidget*(inst: Instance, widget: GtkWidget) =
+  let key = cast[int](inst)
+  instanceWidgetTable[key] = widget
+
+## Retrieve widget for an instance
+proc getInstanceWidget*(inst: Instance): GtkWidget =
+  let key = cast[int](inst)
+  if key in instanceWidgetTable:
+    return instanceWidgetTable[key]
+  return nil
 
 ## Native method: show
 proc widgetShowImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   if self.isNimProxy and self.nimValue != nil:
-    let proxy = cast[GtkWidgetProxy](self.nimValue)
-    if proxy.widget != nil:
-      gtkWidgetShow(proxy.widget)
+    let widget = cast[GtkWidget](self.nimValue)
+    gtkWidgetShow(widget)
   nilValue()
 
 ## Native method: hide
 proc widgetHideImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   if self.isNimProxy and self.nimValue != nil:
-    let proxy = cast[GtkWidgetProxy](self.nimValue)
-    if proxy.widget != nil:
-      gtkWidgetHide(proxy.widget)
+    let widget = cast[GtkWidget](self.nimValue)
+    gtkWidgetHide(widget)
   nilValue()
 
 ## Native method: setSizeRequest:
@@ -91,11 +127,10 @@ proc widgetSetSizeRequestImpl*(interp: var Interpreter, self: Instance, args: se
     return nilValue()
 
   if self.isNimProxy and self.nimValue != nil:
-    let proxy = cast[GtkWidgetProxy](self.nimValue)
+    let widget = cast[GtkWidget](self.nimValue)
     let width = args[0].intVal
     let height = args[1].intVal
-    if proxy.widget != nil:
-      gtkWidgetSetSizeRequest(proxy.widget, width.cint, height.cint)
+    gtkWidgetSetSizeRequest(widget, width.cint, height.cint)
 
   nilValue()
 
@@ -106,10 +141,9 @@ proc widgetAddCssClassImpl*(interp: var Interpreter, self: Instance, args: seq[N
       return nilValue()
 
     if self.isNimProxy and self.nimValue != nil:
-      let proxy = cast[GtkWidgetProxy](self.nimValue)
+      let widget = cast[GtkWidget](self.nimValue)
       let cssClass = args[0].strVal
-      if proxy.widget != nil:
-        gtkWidgetAddCssClass(proxy.widget, cssClass.cstring)
+      gtkWidgetAddCssClass(widget, cssClass.cstring)
 
   nilValue()
 
@@ -120,10 +154,9 @@ proc widgetRemoveCssClassImpl*(interp: var Interpreter, self: Instance, args: se
       return nilValue()
 
     if self.isNimProxy and self.nimValue != nil:
-      let proxy = cast[GtkWidgetProxy](self.nimValue)
+      let widget = cast[GtkWidget](self.nimValue)
       let cssClass = args[0].strVal
-      if proxy.widget != nil:
-        gtkWidgetRemoveCssClass(proxy.widget, cssClass.cstring)
+      gtkWidgetRemoveCssClass(widget, cssClass.cstring)
 
   nilValue()
 
@@ -143,8 +176,11 @@ proc widgetConnectDoImpl*(interp: var Interpreter, self: Instance, args: seq[Nod
   if signalName.kind != vkString or blockVal.kind != vkBlock:
     return nilValue()
 
-  let proxy = cast[GtkWidgetProxy](self.nimValue)
-  if proxy.widget == nil:
+  let widget = cast[GtkWidget](self.nimValue)
+
+  # Look up the proxy from the global table
+  let proxy = getGtkWidgetProxy(widget)
+  if proxy == nil:
     return nilValue()
 
   # Create signal handler data - allocated on heap to persist beyond this call
@@ -162,7 +198,7 @@ proc widgetConnectDoImpl*(interp: var Interpreter, self: Instance, args: seq[Nod
 
   # Connect the signal using GTK's g_signal_connect
   # Pass the callback data as user_data
-  let gObject = cast[GObject](proxy.widget)
+  let gObject = cast[GObject](widget)
   discard gSignalConnect(gObject, signalName.strVal.cstring,
                          cast[GCallback](signalCallbackProc), cast[pointer](callbackData))
 

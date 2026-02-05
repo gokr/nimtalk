@@ -70,31 +70,31 @@ suite "Stdlib: Numbers":
 
   test "abs works":
     let result = interp.evalStatements("""
-      n := 0 - 5.
-      result := n abs
+      N := 0 - 5.
+      Result := N abs
     """)
     check(result[0][^1].kind == vkInt)
     check(result[0][^1].intVal == 5)
 
   test "even works":
-    let result = interp.evalStatements("result := 4 even")
-    # Check it's a boolean (vkBool in class-based model)
+    let result = interp.evalStatements("Result := 4 even")
+    # Check it's a boolean (vkBool in Class-based model)
     check(result[0][^1].kind == vkBool)
     check(result[0][^1].boolVal == true)
 
   test "odd works":
-    let result = interp.evalStatements("result := 5 odd")
-    # Check it's a boolean (vkBool in class-based model)
+    let result = interp.evalStatements("Result := 5 odd")
+    # Check it's a boolean (vkBool in Class-based model)
     check(result[0][^1].kind == vkBool)
     check(result[0][^1].boolVal == true)
 
   test "max: works":
-    let result = interp.evalStatements("result := 3 max: 7")
+    let result = interp.evalStatements("Result := 3 max: 7")
     check(result[0][^1].kind == vkInt)
     check(result[0][^1].intVal == 7)
 
   test "min: works":
-    let result = interp.evalStatements("result := 3 min: 7")
+    let result = interp.evalStatements("Result := 3 min: 7")
     check(result[0][^1].kind == vkInt)
     check(result[0][^1].intVal == 3)
 
@@ -108,13 +108,13 @@ suite "Stdlib: Loops":
 
   test "whileTrue: loop works":
     let result = interp.evalStatements("""
-      i := 0.
-      sum := 0.
-      [ i < 5 ] whileTrue: [
-        sum := sum + i.
-        i := i + 1
+      I := 0.
+      Sum := 0.
+      [ I < 5 ] whileTrue: [
+        Sum := Sum + I.
+        I := I + 1
       ].
-      result := sum
+      Result := Sum
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
@@ -122,9 +122,9 @@ suite "Stdlib: Loops":
 
   #test "timesRepeat: works":
   #  let result = interp.evalStatements("""
-  #    count := 0.
-  #    5 timesRepeat: [ count := count + 1 ].
-  #    result := count
+  #    Count := 0.
+  #    5 timesRepeat: [ Count := Count + 1 ].
+  #    Result := Count
   #  """)
   #  check(result[1].len == 0)
   #  check(result[0][^1].kind == vkInt)
@@ -132,9 +132,9 @@ suite "Stdlib: Loops":
 
   test "to:do: works":
     let result = interp.evalStatements("""
-      sum := 0.
-      1 to: 10 do: [ :i | sum := sum + i ].
-      result := sum
+      Sum := 0.
+      1 to: 10 do: [ :i | Sum := Sum + i ].
+      Result := Sum
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
@@ -150,8 +150,8 @@ suite "Stdlib: Arrays":
 
   test "Array new creates empty array":
     let result = interp.evalStatements("""
-      arr := Array new.
-      result := arr size
+      Arr := Array new.
+      Result := Arr size
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
@@ -159,8 +159,8 @@ suite "Stdlib: Arrays":
 
   test "Array new: creates sized array":
     let result = interp.evalStatements("""
-      arr := Array new: 100.
-      result := arr size
+      Arr := Array new: 100.
+      Result := Arr size
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
@@ -168,21 +168,21 @@ suite "Stdlib: Arrays":
 
   test "add: adds element to array":
     let result = interp.evalStatements("""
-      arr := Array new.
-      arr add: 42.
-      result := arr first
+      Arr := Array new.
+      Arr add: 42.
+      Result := Arr first
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
     check(result[0][^1].intVal == 42)
 
-  test "size returns correct count":
+  test "size returns correct Count":
     let result = interp.evalStatements("""
-      arr := Array new.
-      arr add: 1.
-      arr add: 2.
-      arr add: 3.
-      result := arr size
+      Arr := Array new.
+      Arr add: 1.
+      Arr add: 2.
+      Arr add: 3.
+      Result := Arr size
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
@@ -190,10 +190,10 @@ suite "Stdlib: Arrays":
 
   test "first returns first element":
     let result = interp.evalStatements("""
-      arr := Array new.
-      arr add: 10.
-      arr add: 20.
-      result := arr first
+      Arr := Array new.
+      Arr add: 10.
+      Arr add: 20.
+      Result := Arr first
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
@@ -201,10 +201,10 @@ suite "Stdlib: Arrays":
 
   test "last returns last element":
     let result = interp.evalStatements("""
-      arr := Array new.
-      arr add: 10.
-      arr add: 20.
-      result := arr last
+      Arr := Array new.
+      Arr add: 10.
+      Arr add: 20.
+      Result := Arr last
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
@@ -212,12 +212,12 @@ suite "Stdlib: Arrays":
 
   test "collect: transforms elements":
     let result = interp.evalStatements("""
-      arr := Array new.
-      arr add: 1.
-      arr add: 2.
-      arr add: 3.
-      doubles := arr collect: [ :n | n * 2 ].
-      result := doubles size
+      Arr := Array new.
+      Arr add: 1.
+      Arr add: 2.
+      Arr add: 3.
+      Doubles := Arr collect: [ :n | n * 2 ].
+      Result := Doubles size
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
@@ -225,13 +225,13 @@ suite "Stdlib: Arrays":
 
   test "select: filters elements":
     let result = interp.evalStatements("""
-      arr := Array new.
-      arr add: 1.
-      arr add: 2.
-      arr add: 3.
-      arr add: 4.
-      evens := arr select: [ :n | n even ].
-      result := evens size
+      Arr := Array new.
+      Arr add: 1.
+      Arr add: 2.
+      Arr add: 3.
+      Arr add: 4.
+      Evens := Arr select: [ :n | N even ].
+      Result := Evens size
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
@@ -239,13 +239,13 @@ suite "Stdlib: Arrays":
 
   test "reject: inverse filters elements":
     let result = interp.evalStatements("""
-      arr := Array new.
-      arr add: 1.
-      arr add: 2.
-      arr add: 3.
-      arr add: 4.
-      odds := arr reject: [ :n | n even ].
-      result := odds size
+      Arr := Array new.
+      Arr add: 1.
+      Arr add: 2.
+      Arr add: 3.
+      Arr add: 4.
+      Odds := Arr reject: [ :n | N even ].
+      Result := Odds size
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
@@ -253,12 +253,12 @@ suite "Stdlib: Arrays":
 
   test "inject:into: reduces elements":
     let result = interp.evalStatements("""
-      arr := Array new.
-      arr add: 1.
-      arr add: 2.
-      arr add: 3.
-      sum := arr inject: 0 into: [ :acc :n | acc + n ].
-      result := sum
+      Arr := Array new.
+      Arr add: 1.
+      Arr add: 2.
+      Arr add: 3.
+      Sum := Arr inject: 0 into: [ :acc :n | acc + n ].
+      Result := Sum
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
@@ -266,13 +266,13 @@ suite "Stdlib: Arrays":
 
   test "detect: finds first matching element":
     let result = interp.evalStatements("""
-      arr := Array new.
-      arr add: 1.
-      arr add: 3.
-      arr add: 5.
-      arr add: 6.
-      found := arr detect: [ :n | n > 4 ].
-      result := found
+      Arr := Array new.
+      Arr add: 1.
+      Arr add: 3.
+      Arr add: 5.
+      Arr add: 6.
+      Found := Arr detect: [ :n | n > 4 ].
+      Result := Found
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
@@ -280,24 +280,24 @@ suite "Stdlib: Arrays":
 
   test "anySatisfy: returns true if any element matches":
     let result = interp.evalStatements("""
-      arr := Array new.
-      arr add: 1.
-      arr add: 3.
-      arr add: 4.
-      hasEven := arr anySatisfy: [ :n | n even ].
-      result := hasEven
+      Arr := Array new.
+      Arr add: 1.
+      Arr add: 3.
+      Arr add: 4.
+      HasEven := Arr anySatisfy: [ :n | N even ].
+      Result := HasEven
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkBool)
 
   test "allSatisfy: returns true if all elements match":
     let result = interp.evalStatements("""
-      arr := Array new.
-      arr add: 2.
-      arr add: 4.
-      arr add: 6.
-      allEven := arr allSatisfy: [ :n | n even ].
-      result := allEven
+      Arr := Array new.
+      Arr add: 2.
+      Arr add: 4.
+      Arr add: 6.
+      AllEven := Arr allSatisfy: [ :n | N even ].
+      Result := AllEven
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkBool)
@@ -310,30 +310,30 @@ suite "Stdlib: Tables":
     initGlobals(interp)
     loadStdlib(interp)
 
-  test "Table new creates empty table":
+  test "Table new creates empty Table":
     let result = interp.evalStatements("""
-      t := Table new.
-      result := t size
+      T := Table new.
+      Result := T size
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
     check(result[0][^1].intVal == 0)
 
-  test "at:put: stores values":
+  test "at:put: stores Values":
     let result = interp.evalStatements("""
-      t := Table new.
-      t at: "key" put: "value".
-      result := t at: "key"
+      T := Table new.
+      T at: "Key" put: "value".
+      Result := T at: "Key"
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkString)
     check(result[0][^1].strVal == "value")
 
-  test "includesKey: checks for key existence":
+  test "includesKey: checks for Key existence":
     let result = interp.evalStatements("""
-      t := Table new.
-      t at: "exists" put: "yes".
-      result := t includesKey: "exists"
+      T := Table new.
+      T at: "exists" put: "yes".
+      Result := T includesKey: "exists"
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkBool)
@@ -349,8 +349,8 @@ suite "Stdlib: Strings":
 
   test "string size returns length":
     let result = interp.evalStatements("""
-      s := "hello".
-      result := s size
+      S := "hello".
+      Result := S size
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
@@ -358,8 +358,8 @@ suite "Stdlib: Strings":
 
   test "string uppercase works":
     let result = interp.evalStatements("""
-      s := "hello" uppercase.
-      result := s
+      S := "hello" uppercase.
+      Result := S
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkString)
@@ -367,8 +367,8 @@ suite "Stdlib: Strings":
 
   test "string lowercase works":
     let result = interp.evalStatements("""
-      s := "HELLO" lowercase.
-      result := s
+      S := "HELLO" lowercase.
+      Result := S
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkString)
@@ -376,8 +376,8 @@ suite "Stdlib: Strings":
 
   test "string trim works":
     let result = interp.evalStatements("""
-      s := "  hello  " trim.
-      result := s
+      S := "  hello  " trim.
+      Result := S
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkString)
@@ -385,8 +385,8 @@ suite "Stdlib: Strings":
 
   test "string split: works":
     let result = interp.evalStatements("""
-      arr := "a,b,c" split: ",".
-      result := arr size
+      Arr := "a,b,c" split: ",".
+      Result := Arr size
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
@@ -402,8 +402,8 @@ suite "Stdlib: Object utilities":
 
   test "isNil returns false for objects":
     let result = interp.evalStatements("""
-      obj := Object new.
-      result := obj isNil
+      Obj := Object new.
+      Result := Obj isNil
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkBool)
@@ -411,8 +411,8 @@ suite "Stdlib: Object utilities":
 
   test "notNil returns true for objects":
     let result = interp.evalStatements("""
-      obj := Object new.
-      result := obj notNil
+      Obj := Object new.
+      Result := Obj notNil
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkBool)

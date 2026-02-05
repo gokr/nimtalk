@@ -5,88 +5,58 @@
 # ============================================================================
 
 Launcher class>>open [
-  Stdout writeline: "Launcher class>>open called".
   ^self new openInstance
 ].
 
 Launcher>>openInstance [
   | menuBar mainBox |
-  Stdout writeline: "Launcher>>openInstance called".
 
   # Set up the window
   self title: "Nemo IDE".
-  Stdout writeline: "Set title to 'Nemo IDE'".
-
   self setDefaultSize: 800 height: 600.
-  Stdout writeline: "Set default size to 800x600".
+  self connectDestroy.
 
   # Create main layout box (vertical)
   mainBox := GtkBox vertical.
-  Stdout writeline: "Created mainBox".
   mainBox setSpacing: 0.
-  Stdout writeline: "Set spacing on mainBox".
 
   # Create menu bar
   menuBar := self createMenuBar.
-  Stdout writeline: "Created menuBar".
 
   # Add widgets
-  Stdout writeline: "About to append menuBar to mainBox".
   mainBox append: menuBar.
-  Stdout writeline: "Appended menuBar to mainBox".
-
-  Stdout writeline: "About to set mainBox as window child".
   self setChild: mainBox.
-  Stdout writeline: "Set mainBox as window child".
-
   self present.
-  Stdout writeline: "Called present".
 
   Transcript showCr: "Nemo IDE opened"
 ].
 
 Launcher>>createMenuBar [
   | menuBar fileItem workspaceItem transcriptItem quitItem |
-  Stdout writeline: "Launcher>>createMenuBar called".
 
   menuBar := GtkMenuBar new.
-  Stdout writeline: "Created menuBar".
 
   # File menu - in GTK4, we use buttons as menu items for now
   fileItem := GtkButton newLabel: "File".
-  Stdout writeline: "Created fileItem".
-  # No explicit size request - let buttons auto-size
   fileItem clicked: [ Transcript showCr: "File menu clicked" ].
-  Stdout writeline: "Set clicked handler on fileItem".
   menuBar append: fileItem.
-  Stdout writeline: "Appended fileItem to menuBar".
 
   # Workspace button
   workspaceItem := GtkButton newLabel: "Workspace".
-  Stdout writeline: "Created workspaceItem".
   workspaceItem clicked: [ Workspace open ].
-  Stdout writeline: "Set clicked handler on workspaceItem".
   menuBar append: workspaceItem.
-  Stdout writeline: "Appended workspaceItem to menuBar".
 
   # Transcript button
   transcriptItem := GtkButton newLabel: "Transcript".
-  Stdout writeline: "Created transcriptItem".
   transcriptItem clicked: [ Transcript open ].
-  Stdout writeline: "Set clicked handler on transcriptItem".
   menuBar append: transcriptItem.
-  Stdout writeline: "Appended transcriptItem to menuBar".
 
   # Quit button
   quitItem := GtkButton newLabel: "Quit".
-  Stdout writeline: "Created quitItem".
   quitItem clicked: [ self quit ].
-  Stdout writeline: "Set clicked handler on quitItem".
   menuBar append: quitItem.
-  Stdout writeline: "Appended quitItem to menuBar".
 
   Transcript showCr: "Created menu bar".
-  Stdout writeline: "Created menu bar".
   ^menuBar
 ].
 

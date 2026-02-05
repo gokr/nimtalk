@@ -22,9 +22,6 @@ var processProxies: seq[ProcessProxy] = @[]
 # the GC needs to see actual Nim refs to prevent collection
 var interpreterRefs: seq[Interpreter] = @[]
 
-# Exception thrown when Processor yield is called for immediate context switch
-type YieldException = object of CatchableError
-
 # Forward declarations for functions defined later in this file
 proc createProcessClass*(): Class
 proc createSchedulerClass*(): Class
@@ -151,13 +148,19 @@ proc runCurrentProcess*(ctx: SchedulerContext): NodeValue =
     sched.terminateProcess(sched.currentProcess)
     return interp.lastResult
 
-  # Execute one statement
+  # Execute one statement (advance PC before execution)
   let stmt = body[activation.pc]
   inc activation.pc
 
   try:
     result = interp.eval(stmt)
     interp.lastResult = result
+  except YieldException:
+    # Process yielded mid-execution - put back in ready queue
+    # PC is already advanced, so we'll continue to next statement after resume
+    debug("Process ", sched.currentProcess.name, " yielded")
+    sched.yieldCurrentProcess()
+    return nilValue()
   except ValueError as e:
     # Process encountered an error - terminate it
     debug("Process ", sched.currentProcess.name, " error: ", e.msg)
@@ -218,9 +221,10 @@ proc runToCompletion*(ctx: SchedulerContext, maxSteps: int = 100000): int =
 # Processor yield implementation
 proc processorYieldImpl(interp: var Interpreter, self: Instance,
                         args: seq[NodeValue]): NodeValue =
-  ## Processor yield - marks process to yield after current statement
-  ## The actual yield happens in runOneSlice after this method returns
-  debug("Processor yield called")
+  ## Processor yield - sets flag for context switch after current message
+  ## The flag is checked after block invocation to propagate yield upward
+  debug("Processor yield called - setting shouldYield flag")
+  interp.shouldYield = true
   return nilValue()
 
 # Forward declarations for proxy creation functions

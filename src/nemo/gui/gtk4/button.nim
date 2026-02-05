@@ -23,6 +23,8 @@ proc newGtkButtonProxy*(button: GtkButton, interp: ptr Interpreter): GtkButtonPr
     signalHandlers: initTable[string, seq[SignalHandler]](),
     destroyed: false
   )
+  # Store in global table keyed by widget pointer (cast to base type)
+  proxyTable[cast[GtkWidget](button)] = result
 
 ## Factory: create a new button
 proc createGtkButton*(interp: var Interpreter, label: string = ""): NodeValue =
@@ -32,7 +34,8 @@ proc createGtkButton*(interp: var Interpreter, label: string = ""): NodeValue =
   else:
     gtkButtonNew()
 
-  let proxy = newGtkButtonProxy(button, addr(interp))
+  # Create proxy and store in global table (keyed by widget pointer)
+  discard newGtkButtonProxy(button, addr(interp))
 
   # Look up the GtkButton class
   var buttonClass: Class = nil
@@ -46,8 +49,10 @@ proc createGtkButton*(interp: var Interpreter, label: string = ""): NodeValue =
 
   let obj = newInstance(buttonClass)
   obj.isNimProxy = true
-  obj.nimValue = cast[pointer](proxy)
-  GC_ref(cast[ref RootObj](proxy))
+  # Store widget in instance->widget table for reliable lookup
+  storeInstanceWidget(obj, button)
+  # Also store in nimValue for backwards compatibility
+  obj.nimValue = cast[pointer](button)
 
   return obj.toValue()
 
@@ -68,24 +73,67 @@ proc buttonSetLabelImpl*(interp: var Interpreter, self: Instance, args: seq[Node
     return nilValue()
 
   if self.isNimProxy and self.nimValue != nil:
-    let proxy = cast[GtkButtonProxy](self.nimValue)
+    let button = cast[GtkButton](self.nimValue)
     let label = args[0].strVal
-    if proxy.widget != nil:
-      gtkButtonSetLabel(cast[GtkButton](proxy.widget), label.cstring)
+    gtkButtonSetLabel(button, label.cstring)
 
   nilValue()
 
 ## Native method: label
 proc buttonGetLabelImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   if self.isNimProxy and self.nimValue != nil:
-    let proxy = cast[GtkButtonProxy](self.nimValue)
-    if proxy.widget != nil:
-      let label = gtkButtonGetLabel(cast[GtkButton](proxy.widget))
-      return NodeValue(kind: vkString, strVal: $label)
+    let button = cast[GtkButton](self.nimValue)
+    let label = gtkButtonGetLabel(button)
+    return NodeValue(kind: vkString, strVal: $label)
 
   nilValue()
 
 ## Native method: clicked:
 proc buttonClickedImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  ## Stub for clicked: handler - stores the block for later use
+  ## Connect clicked signal to a block
+  if args.len < 1 or args[0].kind != vkBlock:
+    return nilValue()
+
+  if not self.isNimProxy:
+    return nilValue()
+
+  var widget = getInstanceWidget(self)
+  if widget == nil and self.nimValue != nil:
+    widget = cast[GtkWidget](self.nimValue)
+  if widget == nil:
+    return nilValue()
+
+  let proxy = getGtkWidgetProxy(widget)
+  if proxy == nil:
+    return nilValue()
+
+  let blockVal = args[0]
+
+  # Create signal handler data
+  var callbackData = cast[ptr SignalCallbackData](alloc0(sizeof(SignalCallbackData)))
+  callbackData.handler = SignalHandler(
+    blockNode: blockVal.blockVal,
+    interp: addr(interp)
+  )
+  callbackData.signalName = "clicked"
+
+  # Store in proxy's signal handlers table
+  if "clicked" notin proxy.signalHandlers:
+    proxy.signalHandlers["clicked"] = @[]
+  proxy.signalHandlers["clicked"].add(callbackData.handler)
+
+  # Debug captured environment
+  echo "DEBUG clicked: blockNode.homeActivation=", repr(blockVal.blockVal.homeActivation)
+  if blockVal.blockVal.capturedEnvInitialized:
+    echo "DEBUG clicked: capturedEnv.len=", blockVal.blockVal.capturedEnv.len
+    for name in blockVal.blockVal.capturedEnv.keys:
+      echo "DEBUG clicked:   captured: ", name
+  else:
+    echo "DEBUG clicked: capturedEnv not initialized"
+
+  # Connect the signal
+  let gObject = cast[GObject](widget)
+  discard gSignalConnect(gObject, "clicked",
+                         cast[GCallback](signalCallbackProc), cast[pointer](callbackData))
+
   nilValue()

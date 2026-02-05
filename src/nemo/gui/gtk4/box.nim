@@ -23,12 +23,13 @@ proc newGtkBoxProxy*(box: GtkBox, interp: ptr Interpreter): GtkBoxProxy =
     signalHandlers: initTable[string, seq[SignalHandler]](),
     destroyed: false
   )
+  proxyTable[cast[GtkWidget](box)] = result
 
 ## Factory: create a new box
 proc createGtkBox*(interp: var Interpreter, orientation: cint, spacing: cint = 0): NodeValue =
   ## Create a new GTK box and return a proxy object
   let box = gtkBoxNew(orientation, spacing)
-  let proxy = newGtkBoxProxy(box, addr(interp))
+  discard newGtkBoxProxy(box, addr(interp))
 
   # Look up the GtkBox class
   var boxClass: Class = nil
@@ -42,10 +43,8 @@ proc createGtkBox*(interp: var Interpreter, orientation: cint, spacing: cint = 0
 
   let obj = newInstance(boxClass)
   obj.isNimProxy = true
-  obj.nimValue = cast[pointer](proxy)
-
-  # Keep proxy alive in GC when stored as raw pointer in nimValue
-  GC_ref(cast[ref RootObj](proxy))
+  storeInstanceWidget(obj, box)
+  obj.nimValue = cast[pointer](box)
 
   return obj.toValue()
 
@@ -72,34 +71,29 @@ proc boxNewOrientationSpacingImpl*(interp: var Interpreter, self: Instance, args
 
 ## Native method: append:
 proc boxAppendImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  echo "** boxAppendImpl: called"
-
   if args.len < 1 or args[0].kind != vkInstance:
-    echo("  -> no args or not instance")
     return nilValue()
 
-  if not (self.isNimProxy or self.nimValue == nil):
-    echo("  -> self not a proxy or nilValue")
-    return nilValue()
-
-  let proxy = cast[GtkBoxProxy](self.nimValue)
   let childInstance = args[0].instVal
 
-  echo("  box.widget=", repr(proxy.widget), " child.isNimProxy=", childInstance.isNimProxy)
+  if self.isNimProxy:
+    var boxWidget = getInstanceWidget(self)
+    if boxWidget == nil and self.nimValue != nil:
+      boxWidget = cast[GtkBox](self.nimValue)
+    echo "DEBUG boxAppend: boxWidget=", repr(boxWidget)
 
-  if childInstance.isNimProxy and childInstance.nimValue != nil:
-    let childProxy = cast[GtkWidgetProxy](childInstance.nimValue)
-    echo("  childProxy.widget=", repr(childProxy.widget))
-    if proxy.widget != nil and childProxy.widget != nil:
-      when defined(gtk4):
-        echo("  Calling gtkBoxAppend...")
-        gtkBoxAppend(cast[GtkBox](proxy.widget), childProxy.widget)
-        gtkWidgetShow(childProxy.widget)
-        echo("  -> appended and showed widget")
-      else:
-        gtkBoxPackStart(cast[GtkBox](proxy.widget), childProxy.widget, 1, 1, 0)
-  else:
-    echo("  -> child not a proxy or nilValue")
+    if childInstance.isNimProxy:
+      # Try to get widget from instance->widget table first (more reliable)
+      var childWidget = getInstanceWidget(childInstance)
+      # Fallback to nimValue if not found
+      if childWidget == nil and childInstance.nimValue != nil:
+        childWidget = cast[GtkWidget](childInstance.nimValue)
+      if childWidget != nil and boxWidget != nil:
+        when defined(gtk4):
+          gtkBoxAppend(boxWidget, childWidget)
+          gtkWidgetShow(childWidget)
+        else:
+          gtkBoxPackStart(boxWidget, childWidget, 1, 1, 0)
 
   nilValue()
 
@@ -109,16 +103,15 @@ proc boxPrependImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValu
     return nilValue()
 
   if self.isNimProxy and self.nimValue != nil:
-    let proxy = cast[GtkBoxProxy](self.nimValue)
+    let box = cast[GtkBox](self.nimValue)
     let childInstance = args[0].instVal
 
     if childInstance.isNimProxy and childInstance.nimValue != nil:
-      let childProxy = cast[GtkWidgetProxy](childInstance.nimValue)
-      if proxy.widget != nil and childProxy.widget != nil:
-        when defined(gtk4):
-          gtkBoxPrepend(cast[GtkBox](proxy.widget), childProxy.widget)
-        else:
-          gtkBoxPackEnd(cast[GtkBox](proxy.widget), childProxy.widget, 1, 1, 0)
+      let childWidget = cast[GtkWidget](childInstance.nimValue)
+      when defined(gtk4):
+        gtkBoxPrepend(box, childWidget)
+      else:
+        gtkBoxPackEnd(box, childWidget, 1, 1, 0)
 
   nilValue()
 
@@ -127,10 +120,12 @@ proc boxSetSpacingImpl*(interp: var Interpreter, self: Instance, args: seq[NodeV
   if args.len < 1:
     return nilValue()
 
-  if self.isNimProxy and self.nimValue != nil:
-    let proxy = cast[GtkBoxProxy](self.nimValue)
-    let spacing = args[0].intVal
-    if proxy.widget != nil:
-      gtkBoxSetSpacing(cast[GtkBox](proxy.widget), spacing.cint)
+  if self.isNimProxy:
+    var box = getInstanceWidget(self)
+    if box == nil and self.nimValue != nil:
+      box = cast[GtkBox](self.nimValue)
+    if box != nil:
+      let spacing = args[0].intVal
+      gtkBoxSetSpacing(box, spacing.cint)
 
   nilValue()

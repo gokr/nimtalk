@@ -557,6 +557,10 @@ proc checkForCascade(parser: var Parser, primary: Node, firstMsg: MessageNode): 
 
     discard parser.next()  # Skip ;
 
+    # Skip separators after ; (allow multiline cascade with indentation)
+    while parser.peek().kind == tkSeparator:
+      discard parser.next()
+
     # Parse next message (could be unary, binary, or keyword)
     let next = parser.peek()
     var nextMsg: MessageNode

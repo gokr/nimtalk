@@ -486,7 +486,20 @@ proc setVariable*(interp: var Interpreter, name: string, value: NodeValue) =
         debug("Slot updated on self: ", name, " = ", value.toString())
         return
 
-    # Create in current activation
+    # Create in current activation, UNLESS it should be a global (uppercase first letter)
+    # This allows uppercase-named variables from stdlib files to be created as globals
+    if name.len > 0 and name[0] in {'A'..'Z'}:
+      # Check for protected global
+      if isProtectedGlobal(name):
+        raise newException(EvalError, "Cannot reassign protected global: " & name)
+      # If assigning a Class, set its name to the variable name
+      if value.kind == vkClass and value.classVal != nil:
+        value.classVal.name = name
+      interp.globals[][name] = value
+      debug("Global set (uppercase variable): ", name, " = ", value.toString())
+      return
+
+    # Create in current activation for lowercase variables
     interp.currentActivation.locals[name] = value
     return
 
@@ -627,6 +640,9 @@ proc invokeBlock*(interp: var Interpreter, blockNode: BlockNode, args: seq[NodeV
         # Non-local return - the return value is already set in activation
         blockResult = activation.returnValue.unwrap()
         break
+      # Check if process yielded - propagate the exception up
+      if interp.shouldYield:
+        raise newException(YieldException, "Process yielded from block")
   finally:
     # Save captured variable values back to their cells (for mutable closures)
     # This ensures changes to captured variables persist across invocations
@@ -687,9 +703,9 @@ proc lookupMethod*(interp: Interpreter, receiver: Instance, selector: string): M
 proc lookupClassMethod*(cls: Class, selector: string): MethodResult =
   ## Look up class method in class (fast O(1) lookup)
   if cls == nil:
+    debug("lookupClassMethod: cls is nil for selector=", selector)
     return MethodResult(currentMethod: nil, receiver: nil, definingClass: nil, found: false)
 
-  # Fast O(1) lookup in allClassMethods table (already flattened from parents)
   if selector in cls.allClassMethods:
     return MethodResult(
       currentMethod: cls.allClassMethods[selector],
@@ -933,6 +949,18 @@ proc eval*(interp: var Interpreter, node: Node): NodeValue =
       # Propagate hasReturned flag to all activations from current up to target
       var current = interp.currentActivation
       var safetyCount = 0
+      # First check if target is still on the stack
+      var targetOnStack = false
+      var checkAct = current
+      while checkAct != nil:
+        if checkAct == targetActivation:
+          targetOnStack = true
+          break
+        checkAct = checkAct.sender
+      # If target not on stack (orphaned block), use current activation as target
+      if not targetOnStack:
+        debug("Target activation not on stack - orphaned block, using current")
+        targetActivation = interp.currentActivation
       while current != nil and current != targetActivation:
         inc safetyCount
         if safetyCount > 1000:
@@ -1196,6 +1224,7 @@ proc evalMessage(interp: var Interpreter, msgNode: MessageNode): NodeValue =
         let methodBlock = arguments[1].blockVal
         methodBlock.isMethod = true
         cls.classMethods[methodName] = methodBlock
+        cls.allClassMethods[methodName] = methodBlock
         # Rebuild all allClassMethods tables to ensure inheritance works correctly
         for subclass in cls.subclasses:
           subclass.allClassMethods[methodName] = methodBlock
@@ -1434,6 +1463,16 @@ proc evalCascade(interp: var Interpreter, cascadeNode: CascadeNode): NodeValue =
     blockInst.isNimProxy = false
     blockInst.nimValue = cast[pointer](receiverVal.blockVal)
     receiver = blockInst
+  of vkClass:
+    # Class - create a proxy instance for the class
+    var classInst: Instance
+    new(classInst)
+    classInst.kind = ikObject
+    classInst.class = receiverVal.classVal
+    classInst.slots = @[]
+    classInst.isNimProxy = false
+    classInst.nimValue = cast[pointer](receiverVal.classVal)
+    receiver = classInst
   else:
     raise newException(EvalError, "Cascade to unsupported value kind: " & $receiverVal.kind)
 
@@ -1526,10 +1565,38 @@ proc evalStatements*(interp: var Interpreter, source: string): (seq[NodeValue], 
 
   debug("evalStatements: starting evaluation")
   try:
-    for i, node in nodes:
-      debug("evalStatements: evaluating node ", i, " of ", nodes.len)
-      let evalResult = interp.eval(node)
-      results.add(evalResult)
+    # Create a top-level activation context so variables can be locals instead of globals
+    # This allows lowercase variable names without enforcing uppercase rule for globals
+    if nodes.len > 0:
+      # Create a temporary block node to wrap the statements
+      let topLevelBlock = BlockNode(
+        parameters: @[],
+        temporaries: @[],
+        body: nodes,
+        isMethod: false,
+        nativeImpl: nil,
+        hasInterpreterParam: false,
+        capturedEnv: initTable[string, MutableCell](),
+        capturedEnvInitialized: false,
+        homeActivation: nil
+      )
+      # Create activation with nil instance as receiver for top-level code
+      let activation = newActivation(topLevelBlock, nilInstance, nil)
+      interp.pushActivation(activation)
+      let savedActivation = interp.currentActivation
+      let savedReceiver = interp.currentReceiver
+      interp.currentActivation = activation
+      interp.currentReceiver = nilInstance
+
+      try:
+        for i, node in nodes:
+          debug("evalStatements: evaluating node ", i, " of ", nodes.len)
+          let evalResult = interp.eval(node)
+          results.add(evalResult)
+      finally:
+        discard interp.popActivation()
+        interp.currentActivation = savedActivation
+        interp.currentReceiver = savedReceiver
 
     debug("evalStatements: done, returning ", results.len, " results")
     return (results, "")
