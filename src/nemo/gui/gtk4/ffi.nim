@@ -133,27 +133,34 @@ else:
   proc initGtk*() =
     gtkInit(nil, nil)
 
-# GTK MenuBar
-proc gtkMenuBarNew*(): GtkMenuBar {.cdecl, importc: "gtk_menu_bar_new".}
-
-# GTK Menu
-proc gtkMenuNew*(): GtkMenu {.cdecl, importc: "gtk_menu_new".}
-proc gtkMenuPopupAtPointer*(menu: GtkMenu, triggerEvent: pointer) {.cdecl, importc: "gtk_menu_popup_at_pointer".}
-
-# GTK MenuItem
-proc gtkMenuItemNew*(): GtkMenuItem {.cdecl, importc: "gtk_menu_item_new".}
-proc gtkMenuItemNewWithLabel*(label: cstring): GtkMenuItem {.cdecl, importc: "gtk_menu_item_new_with_label".}
-
-# MenuBar operations (GTK3)
+# GTK MenuBar, Menu, MenuItem (GTK3 only - not available in GTK4)
 when not defined(gtk4):
+  proc gtkMenuBarNew*(): GtkMenuBar {.cdecl, importc: "gtk_menu_bar_new".}
+  proc gtkMenuNew*(): GtkMenu {.cdecl, importc: "gtk_menu_new".}
+  proc gtkMenuPopupAtPointer*(menu: GtkMenu, triggerEvent: pointer) {.cdecl, importc: "gtk_menu_popup_at_pointer".}
+  proc gtkMenuItemNew*(): GtkMenuItem {.cdecl, importc: "gtk_menu_item_new".}
+  proc gtkMenuItemNewWithLabel*(label: cstring): GtkMenuItem {.cdecl, importc: "gtk_menu_item_new_with_label".}
   proc gtkShellAppend*(menuShell: pointer, child: GtkWidget) {.cdecl, importc: "gtk_shell_append".}
 
-# MenuItem operations (GTK4)
+# GTK4 doesn't have GtkMenuBar/GtkMenu/GtkMenuItem
 when defined(gtk4):
-  # GTK4 uses different menu API with GMenuModel
-  # For simplicity, we'll use the simpler approach with buttons for now
-  # Full GTK4 popover menus require GAction*
-  discard
+  # Stub implementations to allow compilation
+  # In GTK4, menus are implemented using GMenuModel and GtkPopover
+  # These use gtk_box_new and gtk_button_new as fallbacks with proper parameters
+  proc gtkMenuBarNew*(): GtkMenuBar {.cdecl.} =
+    cast[GtkMenuBar](gtkBoxNew(0.cint, 0.cint))  # Horizontal box, no spacing
+
+  proc gtkMenuNew*(): GtkMenu {.cdecl.} =
+    cast[GtkMenu](gtkBoxNew(1.cint, 0.cint))  # Vertical box, no spacing
+
+  proc gtkMenuPopupAtPointer*(menu: GtkMenu, triggerEvent: pointer) {.cdecl.} =
+    discard  # Stub for GTK4
+
+  proc gtkMenuItemNew*(): GtkMenuItem {.cdecl.} =
+    cast[GtkMenuItem](gtkButtonNew())
+
+  proc gtkMenuItemNewWithLabel*(label: cstring): GtkMenuItem {.cdecl.} =
+    cast[GtkMenuItem](gtkButtonNewWithLabel(label))
 
 # TextView and TextBuffer
 proc gtkTextViewNew*(): GtkTextView {.cdecl, importc: "gtk_text_view_new".}

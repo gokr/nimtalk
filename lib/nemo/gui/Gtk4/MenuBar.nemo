@@ -1,15 +1,10 @@
-# ============================================================================
-# GtkMenuBar - Container for menus
-# MenuBar displays horizontal list of menus
-# ============================================================================
+# GTK MenuBar - Container for menu items
+# Note: GtkMenuBar class is registered by Nim bridge, we just add methods here
+# No derive: needed - we extend the existing class
 
-Widget subclass: GtkMenuBar.
-
-GtkMenuBar class>>new [
-  # Create new menu bar
-  ^self primitiveNew
-].
-
-GtkMenuBar>>append: aMenu [
-  # Add a menu to the menu bar
-].
+# Native methods (registered in Nim bridge):
+# Class methods:
+# - new (create new menu bar)
+#
+# Instance methods:
+# - append: (add menu item or button to menu bar)

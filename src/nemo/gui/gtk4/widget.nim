@@ -52,7 +52,9 @@ type
 
   GtkWidgetProxy* = ref GtkWidgetProxyObj
 
-## Create a new widget proxy
+## Create a new widget proxy - automatically handles GC reference
+## When the proxy is stored as a raw pointer in Instance.nimValue,
+## we need to keep it alive since the GC won't track raw pointers.
 proc newGtkWidgetProxy*(widget: GtkWidget, interp: ptr Interpreter): GtkWidgetProxy =
   result = GtkWidgetProxy(
     widget: widget,
@@ -60,6 +62,12 @@ proc newGtkWidgetProxy*(widget: GtkWidget, interp: ptr Interpreter): GtkWidgetPr
     signalHandlers: initTable[string, seq[SignalHandler]](),
     destroyed: false
   )
+
+## Keep a widget proxy alive when stored as raw pointer in Instance.nimValue
+## Call this after creating a proxy that will be stored in Instance.nimValue
+proc keepProxyAlive*(proxy: ref RootObj) {.inline.} =
+  ## Increment GC ref count to prevent collection when stored as raw pointer
+  GC_ref(proxy)
 
 ## Native method: show
 proc widgetShowImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =

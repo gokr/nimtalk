@@ -54,35 +54,24 @@ proc runIde*(opts: CliOptions) =
 
   # Run GTK main loop
   debug("Starting GTK main loop")
+
+  # Launch the IDE by calling Launcher open
+  echo "About to call Launcher open..."
+  let launchCode = "Launcher open"
+  echo "Launch code: ", launchCode
+  let (_, err) = interp.evalStatements(launchCode)
+  echo "Eval result: err=", err
+  if err.len > 0:
+    stderr.writeLine("Error launching IDE: ", err)
+    quit(1)
+  echo "Launcher open completed successfully"
+
   when defined(gtk4):
-    # GTK4 uses GApplication with proper lifecycle
-    let app = gtkApplicationNew("org.nemo.ide", GAPPLICATIONFLAGSNONE)
-
-    # Store the application reference for window creation
-    setGtkApplication(app)
-
-    # Connect activate signal - this is where we create/show the window
-    proc activateCallback(app: GApplication; data: pointer) {.cdecl.} =
-      debug("GTK application activated")
-      let interpPtr = cast[ptr Interpreter](data)
-      # Launch the IDE by calling Launcher open
-      let launchCode = "Launcher open"
-      let (_, err) = interpPtr[].evalStatements(launchCode)
-      if err.len > 0:
-        stderr.writeLine("Error launching IDE: ", err)
-        quit(1)
-
-    discard g_signal_connect_data(app, "activate", cast[GCallback](activateCallback), cast[pointer](addr(interp)), nil, 0)
-
-    discard gApplicationRun(cast[GApplication](app), 0, nil)
+    # GTK4: run a simple loop, keep the window alive
+    echo "Entering GTK4 main loop (simple keep-alive)..."
+    while true:
+      sleep(100)
   else:
-    # GTK3 uses gtk_main - simpler approach
-    # Launch the IDE by calling Launcher open
-    let launchCode = "Launcher open"
-    let (_, err) = interp.evalStatements(launchCode)
-    if err.len > 0:
-      stderr.writeLine("Error launching IDE: ", err)
-      quit(1)
     gtkMain()
 
   debug("GTK main loop exited")

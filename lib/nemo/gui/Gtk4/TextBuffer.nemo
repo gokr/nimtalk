@@ -1,29 +1,28 @@
-# ============================================================================
-# GtkTextBuffer - Text storage for TextView
-# TextBuffer holds the text and manages modifications
-# ============================================================================
+# GTK TextBuffer - Text storage for TextView
+# Note: GtkTextBuffer class is registered by Nim bridge, we just add methods here
+# No derive: needed - we extend the existing class
 
-Object subclass: GtkTextBuffer.
+# Native methods (registered in Nim bridge):
+# Class methods:
+# - new (create new text buffer)
+#
+# Instance methods:
+# - setText: (set all text)
+# - getText: (get all text, returns array [text])
+# - insert:at: (insert text at position)
+# - delete:to: (delete text from startPos to endPos)
 
-GtkTextBuffer class>>new [
-  # Create new text buffer
-  ^self primitiveNew
+# Convenience methods
+GtkTextBuffer>>text [
+  | result |
+  self getText: result.
+  ^result first
 ].
 
-GtkTextBuffer>>setText: aString [
-  # Set all text in the buffer
+GtkTextBuffer>>text: aString [
+  self setText: aString
 ].
 
-GtkTextBuffer>>getText: resultHolder [
-  # Get all text from the buffer
-  # Returns an array with [text] for Smalltalk result handling
-  ^Array with: self primitiveGetText
-].
-
-GtkTextBuffer>>insert: aString at: position [
-  # Insert text at position
-].
-
-GtkTextBuffer>>delete: startPos to: endPos [
-  # Delete text from startPos to endPos
+GtkTextBuffer>>append: aString [
+  self insert: aString at: self text size
 ].

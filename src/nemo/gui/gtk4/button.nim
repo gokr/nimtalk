@@ -47,6 +47,7 @@ proc createGtkButton*(interp: var Interpreter, label: string = ""): NodeValue =
   let obj = newInstance(buttonClass)
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](proxy)
+  GC_ref(cast[ref RootObj](proxy))
 
   return obj.toValue()
 

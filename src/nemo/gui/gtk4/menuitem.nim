@@ -9,7 +9,7 @@ import ./ffi
 import ./widget
 
 type
-  GtkMenuItemProxyObj* {.acyclic.} = object of QWidgetProxyObj
+  GtkMenuItemProxyObj* {.acyclic.} = object of GtkWidgetProxyObj
 
   GtkMenuItemProxy* = ref GtkMenuItemProxyObj
 
@@ -38,6 +38,7 @@ proc menuItemNewImpl*(interp: var Interpreter, self: Instance, args: seq[NodeVal
   let obj = newInstance(cls)
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](proxy)
+  GC_ref(cast[ref RootObj](proxy))
   return obj.toValue()
 
 ## Native class method: newLabel:
@@ -64,11 +65,12 @@ proc menuItemNewLabelImpl*(interp: var Interpreter, self: Instance, args: seq[No
   let obj = newInstance(cls)
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](proxy)
+  GC_ref(cast[ref RootObj](proxy))
   return obj.toValue()
 
 ## Native instance method: activate:
 proc menuItemActivateImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  ## Set activate handler - alias for connect:do: with "activate"
+  ## Set activate handler - alias for connect:do: with "activate" (or "clicked" for GTK4)
   if args.len < 1:
     return nilValue()
 
@@ -79,7 +81,7 @@ proc menuItemActivateImpl*(interp: var Interpreter, self: Instance, args: seq[No
   if blockVal.kind != vkBlock:
     return nilValue()
 
-  let proxy = cast[QWidgetProxy](self.nimValue)
+  let proxy = cast[GtkWidgetProxy](self.nimValue)
   if proxy.widget == nil:
     return nilValue()
 
@@ -89,18 +91,21 @@ proc menuItemActivateImpl*(interp: var Interpreter, self: Instance, args: seq[No
     blockNode: blockVal.blockVal,
     interp: addr(interp)
   )
-  callbackData.signalName = "activate"
+
+  # GTK4 uses clicked signal for button-based menu items
+  let signalName = when defined(gtk4): "clicked" else: "activate"
+  callbackData.signalName = signalName
 
   # Store in proxy's signal handlers table
-  if "activate" notin proxy.signalHandlers:
-    proxy.signalHandlers["activate"] = @[]
-  proxy.signalHandlers["activate"].add(callbackData.handler)
+  if signalName notin proxy.signalHandlers:
+    proxy.signalHandlers[signalName] = @[]
+  proxy.signalHandlers[signalName].add(callbackData.handler)
 
   # Connect the signal
   let gObject = cast[GObject](proxy.widget)
-  discard gSignalConnect(gObject, "activate".cstring,
+  discard gSignalConnect(gObject, signalName.cstring,
                          cast[GCallback](signalCallbackProc), cast[pointer](callbackData))
 
-  debug("Connected activate signal on menu item")
+  debug("Connected ", signalName, " signal on menu item")
 
   nilValue()

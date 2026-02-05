@@ -370,8 +370,8 @@ proc initGtkBridge*(interp: var Interpreter) =
 
   # Add MenuBar class method
   let menuBarNewMethod = createCoreMethod("new")
-  menuBarNewMethod.nativeImpl = cast[pointer](gtkMenuBarNew)
-  menuBarNewMethod.hasInterpreterParam = false
+  menuBarNewMethod.nativeImpl = cast[pointer](menuBarNewImpl)
+  menuBarNewMethod.hasInterpreterParam = true
   addMethodToClass(menuBarCls, "new", menuBarNewMethod, isClassMethod = true)
 
   # Add MenuBar instance method
@@ -475,6 +475,10 @@ proc launcherNewImpl*(interp: var Interpreter, self: Instance, args: seq[NodeVal
   else:
     let window = gtkWindowNew(GTKWINDOWTOPLEVEL)
   let proxy = newGtkWindowProxy(window, addr(interp))
+  debug("Created proxy, proxy.widget=", repr(proxy.widget), " proxy=", repr(cast[pointer](proxy)))
+
+  # Keep proxy alive in GC when stored as raw pointer in nimValue
+  GC_ref(proxy)
 
   # Look up Launcher class from globals (prefer Launcher, fallback to GtkWindow)
   var cls: Class = nil

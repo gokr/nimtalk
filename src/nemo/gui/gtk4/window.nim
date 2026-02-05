@@ -48,6 +48,7 @@ proc createGtkWindow*(interp: var Interpreter): NodeValue =
   let obj = newInstance(windowClass)
   obj.isNimProxy = true
   obj.nimValue = cast[pointer](proxy)
+  GC_ref(cast[ref RootObj](proxy))
 
   return obj.toValue()
 
@@ -84,29 +85,55 @@ proc windowSetDefaultSizeImpl*(interp: var Interpreter, self: Instance, args: se
 
 ## Native method: setChild: (GTK3/GTK4 compatible)
 proc windowSetChildImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
+  echo "** windowSetChildImpl: called"
+
   if args.len < 1 or args[0].kind != vkInstance:
+    echo("  -> no args or not instance")
     return nilValue()
 
-  if self.isNimProxy and self.nimValue != nil:
-    let proxy = cast[GtkWindowProxy](self.nimValue)
-    let childInstance = args[0].instVal
+  if not (self.isNimProxy or self.nimValue == nil):
+    echo("  -> self not a proxy or nilValue")
+    return nilValue()
 
-    if childInstance.isNimProxy and childInstance.nimValue != nil:
-      let childProxy = cast[GtkWidgetProxy](childInstance.nimValue)
-      if proxy.widget != nil and childProxy.widget != nil:
-        when defined(gtk4):
-          gtkWindowSetChild(cast[GtkWindow](proxy.widget), childProxy.widget)
-        else:
-          gtkContainerAdd(cast[GtkWindow](proxy.widget), childProxy.widget)
+  let proxy = cast[GtkWindowProxy](self.nimValue)
+  echo("  proxy.widget=", repr(proxy.widget))
+  let childInstance = args[0].instVal
+  echo("  childInstance.isNimProxy=", childInstance.isNimProxy, " childInstance.nimValue=", repr(childInstance.nimValue))
+
+  if childInstance.isNimProxy and childInstance.nimValue != nil:
+    let childProxy = cast[GtkWidgetProxy](childInstance.nimValue)
+    echo("  childProxy.widget=", repr(childProxy.widget))
+    if proxy.widget != nil and childProxy.widget != nil:
+      when defined(gtk4):
+        echo("  Calling gtkWindowSetChild...")
+        gtkWindowSetChild(cast[GtkWindow](proxy.widget), childProxy.widget)
+        gtkWidgetShow(childProxy.widget)
+        echo("  -> set child and showed it")
+      else:
+        gtkContainerAdd(cast[GtkWindow](proxy.widget), childProxy.widget)
+    else:
+      echo("  -> nil widget detected")
+  else:
+    echo("  -> child not a proxy or nilValue")
 
   nilValue()
 
 ## Native method: present
 proc windowPresentImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  if self.isNimProxy and self.nimValue != nil:
-    let proxy = cast[GtkWindowProxy](self.nimValue)
-    if proxy.widget != nil:
-      gtkWindowPresent(cast[GtkWindow](proxy.widget))
+  echo "** windowPresentImpl: called"
+
+  if not (self.isNimProxy or self.nimValue == nil):
+    echo("  -> self not a proxy or nilValue")
+    return nilValue()
+
+  let proxy = cast[GtkWindowProxy](self.nimValue)
+  if proxy.widget != nil:
+    echo("  Calling gtkWidgetShow and gtkWindowPresent...")
+    gtkWidgetShow(proxy.widget)
+    gtkWindowPresent(cast[GtkWindow](proxy.widget))
+    echo("  -> window presented")
+  else:
+    echo("  -> proxy.widget is nil")
 
   nilValue()
 
