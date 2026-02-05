@@ -10,7 +10,7 @@ import ./widget
 
 ## GtkWindowProxy extends GtkWidgetProxy
 type
-  GtkWindowProxyObj* {.acyclic.} = object of GtkWidgetProxyObj
+  GtkWindowProxyObj* = object of GtkWidgetProxyObj
     ## Additional window-specific fields can go here
 
   GtkWindowProxy* = ref GtkWindowProxyObj

@@ -49,7 +49,7 @@ type
     nemoType*: string                    # Nim type name for FFI
     hasSlots*: bool                         # Has any instance variables
 
-  Instance* {.acyclic.} = ref object of RootObj
+  Instance* = ref object of RootObj
     ## Instance object - pure data with reference to its class
     ## Using case object variant for memory efficiency - only allocate fields needed
     class*: Class                           # Reference to class
@@ -70,7 +70,7 @@ type
     nimValue*: pointer                      # Pointer to actual Nim value (for FFI)
 
   # Mutable cell for captured variables (shared between closures)
-  MutableCell* {.acyclic.} = ref object
+  MutableCell* = ref object
     value*: NodeValue          # the captured value
 
   # Forward declarations to break circular dependency
@@ -135,7 +135,7 @@ type
     workQueue*: seq[WorkFrame]  # Work queue for AST interpreter
     evalStack*: seq[NodeValue]  # Value stack for expression results
 
-  BlockNode* {.acyclic.} = ref object of Node
+  BlockNode* = ref object of Node
     parameters*: seq[string]              # method parameters
     temporaries*: seq[string]             # local variables
     body*: seq[Node]                      # AST statements

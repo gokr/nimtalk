@@ -10,7 +10,7 @@ import ./widget
 
 ## GtkTextBufferProxy type extending proxy object
 type
-  GtkTextBufferProxyObj* {.acyclic.} = object of RootObj
+  GtkTextBufferProxyObj* = object of RootObj
     buffer*: GtkTextBuffer
     interp*: ptr Interpreter
     signalHandlers*: Table[string, seq[SignalHandler]]

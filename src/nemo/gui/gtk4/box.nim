@@ -10,7 +10,7 @@ import ./widget
 
 ## GtkBoxProxy extends GtkWidgetProxy
 type
-  GtkBoxProxyObj* {.acyclic.} = object of GtkWidgetProxyObj
+  GtkBoxProxyObj* = object of GtkWidgetProxyObj
     ## Additional box-specific fields can go here
 
   GtkBoxProxy* = ref GtkBoxProxyObj

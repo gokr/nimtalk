@@ -9,7 +9,7 @@ import ./ffi
 import ./widget
 
 type
-  GtkMenuProxyObj* {.acyclic.} = object of GtkWidgetProxyObj
+  GtkMenuProxyObj* = object of GtkWidgetProxyObj
 
   GtkMenuProxy* = ref GtkMenuProxyObj
 

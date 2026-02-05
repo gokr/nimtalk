@@ -10,7 +10,7 @@ import ./widget
 import ./textbuffer
 
 type
-  GtkTextViewProxyObj* {.acyclic.} = object of GtkWidgetProxyObj
+  GtkTextViewProxyObj* = object of GtkWidgetProxyObj
 
   GtkTextViewProxy* = ref GtkTextViewProxyObj
 

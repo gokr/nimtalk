@@ -9,7 +9,7 @@ import ./ffi
 import ./widget
 
 type
-  GtkLabelProxyObj* {.acyclic.} = object of GtkWidgetProxyObj
+  GtkLabelProxyObj* = object of GtkWidgetProxyObj
 
   GtkLabelProxy* = ref GtkLabelProxyObj
 
