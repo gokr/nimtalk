@@ -51,6 +51,14 @@ proc newCascadeFrame*(messages: seq[MessageNode], receiver: NodeValue): WorkFram
 proc newPopActivationFrame*(savedReceiver: Instance, isBlock: bool = false, evalStackDepth: int = 0): WorkFrame =
   WorkFrame(kind: wfPopActivation, savedReceiver: savedReceiver, isBlockActivation: isBlock, savedEvalStackDepth: evalStackDepth)
 
+proc newIfBranchFrame*(condResult: bool, thenBlock, elseBlock: BlockNode): WorkFrame =
+  ## Create a work frame for conditional branch (ifTrue:, ifFalse:)
+  WorkFrame(kind: wfIfBranch, conditionResult: condResult, thenBlock: thenBlock, elseBlock: elseBlock)
+
+proc newWhileLoopFrame*(loopKind: bool, conditionBlock, bodyBlock: BlockNode, loopState: LoopState): WorkFrame =
+  ## Create a work frame for while loop (whileTrue:, whileFalse:)
+  WorkFrame(kind: wfWhileLoop, loopKind: loopKind, conditionBlock: conditionBlock, bodyBlock: bodyBlock, loopState: loopState)
+
 # Stack operations
 proc pushWorkFrame*(interp: var Interpreter, frame: WorkFrame) =
   interp.workQueue.add(frame)
@@ -1037,6 +1045,65 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
     # Restore original receiver after cascade completes
     interp.currentReceiver = frame.savedReceiver
     return true
+
+  of wfIfBranch:
+    # Handle conditional branch (ifTrue: or ifFalse:)
+    if frame.conditionResult:
+      # Condition is true - execute then block
+      interp.pushWorkFrame(newApplyBlockFrame(frame.thenBlock, 0))
+    elif frame.elseBlock != nil:
+      # Condition is false - execute else block
+      interp.pushWorkFrame(newApplyBlockFrame(frame.elseBlock, 0))
+    else:
+      # No else block - return nil
+      interp.pushValue(nilValue())
+    return true
+
+  of wfWhileLoop:
+    # Handle while loop (whileTrue: or whileFalse:)
+    case frame.loopState
+    of lsEvaluateCondition:
+      # Push frame to check condition after it's evaluated
+      interp.pushWorkFrame(WorkFrame(kind: wfWhileLoop, loopKind: frame.loopKind,
+                                      conditionBlock: frame.conditionBlock,
+                                      bodyBlock: frame.bodyBlock,
+                                      loopState: lsCheckCondition))
+      interp.pushWorkFrame(newApplyBlockFrame(frame.conditionBlock, 0))
+      return true
+    of lsCheckCondition:
+      # Check the condition result on the stack
+      let conditionResult = interp.peekValue()
+      let condBool = conditionResult.isTruthy()
+      let shouldContinue = if frame.loopKind: condBool else: not condBool
+      discard interp.popValue()  # Clean up condition result
+      if shouldContinue:
+        # Continue loop - execute body
+        interp.pushWorkFrame(WorkFrame(kind: wfWhileLoop, loopKind: frame.loopKind,
+                                        conditionBlock: frame.conditionBlock,
+                                        bodyBlock: frame.bodyBlock,
+                                        loopState: lsExecuteBody))
+        interp.pushWorkFrame(newApplyBlockFrame(frame.bodyBlock, 0))
+      else:
+        # Loop done - push nil result
+        interp.pushValue(nilValue())
+      return true
+    of lsExecuteBody:
+      # Transition to lsLoopBody state (will be used after body completes)
+      interp.pushWorkFrame(WorkFrame(kind: wfWhileLoop, loopKind: frame.loopKind,
+                                      conditionBlock: frame.conditionBlock,
+                                      bodyBlock: frame.bodyBlock,
+                                      loopState: lsLoopBody))
+      return true
+    of lsLoopBody:
+      # Body completed - discard body result and loop back to condition
+      discard interp.popValue()
+      interp.pushWorkFrame(WorkFrame(kind: wfWhileLoop, loopKind: frame.loopKind,
+                                      conditionBlock: frame.conditionBlock,
+                                      bodyBlock: frame.bodyBlock,
+                                      loopState: lsEvaluateCondition))
+      return true
+    of lsDone:
+      return true
 
   of wfEvalNode:
     # Should not reach here - wfEvalNode is handled in handleEvalNode

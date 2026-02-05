@@ -86,6 +86,14 @@ type
   # Exception thrown when Processor yield is called for immediate context switch
   YieldException* = object of CatchableError
 
+  # Loop states for while loop work frames
+  LoopState* = enum
+    lsEvaluateCondition  # Evaluate the condition block
+    lsCheckCondition      # Check the condition result
+    lsExecuteBody         # Execute the loop body
+    lsLoopBody            # After body, loop back to condition
+    lsDone                # Loop completed
+
   # Work frame kinds for the explicit stack VM
   WorkFrameKind* = enum
     wfEvalNode        # Evaluate AST node, push result to evalStack
@@ -101,6 +109,8 @@ type
     wfCascadeMessage       # Send message in cascade (keeps receiver for next)
     wfCascadeMessageDiscard # Send message in cascade (discards result)
     wfRestoreReceiver      # Restore original receiver after cascade
+    wfIfBranch            # Conditional branch (ifTrue:, ifFalse:)
+    wfWhileLoop           # While loop (whileTrue:, whileFalse:)
 
   # Work frame for explicit stack VM execution
   WorkFrame* {.acyclic.} = ref object
@@ -125,6 +135,15 @@ type
     savedReceiver*: Instance
     isBlockActivation*: bool  # true for block, false for method
     savedEvalStackDepth*: int # eval stack depth before activation was pushed
+    # For wfIfBranch
+    conditionResult*: bool
+    thenBlock*: BlockNode
+    elseBlock*: BlockNode
+    # For wfWhileLoop
+    loopKind*: bool            # true = whileTrue, false = whileFalse
+    conditionBlock*: BlockNode
+    bodyBlock*: BlockNode
+    loopState*: LoopState
 
   # Interpreter type defined here to avoid circular dependency between scheduler and evaluator
   Interpreter* {.acyclic.} = ref object
@@ -292,6 +311,22 @@ var
 # nil instance - singleton instance of UndefinedObject
 # Initialized during initCoreClasses, used by nilValue()
 var nilInstance*: Instance = nil
+
+# ============================================================================
+# Truthiness check for NodeValue
+# ============================================================================
+proc isTruthy*(val: NodeValue): bool =
+  ## Check if a value is "truthy" (true, non-zero, non-empty, non-nil)
+  case val.kind
+  of vkNil: return false
+  of vkBool: return val.boolVal
+  of vkInt: return val.intVal != 0
+  of vkFloat: return val.floatVal != 0.0
+  of vkString: return val.strVal.len > 0
+  of vkSymbol: return val.symVal.len > 0
+  of vkArray: return val.arrayVal.len > 0
+  of vkTable: return val.tableVal.len > 0
+  else: return true  # Blocks, classes, instances are truthy
 
 # ============================================================================
 # Node kind helper
