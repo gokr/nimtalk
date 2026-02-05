@@ -3,16 +3,13 @@
 ## Initializes the interpreter, loads GTK bridge, and launches the IDE
 ## ============================================================================
 
-import std/[os, strutils, logging, tables]
+import std/[os, logging]
 import nemo/core/types
 import nemo/core/scheduler
 import nemo/interpreter/evaluator
-import nemo/interpreter/objects
-import nemo/repl/doit
 import nemo/repl/cli
 import nemo/gui/gtk4/bridge
 import nemo/gui/gtk4/ffi
-import nemo/gui/gtk4/widget
 
 const
   AppName = "nemo-ide"
@@ -56,21 +53,16 @@ proc runIde*(opts: CliOptions) =
   debug("Starting GTK main loop")
 
   # Launch the IDE by calling Launcher open
-  echo "About to call Launcher open..."
   let launchCode = "Launcher open"
-  echo "Launch code: ", launchCode
   let (_, err) = interp.evalStatements(launchCode)
-  echo "Eval result: err=", err
   if err.len > 0:
     stderr.writeLine("Error launching IDE: ", err)
     quit(1)
-  echo "Launcher open completed successfully"
 
   when defined(gtk4):
-    # GTK4: run a simple loop, keep the window alive
-    echo "Entering GTK4 main loop (simple keep-alive)..."
+    # GTK4: run the GLib main loop to process events
     while true:
-      sleep(100)
+      discard gMainContextIteration(nil, 1.cint)
   else:
     gtkMain()
 
