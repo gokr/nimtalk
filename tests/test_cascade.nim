@@ -59,8 +59,8 @@ suite "Cascade Tests":
   test "Evaluate cascade with builtin unary method":
     # Test cascade with a simple unary method on Array
     let source = """
-    arr := #(1 2 3).
-    result := arr size; size
+    Arr := #(1 2 3).
+    Result := Arr size; size
     """
     let (results, err) = interp.evalStatements(source)
 
@@ -183,3 +183,64 @@ suite "Cascade Tests":
     let astStr = printAST(node)
     # Just check that we got some AST output
     check(astStr.len > 0)
+
+  test "Parse multiline cascade with keyword messages":
+    let source = """
+obj at: 1 put: #a;
+  at: 2 put: #b
+"""
+    let (nodes, parser) = parse(source)
+
+    check(not parser.hasError)
+    check(nodes.len == 1)
+    let node = nodes[0]
+    check(node != nil)
+    check(node.kind == nkCascade)
+
+    let cascade = node.CascadeNode
+    check(cascade.messages.len == 2)
+    check(cascade.messages[0].selector == "at:put:")
+    check(cascade.messages[1].selector == "at:put:")
+
+  test "Parse multiline cascade with mixed message types":
+    let source = """
+obj clear;
+  add: 5;
+  size
+"""
+    let (nodes, parser) = parse(source)
+
+    check(not parser.hasError)
+    check(nodes.len == 1)
+    let node = nodes[0]
+    check(node != nil)
+    check(node.kind == nkCascade)
+
+    let cascade = node.CascadeNode
+    check(cascade.messages.len == 3)
+    check(cascade.messages[0].selector == "clear")
+    check(cascade.messages[1].selector == "add:")
+    check(cascade.messages[2].selector == "size")
+
+  test "Parse multiline cascade with multiple newlines":
+    let source = """
+obj at: 1 put: #a;
+
+
+  at: 2 put: #b;
+    at: 3 put: #c
+"""
+    let (nodes, parser) = parse(source)
+
+    check(not parser.hasError)
+    check(nodes.len == 1)
+    let node = nodes[0]
+    check(node != nil)
+    check(node.kind == nkCascade)
+
+    let cascade = node.CascadeNode
+    check(cascade.messages.len == 3)
+    check(cascade.messages[0].selector == "at:put:")
+    check(cascade.messages[1].selector == "at:put:")
+    check(cascade.messages[2].selector == "at:put:")
+
