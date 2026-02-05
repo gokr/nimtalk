@@ -486,7 +486,20 @@ proc setVariable(interp: var Interpreter, name: string, value: NodeValue) =
         debug("Slot updated on self: ", name, " = ", value.toString())
         return
 
-    # Create in current activation
+    # Create in current activation, UNLESS it should be a global (uppercase first letter)
+    # This allows uppercase-named variables from stdlib files to be created as globals
+    if name.len > 0 and name[0] in {'A'..'Z'}:
+      # Check for protected global
+      if isProtectedGlobal(name):
+        raise newException(EvalError, "Cannot reassign protected global: " & name)
+      # If assigning a Class, set its name to the variable name
+      if value.kind == vkClass and value.classVal != nil:
+        value.classVal.name = name
+      interp.globals[][name] = value
+      debug("Global set (uppercase variable): ", name, " = ", value.toString())
+      return
+
+    # Create in current activation for lowercase variables
     interp.currentActivation.locals[name] = value
     return
 
@@ -690,16 +703,23 @@ proc lookupMethod(interp: Interpreter, receiver: Instance, selector: string): Me
 proc lookupClassMethod(cls: Class, selector: string): MethodResult =
   ## Look up class method in class (fast O(1) lookup)
   if cls == nil:
+    echo "DEBUG lookupClassMethod: cls is nil for selector=", selector
     return MethodResult(currentMethod: nil, receiver: nil, definingClass: nil, found: false)
 
-  # Fast O(1) lookup in allClassMethods table (already flattened from parents)
+  # Debug output
+  echo "DEBUG lookupClassMethod: cls.name=", cls.name, " selector=", selector
+  echo "DEBUG lookupClassMethod: allClassMethods.len=", cls.allClassMethods.len
   if selector in cls.allClassMethods:
+    echo "DEBUG lookupClassMethod: FOUND"
     return MethodResult(
       currentMethod: cls.allClassMethods[selector],
       receiver: nil,  # Class methods don't have instance receiver
       definingClass: cls,
       found: true
     )
+  echo "DEBUG lookupClassMethod: NOT FOUND, available keys:"
+  for key in cls.allClassMethods.keys:
+    echo "  - ", key
   return MethodResult(currentMethod: nil, receiver: nil, definingClass: nil, found: false)
 
 # Execute a currentMethod
