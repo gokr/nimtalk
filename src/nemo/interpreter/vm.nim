@@ -48,6 +48,9 @@ proc newReturnValueFrame*(value: NodeValue): WorkFrame =
 proc newCascadeFrame*(messages: seq[MessageNode], receiver: NodeValue): WorkFrame =
   WorkFrame(kind: wfCascade, cascadeMessages: messages, cascadeReceiver: receiver)
 
+proc newPopActivationFrame*(savedReceiver: Instance, isBlock: bool = false, evalStackDepth: int = 0): WorkFrame =
+  WorkFrame(kind: wfPopActivation, savedReceiver: savedReceiver, isBlockActivation: isBlock, savedEvalStackDepth: evalStackDepth)
+
 # Stack operations
 proc pushWorkFrame*(interp: var Interpreter, frame: WorkFrame) =
   interp.workQueue.add(frame)
@@ -61,12 +64,14 @@ proc hasWorkFrames*(interp: Interpreter): bool =
   interp.workQueue.len > 0
 
 proc pushValue*(interp: var Interpreter, value: NodeValue) =
+  debug("VM: pushValue ", value.toString(), " (stack len will be ", interp.evalStack.len + 1, ")")
   interp.evalStack.add(value)
 
 proc popValue*(interp: var Interpreter): NodeValue =
   if interp.evalStack.len == 0:
     raise newException(ValueError, "Eval stack underflow")
   result = interp.evalStack.pop()
+  debug("VM: popValue ", result.toString(), " (stack len now ", interp.evalStack.len, ")")
 
 proc peekValue*(interp: Interpreter): NodeValue =
   if interp.evalStack.len == 0:
@@ -110,11 +115,9 @@ proc handleEvalNode(interp: var Interpreter, frame: WorkFrame): bool =
     of "self":
       if interp.currentReceiver == nil:
         interp.pushValue(nilValue())
-      elif interp.currentReceiver.kind == ikObject and
-           interp.currentReceiver.slots.len == 0 and
-           interp.currentReceiver.isNimProxy == false and
-           interp.currentReceiver.nimValue == nil and
-           interp.currentReceiver != nilInstance:
+      # For class methods, self should return the Class object
+      # We track this via activation.isClassMethod rather than structural checks
+      elif interp.currentActivation != nil and interp.currentActivation.isClassMethod:
         interp.pushValue(interp.currentReceiver.class.toValue())
       else:
         interp.pushValue(interp.currentReceiver.toValue().unwrap())
@@ -216,21 +219,23 @@ proc handleEvalNode(interp: var Interpreter, frame: WorkFrame): bool =
     return true
 
   of nkReturn:
-    # Return - will be implemented in Phase 4
+    # Return - evaluate expression and push return frame
     let ret = cast[ReturnNode](node)
     if ret.expression != nil:
-      interp.pushWorkFrame(newReturnValueFrame(nilValue()))  # Placeholder
+      # Push placeholder with vkNil (NOT nilValue() which may be vkInstance)
+      # This signals to wfReturnValue to pop the value from the stack
+      interp.pushWorkFrame(WorkFrame(kind: wfReturnValue, returnValue: NodeValue(kind: vkNil)))
       interp.pushWorkFrame(newEvalFrame(ret.expression))
     else:
       # Return self
       if interp.currentReceiver != nil:
         interp.pushWorkFrame(newReturnValueFrame(interp.currentReceiver.toValue().unwrap()))
       else:
-        interp.pushWorkFrame(newReturnValueFrame(nilValue()))
+        interp.pushWorkFrame(WorkFrame(kind: wfReturnValue, returnValue: NodeValue(kind: vkNil)))
     return true
 
   of nkArray:
-    # Array literal - evaluate elements (Phase 3)
+    # Array literal - evaluate elements
     let arr = cast[ArrayNode](node)
     if arr.elements.len == 0:
       if arrayClass != nil:
@@ -238,14 +243,30 @@ proc handleEvalNode(interp: var Interpreter, frame: WorkFrame): bool =
       else:
         interp.pushValue(NodeValue(kind: vkArray, arrayVal: @[]))
     else:
-      # Need to evaluate all elements - push continuation and first element
-      # For now, fall through to not implemented
-      debug("Array literal not fully implemented in new VM yet")
-      interp.pushValue(nilValue())
+      # Push build-array frame first (will execute last)
+      interp.pushWorkFrame(WorkFrame(kind: wfBuildArray, argCount: arr.elements.len))
+      # Push element evaluation frames in reverse order
+      for i in countdown(arr.elements.len - 1, 0):
+        let elem = arr.elements[i]
+        # Handle special cases for array literals (symbols, keywords)
+        if elem.kind == nkIdent:
+          let ident = cast[IdentNode](elem)
+          case ident.name
+          of "true":
+            interp.pushWorkFrame(WorkFrame(kind: wfEvalNode, node: PseudoVarNode(name: "true")))
+          of "false":
+            interp.pushWorkFrame(WorkFrame(kind: wfEvalNode, node: PseudoVarNode(name: "false")))
+          of "nil":
+            interp.pushWorkFrame(WorkFrame(kind: wfEvalNode, node: PseudoVarNode(name: "nil")))
+          else:
+            # Bare identifier in array literal is treated as symbol
+            interp.pushWorkFrame(WorkFrame(kind: wfEvalNode, node: LiteralNode(value: getSymbol(ident.name))))
+        else:
+          interp.pushWorkFrame(newEvalFrame(elem))
     return true
 
   of nkTable:
-    # Table literal (Phase 3)
+    # Table literal - evaluate key-value pairs and build table
     let tab = cast[TableNode](node)
     if tab.entries.len == 0:
       if tableClass != nil:
@@ -253,26 +274,109 @@ proc handleEvalNode(interp: var Interpreter, frame: WorkFrame): bool =
       else:
         interp.pushValue(NodeValue(kind: vkTable, tableVal: initTable[NodeValue, NodeValue]()))
     else:
-      debug("Table literal not fully implemented in new VM yet")
-      interp.pushValue(nilValue())
+      # Push build-table frame first (will execute last)
+      interp.pushWorkFrame(WorkFrame(kind: wfBuildTable, argCount: tab.entries.len * 2))
+      # Push key-value evaluation frames in reverse order (values first, then keys)
+      for i in countdown(tab.entries.len - 1, 0):
+        let entry = tab.entries[i]
+        interp.pushWorkFrame(newEvalFrame(entry.value))  # Value
+        interp.pushWorkFrame(newEvalFrame(entry.key))    # Key
     return true
 
   of nkCascade:
-    # Cascade messages (Phase 5)
-    debug("Cascade not implemented in new VM yet")
-    interp.pushValue(nilValue())
+    # Cascade messages - evaluate receiver once, then send each message to same receiver
+    let cascade = cast[CascadeNode](node)
+    if cascade.messages.len == 0:
+      # No messages, just evaluate receiver
+      interp.pushWorkFrame(newEvalFrame(cascade.receiver))
+    else:
+      # Push cascade continuation frame to handle multiple messages
+      interp.pushWorkFrame(newCascadeFrame(cascade.messages, nilValue()))
+      # Evaluate receiver first
+      interp.pushWorkFrame(newEvalFrame(cascade.receiver))
     return true
 
   of nkSuperSend:
-    # Super send (Phase 5)
-    debug("Super send not implemented in new VM yet")
-    interp.pushValue(nilValue())
+    # Super send - lookup method in parent class
+    let superNode = cast[SuperSendNode](node)
+
+    if interp.currentReceiver == nil:
+      raise newException(ValueError, "super send with no current receiver")
+
+    # Get the defining class from the current activation
+    var definingClass: Class = nil
+    if interp.currentActivation != nil and interp.currentActivation.definingObject != nil:
+      definingClass = interp.currentActivation.definingObject
+    else:
+      definingClass = interp.currentReceiver.class
+
+    if definingClass == nil:
+      raise newException(ValueError, "super send with no defining class")
+
+    # Determine which parent to look in
+    var targetParent: Class = nil
+    if superNode.explicitParent.len > 0:
+      # Qualified super<Parent>: find specific parent by name
+      for parent in definingClass.superclasses:
+        if parent.name == superNode.explicitParent:
+          targetParent = parent
+          break
+      if targetParent == nil:
+        raise newException(ValueError, "Parent class '" & superNode.explicitParent & "' not found in inheritance chain")
+    else:
+      # Unqualified super: use first parent of the defining class
+      if definingClass.superclasses.len == 0:
+        raise newException(ValueError, "super send in class with no parents")
+      targetParent = definingClass.superclasses[0]
+
+    # Look up method in target parent's allMethods
+    let methodBlock = lookupInstanceMethod(targetParent, superNode.selector)
+    if methodBlock == nil:
+      raise newException(ValueError, "Method '" & superNode.selector & "' not found in super class " & targetParent.name)
+
+    # Push self as receiver for super send
+    interp.pushValue(interp.currentReceiver.toValue().unwrap())
+
+    # Evaluate arguments and send message
+    if superNode.arguments.len == 0:
+      # No arguments - create send frame directly, passing targetParent as definingClass
+      # We need a special frame for super sends to pass the defining class
+      interp.pushWorkFrame(WorkFrame(
+        kind: wfSendMessage,
+        selector: superNode.selector,
+        argCount: 0,
+        pendingSelector: targetParent.name  # Store target class name here for super lookup
+      ))
+    else:
+      # Push after-arg frame that will handle super send with targetParent
+      interp.pushWorkFrame(WorkFrame(
+        kind: wfAfterArg,
+        pendingSelector: "__super_send__",
+        pendingArgs: @[],
+        currentArgIndex: 0,
+        selector: superNode.selector & "|" & targetParent.name  # Combined selector|targetParent
+      ))
+      interp.pushWorkFrame(newEvalFrame(superNode.arguments[0]))
     return true
 
   of nkObjectLiteral:
-    # Object literal
-    debug("Object literal not implemented in new VM yet")
-    interp.pushValue(nilValue())
+    # Object literal - create new Table instance with properties
+    let objLit = cast[ObjectLiteralNode](node)
+    if objLit.properties.len == 0:
+      # Empty object literal
+      if tableClass != nil:
+        interp.pushValue(newTableInstance(tableClass, initTable[NodeValue, NodeValue]()).toValue())
+      else:
+        interp.pushValue(NodeValue(kind: vkTable, tableVal: initTable[NodeValue, NodeValue]()))
+    else:
+      # Push build-object-literal frame (reuses wfBuildTable with string keys)
+      interp.pushWorkFrame(WorkFrame(kind: wfBuildTable, argCount: objLit.properties.len * 2))
+      # Push property value evaluations in reverse order
+      for i in countdown(objLit.properties.len - 1, 0):
+        let prop = objLit.properties[i]
+        # Property name as string value
+        interp.pushWorkFrame(WorkFrame(kind: wfEvalNode, node: LiteralNode(value: toValue(prop.name))))
+        interp.pushWorkFrame(newEvalFrame(prop.value))
     return true
 
   of nkPrimitive:
@@ -290,9 +394,21 @@ proc handleEvalNode(interp: var Interpreter, frame: WorkFrame): bool =
     return true
 
   of nkPrimitiveCall:
-    # Primitive call (Phase 3)
-    debug("Primitive call not implemented in new VM yet")
-    interp.pushValue(nilValue())
+    # Primitive call - dispatch via standard method lookup on currentReceiver
+    let primCall = cast[PrimitiveCallNode](node)
+    debug("VM: Primitive call #", primCall.selector, " with ", primCall.arguments.len, " args")
+
+    # Push currentReceiver as the receiver
+    if interp.currentReceiver != nil:
+      interp.pushValue(interp.currentReceiver.toValue().unwrap())
+    else:
+      interp.pushValue(nilValue())
+
+    # Use the same continuation mechanism as message sends
+    if primCall.arguments.len > 0:
+      interp.pushWorkFrame(newAfterReceiverFrame(primCall.selector, primCall.arguments))
+    else:
+      interp.pushWorkFrame(newSendMessageFrame(primCall.selector, 0))
     return true
 
 # Handle continuation frames (what to do after subexpression)
@@ -372,7 +488,17 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
     of vkString:
       receiver = newStringInstance(stringClass, receiverVal.strVal)
     of vkBool:
-      receiver = newInstance(booleanClass)
+      # Boolean - create ikObject instance with nimValue
+      let p = cast[pointer](alloc(sizeof(bool)))
+      cast[ptr bool](p)[] = receiverVal.boolVal
+      var boolInst: Instance
+      new(boolInst)
+      boolInst.kind = ikObject
+      boolInst.class = if receiverVal.boolVal: trueClassCache else: falseClassCache
+      boolInst.slots = @[]
+      boolInst.isNimProxy = true
+      boolInst.nimValue = p
+      receiver = boolInst
     of vkNil:
       receiver = nilInstance
     of vkArray:
@@ -381,16 +507,85 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       receiver = newTableInstance(tableClass, receiverVal.tableVal)
     of vkClass:
       # Class method lookup
-      let lookup = evaluator.lookupClassMethod(receiverVal.classVal, frame.selector)
+      let cls = receiverVal.classVal
+      let lookup = evaluator.lookupClassMethod(cls, frame.selector)
       if lookup.found:
-        # Execute class method - will be handled in Phase 3
-        debug("Class method dispatch not fully implemented yet")
-        interp.pushValue(nilValue())
+        let currentMethod = lookup.currentMethod
+
+        # Handle native class methods
+        if currentMethod.nativeImpl != nil:
+          let savedReceiver = interp.currentReceiver
+          try:
+            var resultVal: NodeValue
+            if currentMethod.hasInterpreterParam:
+              # Native method with interpreter - needs class receiver wrapper
+              let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: nil)
+              type NativeProcWithInterp = proc(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.}
+              let nativeProc = cast[NativeProcWithInterp](currentMethod.nativeImpl)
+              resultVal = nativeProc(interp, classReceiver, args)
+            else:
+              # Direct class method without interpreter param
+              type ClassMethodProc = proc(self: Class, args: seq[NodeValue]): NodeValue {.nimcall.}
+              let nativeProc = cast[ClassMethodProc](currentMethod.nativeImpl)
+              resultVal = nativeProc(cls, args)
+            interp.pushValue(resultVal)
+          finally:
+            interp.currentReceiver = savedReceiver
+          return true
+
+        # Interpreted class method - create activation with class wrapper as receiver
+        let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: nil)
+
+        # Check parameter count
+        if currentMethod.parameters.len != args.len:
+          raise newException(ValueError,
+            "Wrong number of arguments: expected " & $currentMethod.parameters.len &
+            ", got " & $args.len)
+
+        # Create activation (isClassMethod = true for class methods)
+        let activation = newActivation(currentMethod, classReceiver, interp.currentActivation, lookup.definingClass, isClassMethod = true)
+
+        # Bind parameters
+        for i in 0..<currentMethod.parameters.len:
+          activation.locals[currentMethod.parameters[i]] = args[i]
+
+        # Save current receiver
+        let savedReceiver = interp.currentReceiver
+
+        # Push activation
+        interp.activationStack.add(activation)
+        interp.currentActivation = activation
+        interp.currentReceiver = classReceiver
+
+        # Set home activation for methods
+        if currentMethod.isMethod:
+          currentMethod.homeActivation = activation
+
+        # Push pop-activation frame (save eval stack depth for return unwinding)
+        interp.pushWorkFrame(newPopActivationFrame(savedReceiver, isBlock = false, evalStackDepth = interp.evalStack.len))
+
+        # Push method body
+        if currentMethod.body.len > 0:
+          for i in countdown(currentMethod.body.len - 1, 0):
+            if i < currentMethod.body.len - 1:
+              interp.pushWorkFrame(WorkFrame(kind: wfAfterArg, pendingSelector: "discard"))
+            interp.pushWorkFrame(newEvalFrame(currentMethod.body[i]))
+        else:
+          interp.pushValue(nilValue())
+
         return true
       else:
         raise newException(ValueError, "Class method not found: " & frame.selector)
     of vkBlock:
-      receiver = newInstance(blockClass)
+      # Create Block instance with the BlockNode stored in nimValue
+      var blockInst: Instance
+      new(blockInst)
+      blockInst.kind = ikObject
+      blockInst.class = blockClass
+      blockInst.slots = @[]
+      blockInst.isNimProxy = false
+      blockInst.nimValue = cast[pointer](receiverVal.blockVal)
+      receiver = blockInst
     of vkSymbol:
       receiver = newStringInstance(stringClass, receiverVal.symVal)
 
@@ -398,6 +593,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       raise newException(ValueError, "Cannot send message to nil receiver")
 
     # Look up method
+    debug("VM: Looking up method '", frame.selector, "' on ", (if receiver.class != nil: receiver.class.name else: "nil"))
     let lookup = lookupMethod(interp, receiver, frame.selector)
     if not lookup.found:
       raise newException(ValueError, "Method not found: " & frame.selector & " on " &
@@ -405,15 +601,19 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
 
     # Check for native implementation
     let currentMethod = lookup.currentMethod
+    debug("VM: Found method '", frame.selector, "', native=", currentMethod.nativeImpl != nil)
     if currentMethod.nativeImpl != nil:
       # Call native method
+      debug("VM: Calling native method '", frame.selector, "'")
       let savedReceiver = interp.currentReceiver
       try:
         var resultVal: NodeValue
         if currentMethod.hasInterpreterParam:
+          debug("VM: Native method has interpreter param")
           type NativeProcWithInterp = proc(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.}
           let nativeProc = cast[NativeProcWithInterp](currentMethod.nativeImpl)
           resultVal = nativeProc(interp, receiver, args)
+          debug("VM: Native method returned: ", resultVal.toString())
         else:
           type NativeProc = proc(self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.}
           let nativeProc = cast[NativeProc](currentMethod.nativeImpl)
@@ -424,8 +624,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       return true
 
     # Interpreted method - create activation and execute body
-    # (Will be properly implemented in Phase 3)
-    debug("Interpreted method execution not fully implemented in new VM yet")
+    debug("VM: Executing interpreted method '", frame.selector, "' with ", args.len, " args, body has ", currentMethod.body.len, " statements")
 
     # Check parameter count
     if currentMethod.parameters.len != args.len:
@@ -440,8 +639,10 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
     for i in 0..<currentMethod.parameters.len:
       activation.locals[currentMethod.parameters[i]] = args[i]
 
-    # Push activation
+    # Save current receiver to restore after method completes
     let savedReceiver = interp.currentReceiver
+
+    # Push activation
     interp.activationStack.add(activation)
     interp.currentActivation = activation
     interp.currentReceiver = receiver
@@ -450,14 +651,18 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
     if currentMethod.isMethod:
       currentMethod.homeActivation = activation
 
+    # Push pop-activation frame FIRST (will execute LAST after body completes)
+    interp.pushWorkFrame(newPopActivationFrame(savedReceiver, isBlock = false, evalStackDepth = interp.evalStack.len))
+
     # Push method body statements in reverse order
     if currentMethod.body.len > 0:
       for i in countdown(currentMethod.body.len - 1, 0):
         if i < currentMethod.body.len - 1:
-          # Pop intermediate results
+          # Pop intermediate results (keep only last statement's result)
           interp.pushWorkFrame(WorkFrame(kind: wfAfterArg, pendingSelector: "discard"))
         interp.pushWorkFrame(newEvalFrame(currentMethod.body[i]))
     else:
+      # Empty body returns nil
       interp.pushValue(nilValue())
 
     return true
@@ -496,11 +701,19 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
     for tempName in blockNode.temporaries:
       activation.locals[tempName] = nilValue()
 
-    # Push activation
+    # Save current receiver to restore after block completes
     let savedReceiver = interp.currentReceiver
+
+    # Push activation
     interp.activationStack.add(activation)
     interp.currentActivation = activation
     interp.currentReceiver = blockReceiver
+
+    # Push pop-activation frame FIRST (will execute LAST after body completes)
+    # Store the block in the frame so we can save captured vars back
+    var popFrame = newPopActivationFrame(savedReceiver, isBlock = true, evalStackDepth = interp.evalStack.len)
+    popFrame.blockVal = blockNode
+    interp.pushWorkFrame(popFrame)
 
     # Push block body statements in reverse order
     if blockNode.body.len > 0:
@@ -509,18 +722,71 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
           interp.pushWorkFrame(WorkFrame(kind: wfAfterArg, pendingSelector: "discard"))
         interp.pushWorkFrame(newEvalFrame(blockNode.body[i]))
     else:
+      # Empty body returns nil
       interp.pushValue(nilValue())
 
     return true
 
+  of wfPopActivation:
+    # Pop activation after method/block body completes
+    # The result value is on top of the eval stack
+    debug("VM: wfPopActivation, evalStack.len=", interp.evalStack.len)
+    let resultValue = if interp.evalStack.len > 0:
+                        interp.popValue()
+                      else:
+                        nilValue()
+    debug("VM: wfPopActivation resultValue=", resultValue.toString())
+
+    # For blocks, save captured variables back to their cells
+    if frame.isBlockActivation and frame.blockVal != nil:
+      let blockNode = frame.blockVal
+      if blockNode.capturedEnvInitialized and blockNode.capturedEnv.len > 0:
+        let activation = interp.currentActivation
+        if activation != nil:
+          for name, cell in blockNode.capturedEnv:
+            if name in activation.locals:
+              cell.value = activation.locals[name]
+
+    # Check for non-local return
+    if interp.currentActivation != nil and interp.currentActivation.hasReturned:
+      # Non-local return - propagate the return value
+      let returnVal = interp.currentActivation.returnValue
+
+      # Pop the activation
+      discard interp.activationStack.pop()
+      if interp.activationStack.len > 0:
+        interp.currentActivation = interp.activationStack[^1]
+        interp.currentReceiver = interp.currentActivation.receiver
+      else:
+        interp.currentActivation = nil
+        interp.currentReceiver = frame.savedReceiver
+
+      interp.pushValue(returnVal.unwrap())
+    else:
+      # Normal completion - pop activation and push result
+      discard interp.activationStack.pop()
+      if interp.activationStack.len > 0:
+        interp.currentActivation = interp.activationStack[^1]
+        interp.currentReceiver = interp.currentActivation.receiver
+      else:
+        interp.currentActivation = nil
+        interp.currentReceiver = frame.savedReceiver
+
+      interp.pushValue(resultValue.unwrap())
+
+    return true
+
   of wfReturnValue:
-    # Handle return - will be properly implemented in Phase 4
+    # Handle return (^ expression) - must unwind work queue to target activation
     let value = if frame.returnValue.kind != vkNil:
                   frame.returnValue
                 else:
                   interp.popValue()
+    let returnVal = value.unwrap()
 
-    # Find target activation
+    # Find target activation for the return
+    # For blocks, target is homeActivation (the enclosing method)
+    # For methods, target is the current activation
     var targetActivation: Activation = nil
     if interp.currentActivation != nil and interp.currentActivation.currentMethod != nil:
       let currentMethod = interp.currentActivation.currentMethod
@@ -529,17 +795,247 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       else:
         targetActivation = interp.currentActivation
 
-    if targetActivation != nil:
-      targetActivation.returnValue = value.unwrap()
-      targetActivation.hasReturned = true
+    if targetActivation == nil:
+      # No target - just push value (shouldn't happen in well-formed code)
+      interp.pushValue(returnVal)
+      return true
 
-    interp.pushValue(value.unwrap())
+    # Unwind: pop work frames until we find and process the wfPopActivation
+    # for the target activation. For each intermediate wfPopActivation (blocks),
+    # pop the corresponding activation from the activation stack.
+    debug("VM: wfReturnValue unwinding to target activation")
+    var found = false
+    var targetEvalStackDepth = 0
+    while interp.workQueue.len > 0 and not found:
+      let wf = interp.workQueue.pop()
+      if wf.kind == wfPopActivation:
+        # Save captured vars for blocks
+        if wf.isBlockActivation and wf.blockVal != nil:
+          let blockNode = wf.blockVal
+          if blockNode.capturedEnvInitialized and blockNode.capturedEnv.len > 0:
+            let act = interp.currentActivation
+            if act != nil:
+              for name, cell in blockNode.capturedEnv:
+                if name in act.locals:
+                  cell.value = act.locals[name]
+
+        # Check if the current activation is the target
+        if interp.currentActivation == targetActivation:
+          # Save the eval stack depth to restore to
+          targetEvalStackDepth = wf.savedEvalStackDepth
+
+          # Pop the target activation
+          discard interp.activationStack.pop()
+          if interp.activationStack.len > 0:
+            interp.currentActivation = interp.activationStack[^1]
+            interp.currentReceiver = interp.currentActivation.receiver
+          else:
+            interp.currentActivation = nil
+            interp.currentReceiver = wf.savedReceiver
+          found = true
+        else:
+          # Pop intermediate activation (block)
+          if interp.activationStack.len > 0:
+            discard interp.activationStack.pop()
+            if interp.activationStack.len > 0:
+              interp.currentActivation = interp.activationStack[^1]
+              interp.currentReceiver = interp.currentActivation.receiver
+
+    # Restore eval stack to the depth before the target activation was pushed
+    if interp.evalStack.len > targetEvalStackDepth:
+      interp.evalStack.setLen(targetEvalStackDepth)
+    interp.pushValue(returnVal)
     return true
 
   of wfCascade:
-    # Cascade - will be implemented in Phase 5
-    debug("Cascade continuation not implemented yet")
-    interp.pushValue(nilValue())
+    # Cascade - receiver is on stack, send each message to same receiver
+    let receiverVal = interp.peekValue()  # Keep receiver on stack for next message
+    let messages = frame.cascadeMessages
+
+    if messages.len == 0:
+      # No messages to send, just leave receiver on stack as result
+      return true
+
+    # Pop the receiver for processing (we'll push results back)
+    discard interp.popValue()
+
+    # Save original receiver and set cascade receiver
+    let savedReceiver = interp.currentReceiver
+
+    # Convert receiverVal to Instance
+    var receiver: Instance
+    case receiverVal.kind
+    of vkInstance:
+      receiver = receiverVal.instVal
+    of vkInt:
+      receiver = newIntInstance(integerClass, receiverVal.intVal)
+    of vkFloat:
+      receiver = newFloatInstance(floatClass, receiverVal.floatVal)
+    of vkString:
+      receiver = newStringInstance(stringClass, receiverVal.strVal)
+    of vkArray:
+      receiver = newArrayInstance(arrayClass, receiverVal.arrayVal)
+    of vkTable:
+      receiver = newTableInstance(tableClass, receiverVal.tableVal)
+    of vkBool:
+      let p = cast[pointer](alloc(sizeof(bool)))
+      cast[ptr bool](p)[] = receiverVal.boolVal
+      var boolInst: Instance
+      new(boolInst)
+      boolInst.kind = ikObject
+      boolInst.class = if receiverVal.boolVal: trueClassCache else: falseClassCache
+      boolInst.slots = @[]
+      boolInst.isNimProxy = true
+      boolInst.nimValue = p
+      receiver = boolInst
+    of vkBlock:
+      var blockInst: Instance
+      new(blockInst)
+      blockInst.kind = ikObject
+      blockInst.class = blockClass
+      blockInst.slots = @[]
+      blockInst.isNimProxy = false
+      blockInst.nimValue = cast[pointer](receiverVal.blockVal)
+      receiver = blockInst
+    else:
+      raise newException(ValueError, "Cascade to unsupported value kind: " & $receiverVal.kind)
+
+    # Set current receiver for message sends
+    interp.currentReceiver = receiver
+
+    # For now, handle single message (push result) or loop for all messages
+    # To properly handle multiple messages without recursion, we need to:
+    # 1. Push frames for each message in reverse order
+    # 2. Each message will leave its result on stack
+    # 3. Only keep the last result
+
+    if messages.len == 1:
+      # Single message - just send it
+      let msg = messages[0]
+      interp.pushWorkFrame(WorkFrame(
+        kind: wfAfterReceiver,
+        pendingSelector: msg.selector,
+        pendingArgs: msg.arguments,
+        currentArgIndex: 0
+      ))
+      interp.pushValue(receiverVal)  # Push receiver back for the message send
+    else:
+      # Multiple messages - push them in reverse order with cascade continuation
+      # Push a final frame to restore receiver and keep only last result
+      interp.pushWorkFrame(WorkFrame(kind: wfRestoreReceiver, savedReceiver: savedReceiver))
+
+      # Push all message frames in reverse order
+      for i in countdown(messages.len - 1, 0):
+        let msg = messages[i]
+        if i == messages.len - 1:
+          # Last message - keep its result
+          interp.pushWorkFrame(WorkFrame(
+            kind: wfCascadeMessage,
+            pendingSelector: msg.selector,
+            pendingArgs: msg.arguments,
+            currentArgIndex: 0,
+            cascadeReceiver: receiverVal  # Store receiver for this message
+          ))
+        else:
+          # Intermediate message - discard result, keep receiver
+          interp.pushWorkFrame(WorkFrame(
+            kind: wfCascadeMessageDiscard,
+            pendingSelector: msg.selector,
+            pendingArgs: msg.arguments,
+            currentArgIndex: 0,
+            cascadeReceiver: receiverVal
+          ))
+
+    return true
+
+  of wfBuildArray:
+    # Build array from N values on stack
+    let count = frame.argCount
+    var elements = newSeq[NodeValue](count)
+    # Pop in reverse order to maintain original order
+    for i in countdown(count - 1, 0):
+      elements[i] = interp.popValue()
+    if arrayClass != nil:
+      interp.pushValue(newArrayInstance(arrayClass, elements).toValue())
+    else:
+      interp.pushValue(NodeValue(kind: vkArray, arrayVal: elements))
+    return true
+
+  of wfBuildTable:
+    # Build table from key-value pairs on stack
+    # Stack has: ... key1 value1 key2 value2 ... (in reverse order of pushing)
+    # We need to pop values in pairs and build the table
+    let pairCount = frame.argCount div 2
+    var entries = initTable[NodeValue, NodeValue]()
+    for i in 0..<pairCount:
+      let value = interp.popValue()
+      let key = interp.popValue()
+      entries[key] = value
+    if tableClass != nil:
+      interp.pushValue(newTableInstance(tableClass, entries).toValue())
+    else:
+      interp.pushValue(NodeValue(kind: vkTable, tableVal: entries))
+    return true
+
+  of wfCascadeMessage, wfCascadeMessageDiscard:
+    # Send a message in a cascade - receiver is stored in cascadeReceiver
+    let receiverVal = frame.cascadeReceiver
+
+    # Convert receiver to Instance
+    var receiver: Instance
+    case receiverVal.kind
+    of vkInstance:
+      receiver = receiverVal.instVal
+    of vkInt:
+      receiver = newIntInstance(integerClass, receiverVal.intVal)
+    of vkFloat:
+      receiver = newFloatInstance(floatClass, receiverVal.floatVal)
+    of vkString:
+      receiver = newStringInstance(stringClass, receiverVal.strVal)
+    of vkArray:
+      receiver = newArrayInstance(arrayClass, receiverVal.arrayVal)
+    of vkTable:
+      receiver = newTableInstance(tableClass, receiverVal.tableVal)
+    of vkBool:
+      let p = cast[pointer](alloc(sizeof(bool)))
+      cast[ptr bool](p)[] = receiverVal.boolVal
+      var boolInst: Instance
+      new(boolInst)
+      boolInst.kind = ikObject
+      boolInst.class = if receiverVal.boolVal: trueClassCache else: falseClassCache
+      boolInst.slots = @[]
+      boolInst.isNimProxy = true
+      boolInst.nimValue = p
+      receiver = boolInst
+    of vkBlock:
+      var blockInst: Instance
+      new(blockInst)
+      blockInst.kind = ikObject
+      blockInst.class = blockClass
+      blockInst.slots = @[]
+      blockInst.isNimProxy = false
+      blockInst.nimValue = cast[pointer](receiverVal.blockVal)
+      receiver = blockInst
+    else:
+      raise newException(ValueError, "Cascade to unsupported value kind: " & $receiverVal.kind)
+
+    # Set current receiver
+    interp.currentReceiver = receiver
+
+    # Push receiver value for message send
+    interp.pushValue(receiverVal)
+
+    # Now handle arguments and send message
+    if frame.pendingArgs.len == 0:
+      interp.pushWorkFrame(newSendMessageFrame(frame.pendingSelector, 0))
+    else:
+      interp.pushWorkFrame(newAfterArgFrame(frame.pendingSelector, frame.pendingArgs, 0))
+      interp.pushWorkFrame(newEvalFrame(frame.pendingArgs[0]))
+    return true
+
+  of wfRestoreReceiver:
+    # Restore original receiver after cascade completes
+    interp.currentReceiver = frame.savedReceiver
     return true
 
   of wfEvalNode:
@@ -561,6 +1057,7 @@ proc runASTInterpreter*(interp: var Interpreter): VMResult =
       return VMResult(status: vmYielded, value: interp.peekValue())
 
     let frame = interp.popWorkFrame()
+    debug("VM: Processing frame kind=", frame.kind)
 
     try:
       let shouldContinue = case frame.kind

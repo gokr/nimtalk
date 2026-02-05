@@ -95,6 +95,12 @@ type
     wfAfterReceiver   # After receiver eval, evaluate args
     wfAfterArg        # After arg N eval, evaluate arg N+1 or send
     wfCascade         # Cascade messages to same receiver
+    wfPopActivation   # Pop activation after method/block body completes
+    wfBuildArray      # Build array from N values on stack
+    wfBuildTable      # Build table from N key-value pairs on stack
+    wfCascadeMessage       # Send message in cascade (keeps receiver for next)
+    wfCascadeMessageDiscard # Send message in cascade (discards result)
+    wfRestoreReceiver      # Restore original receiver after cascade
 
   # Work frame for explicit stack VM execution
   WorkFrame* {.acyclic.} = ref object
@@ -115,6 +121,10 @@ type
     # For wfCascade
     cascadeMessages*: seq[MessageNode]
     cascadeReceiver*: NodeValue
+    # For wfPopActivation
+    savedReceiver*: Instance
+    isBlockActivation*: bool  # true for block, false for method
+    savedEvalStackDepth*: int # eval stack depth before activation was pushed
 
   # Interpreter type defined here to avoid circular dependency between scheduler and evaluator
   Interpreter* {.acyclic.} = ref object
@@ -159,6 +169,7 @@ type
     returnValue*: NodeValue           # return value
     hasReturned*: bool                # non-local return flag
     nonLocalReturnTarget*: Activation # if set, return is non-local to this activation
+    isClassMethod*: bool              # true if this is a class method activation
 
   # Value types for AST nodes and runtime values
   ValueKind* = enum
