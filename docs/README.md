@@ -2,48 +2,44 @@
 
 This directory contains documentation for the Nemo programming language.
 
-## Structure
+## User Documentation
 
-### User Documentation (Current)
+These are the primary documents for learning and using Nemo:
 
-These documents describe the current implementation and are kept up to date:
+| Document | Description | Audience |
+|----------|-------------|----------|
+| [MANUAL.md](MANUAL.md) | Complete language reference manual | All users |
+| [QUICKREF.md](QUICKREF.md) | Quick syntax cheat sheet | Quick lookup |
+| [GTK.md](GTK.md) | GTK bridge and GUI development | GUI developers |
+| [IMPLEMENTATION.md](IMPLEMENTATION.md) | VM internals and architecture | Contributors |
+| [TOOLS_AND_DEBUGGING.md](TOOLS_AND_DEBUGGING.md) | Tool usage (`nemo`, `nemoc`) and debugging | All users |
+| [FUTURE.md](FUTURE.md) | Future plans and roadmap | Contributors |
+| [VSCODE.md](VSCODE.md) | VSCode syntax highlighting extension | VSCode users |
 
-- **[VSCODE.md](VSCODE.md)** - VSCode syntax highlighting extension
-- **[NEWLINE_RULES.md](NEWLINE_RULES.md)** - Newline handling and statement separation rules
-- **[SYNTAX-QUICKREF-updated.md](SYNTAX-QUICKREF-updated.md)** - Quick reference for Nemo syntax
-- **[SYNTAX-REALITY.md](SYNTAX-REALITY.md)** - Current implemented syntax details
-- **[SPECIFICATION.md](SPECIFICATION.md)** - Language specification
-- **[GRAMMAR.md](GRAMMAR.md)** - Formal BNF grammar for the language
-- **[INHERITANCE.md](INHERITANCE.md)** - Multiple inheritance and conflict resolution
-- **[TOOLS_AND_DEBUGGING.md](TOOLS_AND_DEBUGGING.md)** - Guide for using nemo and nemoc tools
-- **[GREENTHREADS.md](GREENTHREADS.md)** - Green threads implementation and API
-- **[CONCURRENCY.md](CONCURRENCY.md)** - Concurrency design and comparisons
-- **[PRIMITIVES.md](PRIMITIVES.md)** - Primitive syntax and direct invocation
-- **[PERFORM.md](PERFORM.md)** - Dynamic message sending with perform:
-- **[closures.md](closures.md)** - Documentation of closure implementation
-- **[NIMTALK_FOR_SMALLTALKERS.md](NIMTALK_FOR_SMALLTALKERS.md)** - Guide for Smalltalk developers
+## Getting Started
 
-### Research and Historical Documents
+New to Nemo? Start with these documents in order:
 
-The [`research/`](research/) subdirectory contains historical design documents, implementation plans, and proposals. These are kept for reference but may not reflect the current state of the implementation:
+1. [MANUAL.md](MANUAL.md) - Complete language manual
+2. [QUICKREF.md](QUICKREF.md) - Quick reference when you're coding
+3. [TOOLS_AND_DEBUGGING.md](TOOLS_AND_DEBUGGING.md) - How to use `nemo` and `nemoc`
 
-- Design proposals for the object model
-- Implementation plans (marked as complete)
-- Decision records from early development
+## Specialized Topics
+
+| Topic | Document |
+|-------|----------|
+| GUI Development | [GTK.md](GTK.md) |
+| Contributing | [IMPLEMENTATION.md](IMPLEMENTATION.md) |
+| Future Roadmap | [FUTURE.md](FUTURE.md) |
+
+## Historical and Research Documents
+
+The [`research/`](research/) directory contains historical design documents, implementation plans, and proposals. These documents are kept for reference but may not reflect the current implementation.
 
 When in doubt, consult the user documentation above rather than research documents.
 
-## Quick Start
-
-New to Nemo? Start with:
-
-1. The [main README](../README.md) for an overview
-2. [NEWLINE_RULES.md](NEWLINE_RULES.md) for understanding newline behavior
-3. [SYNTAX-QUICKREF-updated.md](SYNTAX-QUICKREF-updated.md) for syntax reference
-4. [TOOLS_AND_DEBUGGING.md](TOOLS_AND_DEBUGGING.md) for using the tools
-
 ## Contributing to Documentation
 
-- Keep user-facing docs current with implementation changes
+- Keep user-facing documentation current with implementation changes
 - Add research documents to `research/` subdirectory
-- Follow the style guidelines in [CLAUDE.md](../CLAUDE.md)
+- Follow the style guidelines in [../CLAUDE.md](../CLAUDE.md)
