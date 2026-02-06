@@ -1,12 +1,12 @@
 {
-  "displayName": "Nemo Language Support",
-  "name": "nemo-lang",
-  "description": "Syntax highlighting for Nemo (.nemo) files",
+  "displayName": "Harding Language Support",
+  "name": "harding-lang",
+  "description": "Syntax highlighting for Harding (.hrd) files",
   "version": "0.1.0",
   "publisher": "gokr",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gokr/nemo.git"
+    "url": "https://github.com/gokr/harding.git"
    },
   "engines": {
     "vscode": "^1.0.0"
@@ -15,17 +15,17 @@
   "contributes": {
     "languages": [
       {
-        "id": "nemo",
-        "aliases": ["Nemo", "nemo"],
-        "extensions": [".nemo"],
+        "id": "harding",
+        "aliases": ["Harding", "harding"],
+        "extensions": [".hrd"],
         "configuration": "./.vscode/language-configuration.json"
       }
     ],
     "grammars": [
       {
-        "language": "nemo",
-        "scopeName": "source.nemo",
-        "path": "./.vscode/syntaxes/nemo.tmLanguage.json"
+        "language": "harding",
+        "scopeName": "source.hrd",
+        "path": "./.vscode/syntaxes/harding.tmLanguage.json"
       }
     ]
   }

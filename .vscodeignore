@@ -21,9 +21,9 @@ nimcache/
 build/
 
 # Binaries
-nemo
-nemoc
-nemo/
+harding
+hardingc
+harding/
 
 # Tools
 .nimble/
