@@ -3,7 +3,6 @@ import ../core/types
 import ../core/process
 import ../interpreter/objects
 import ../interpreter/activation
-import ../interpreter/evaluator  # Interpreter functionality
 import ../interpreter/vm  # Stackless VM
 
 # ============================================================================

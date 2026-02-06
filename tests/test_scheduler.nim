@@ -2,7 +2,7 @@ import std/[unittest, tables]
 import ../src/harding/core/types
 import ../src/harding/core/process
 import ../src/harding/core/scheduler
-import ../src/harding/interpreter/evaluator
+import ../src/harding/interpreter/vm
 import ../src/harding/interpreter/objects
 
 suite "Green Threads - Scheduler Integration":

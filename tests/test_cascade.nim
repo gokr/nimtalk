@@ -1,7 +1,7 @@
 import unittest
 import ../src/harding/core/types
 import ../src/harding/parser/parser
-import ../src/harding/interpreter/evaluator
+import ../src/harding/interpreter/vm
 
 suite "Cascade Tests":
   setup:

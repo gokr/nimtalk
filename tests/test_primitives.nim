@@ -8,7 +8,7 @@ import std/unittest
 import std/strutils
 import ../src/harding/core/types
 import ../src/harding/parser/[lexer, parser]
-import ../src/harding/interpreter/[evaluator, objects]
+import ../src/harding/interpreter/[vm, objects]
 
 suite "Primitive Syntax: Declarative Form":
   var interp: Interpreter

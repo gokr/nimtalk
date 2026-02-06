@@ -5,7 +5,7 @@
 import std/[unittest, tables]
 import ../src/harding/core/types
 import ../src/harding/parser/[lexer, parser]
-import ../src/harding/interpreter/[evaluator, objects]
+import ../src/harding/interpreter/[vm, objects]
 
 suite "Super Syntax Parsing":
 

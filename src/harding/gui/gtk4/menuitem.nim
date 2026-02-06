@@ -4,7 +4,7 @@
 
 import std/[logging, tables]
 import harding/core/types
-import harding/interpreter/evaluator
+import harding/interpreter/vm
 import ./ffi
 import ./widget
 

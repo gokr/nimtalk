@@ -7,7 +7,7 @@
 import std/[unittest, tables, strutils, logging]
 import ../src/harding/core/types
 import ../src/harding/parser/[lexer, parser]
-import ../src/harding/interpreter/[evaluator, objects, vm]
+import ../src/harding/interpreter/[vm, objects]
 
 # Helper to check for errors
 proc checkError(interp: var Interpreter, source: string, expectedError: string = "") =

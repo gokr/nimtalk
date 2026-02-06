@@ -5,7 +5,7 @@
 
 import std/[unittest, logging, strutils]
 import ../src/harding/core/types
-import ../src/harding/interpreter/evaluator
+import ../src/harding/interpreter/vm
 
 configureLogging(lvlError)
 

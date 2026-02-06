@@ -6,7 +6,7 @@
 import std/[os, logging]
 import harding/core/types
 import harding/core/scheduler
-import harding/interpreter/evaluator
+import harding/interpreter/vm
 import harding/repl/cli
 import harding/gui/gtk4/bridge
 import harding/gui/gtk4/ffi

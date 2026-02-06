@@ -2,7 +2,6 @@ import std/[strutils, os, terminal]
 import ../core/types
 import ../core/scheduler
 import ../parser/[lexer, parser]
-import ../interpreter/evaluator
 import ../interpreter/vm
 
 # ============================================================================

@@ -9,7 +9,7 @@ import std/tables
 import unittest
 import ../src/harding/core/types
 import ../src/harding/parser/[lexer, parser]
-import ../src/harding/interpreter/[evaluator, objects, vm]
+import ../src/harding/interpreter/[vm, objects]
 
 # Configure logging for tests - set to ERROR by default to keep test output clean
 configureLogging(lvlError)

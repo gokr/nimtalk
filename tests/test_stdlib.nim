@@ -4,7 +4,7 @@
 
 import std/unittest
 import ../src/harding/core/types
-import ../src/harding/interpreter/[evaluator, objects]
+import ../src/harding/interpreter/[vm, objects]
 
 # Shared interpreter initialized once for all suites
 # This avoids repeated newInterpreter + initGlobals + loadStdlib per test

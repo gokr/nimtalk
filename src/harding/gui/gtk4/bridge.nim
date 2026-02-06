@@ -6,7 +6,7 @@
 import std/[logging, os, tables]
 import harding/core/types
 import harding/interpreter/objects
-import harding/interpreter/evaluator
+import harding/interpreter/vm
 import ./ffi
 import ./widget
 import ./window
