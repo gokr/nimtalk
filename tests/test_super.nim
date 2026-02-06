@@ -3,9 +3,9 @@
 #
 
 import std/[unittest, tables]
-import ../src/nemo/core/types
-import ../src/nemo/parser/[lexer, parser]
-import ../src/nemo/interpreter/[evaluator, objects]
+import ../src/harding/core/types
+import ../src/harding/parser/[lexer, parser]
+import ../src/harding/interpreter/[evaluator, objects]
 
 suite "Super Syntax Parsing":
 

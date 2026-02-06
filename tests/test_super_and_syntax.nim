@@ -4,8 +4,8 @@
 #
 
 import std/[unittest, logging, strutils]
-import ../src/nemo/core/types
-import ../src/nemo/interpreter/evaluator
+import ../src/harding/core/types
+import ../src/harding/interpreter/evaluator
 
 configureLogging(lvlError)
 

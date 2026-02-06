@@ -1,14 +1,14 @@
 #!/usr/bin/env nim
 #
-# Tests for primitive syntax in Nemo
+# Tests for primitive syntax in Harding
 # Tests both declarative and inline primitive syntax
 #
 
 import std/unittest
 import std/strutils
-import ../src/nemo/core/types
-import ../src/nemo/parser/[lexer, parser]
-import ../src/nemo/interpreter/[evaluator, objects]
+import ../src/harding/core/types
+import ../src/harding/parser/[lexer, parser]
+import ../src/harding/interpreter/[evaluator, objects]
 
 suite "Primitive Syntax: Declarative Form":
   var interp: Interpreter

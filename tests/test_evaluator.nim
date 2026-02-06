@@ -1,13 +1,13 @@
 #!/usr/bin/env nim
 #
-# Comprehensive evaluator tests for Nemo
+# Comprehensive evaluator tests for Harding
 # Tests all language mechanisms and evaluator features
 #
 
 import std/[unittest, tables, strutils, logging]
-import ../src/nemo/core/types
-import ../src/nemo/parser/[lexer, parser]
-import ../src/nemo/interpreter/[evaluator, objects, vm]
+import ../src/harding/core/types
+import ../src/harding/parser/[lexer, parser]
+import ../src/harding/interpreter/[evaluator, objects, vm]
 
 # Helper to check for errors
 proc checkError(interp: var Interpreter, source: string, expectedError: string = "") =

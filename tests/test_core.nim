@@ -1,15 +1,15 @@
 #!/usr/bin/env nim
 #
-# Core tests for Nemo
+# Core tests for Harding
 # Tests basic parsing, objects, and evaluation
 #
 
 import std/logging
 import std/tables
 import unittest
-import ../src/nemo/core/types
-import ../src/nemo/parser/[lexer, parser]
-import ../src/nemo/interpreter/[evaluator, objects, vm]
+import ../src/harding/core/types
+import ../src/harding/parser/[lexer, parser]
+import ../src/harding/interpreter/[evaluator, objects, vm]
 
 # Configure logging for tests - set to ERROR by default to keep test output clean
 configureLogging(lvlError)

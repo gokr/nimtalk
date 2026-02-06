@@ -1,11 +1,11 @@
-# Nemo Slot-based Instance Variables Performance Benchmark
+# Harding Slot-based Instance Variables Performance Benchmark
 #
 # Compares performance of slot access vs property bag access
 #
 
 import std/times
-import ../src/nemo/core/types
-import ../src/nemo/interpreter/objects
+import ../src/harding/core/types
+import ../src/harding/interpreter/objects
 
 proc benchmarkPropertyBag() =
   ## Benchmark property bag access (current/old way)
@@ -79,7 +79,7 @@ proc benchmarkNamedSlotAccess() =
   echo ""
 
 when isMainModule:
-  echo "Nemo Slot-based Ivars Benchmark"
+  echo "Harding Slot-based Ivars Benchmark"
   echo "=================================="
   echo ""
   

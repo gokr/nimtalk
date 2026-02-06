@@ -3,8 +3,8 @@
 #
 
 import std/[unittest, tables]
-import ../src/nemo/core/types
-import ../src/nemo/interpreter/[objects, activation]
+import ../src/harding/core/types
+import ../src/harding/interpreter/[objects, activation]
 
 suite "Class Object Model":
 

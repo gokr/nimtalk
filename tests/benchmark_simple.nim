@@ -1,11 +1,11 @@
-# Simple Nemo Slot-based Ivars Benchmark
+# Simple Harding Slot-based Ivars Benchmark
 # Compares slot access vs property bag access
 
 import std/[times, tables]
-import ../src/nemo/core/types
-import ../src/nemo/interpreter/objects
+import ../src/harding/core/types
+import ../src/harding/interpreter/objects
 
-echo "Nemo Slot-based Ivars Performance"
+echo "Harding Slot-based Ivars Performance"
 echo "===================================="
 echo ""
 

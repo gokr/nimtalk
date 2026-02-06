@@ -1,7 +1,7 @@
 import unittest
-import ../src/nemo/core/types
-import ../src/nemo/parser/parser
-import ../src/nemo/interpreter/evaluator
+import ../src/harding/core/types
+import ../src/harding/parser/parser
+import ../src/harding/interpreter/evaluator
 
 suite "Cascade Tests":
   setup:

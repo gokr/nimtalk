@@ -1,6 +1,6 @@
 import std/[unittest, tables]
-import ../src/nemo/core/types
-import ../src/nemo/core/process
+import ../src/harding/core/types
+import ../src/harding/core/process
 
 suite "Green Threads - Process and Scheduler":
 

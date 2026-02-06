@@ -1,10 +1,10 @@
 #
-# test_stdlib.nim - Comprehensive tests for Nemo Standard Library
+# test_stdlib.nim - Comprehensive tests for Harding Standard Library
 #
 
 import std/unittest
-import ../src/nemo/core/types
-import ../src/nemo/interpreter/[evaluator, objects]
+import ../src/harding/core/types
+import ../src/harding/interpreter/[evaluator, objects]
 
 # Shared interpreter initialized once for all suites
 # This avoids repeated newInterpreter + initGlobals + loadStdlib per test
@@ -123,15 +123,15 @@ suite "Stdlib: Loops":
     check(result[0][^1].kind == vkInt)
     check(result[0][^1].intVal == 10)  # 0+1+2+3+4
 
-  #test "timesRepeat: works":
-  #  let result = interp.evalStatements("""
-  #    Count := 0.
-  #    5 timesRepeat: [ Count := Count + 1 ].
-  #    Result := Count
-  #  """)
-  #  check(result[1].len == 0)
-  #  check(result[0][^1].kind == vkInt)
-  #  check(result[0][^1].intVal == 5)
+  test "timesRepeat: works":
+    let result = interp.evalStatements("""
+      Count := 0.
+      5 timesRepeat: [ Count := Count + 1 ].
+      Result := Count
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 5)
 
   test "to:do: works":
     let result = interp.evalStatements("""
