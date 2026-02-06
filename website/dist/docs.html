@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation - Harding Smalltalk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="index.html" class="logo">
+                <span class="logo-icon">◉</span>
+                <span class="logo-text">harding</span>
+            </a>
+            <button class="nav-toggle" aria-label="Toggle navigation">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <ul class="nav-menu">
+                <li><a href="why.html">Why Harding?</a></li>
+                <li><a href="features.html">Features</a></li>
+                <li><a href="docs.html" class="active">Docs</a></li>
+                <li><a href="https://github.com/gokr/harding" class="nav-cta">GitHub</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1>Documentation</h1>
+            <p class="page-subtitle">Everything you need to get started</p>
+        </div>
+    </section>
+
+    <!-- Getting Started -->
+    <section class="content-section">
+        <div class="container">
+            <h2 class="section-title">Getting Started</h2>
+
+            <div class="docs-grid">
+                <div class="doc-card">
+                    <h3>Installation</h3>
+                    <pre><code>git clone https://github.com/gokr/harding.git
+cd harding
+nimble local</code></pre>
+                    <p>Requires <a href="https://nim-lang.org/install.html">Nim 2.0+</a></p>
+                </div>
+
+                <div class="doc-card">
+                    <h3>Quick Start</h3>
+                    <pre><code>harding              # Start REPL
+harding script.hrd   # Run a script
+harding -e "3 + 4"   # Evaluate</code></pre>
+                    <p>Use <code>--loglevel DEBUG</code> for verbose output</p>
+                </div>
+
+                <div class="doc-card">
+                    <h3>VSCode Extension</h3>
+                    <pre><code>code --install-extension \
+  harding-lang-0.1.0.vsix</code></pre>
+                    <p>Syntax highlighting for .hrd files</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Examples -->
+    <section class="content-section alt">
+        <div class="container">
+            <h2 class="section-title">Examples</h2>
+
+            <div class="example-grid">
+                <div class="example-item">
+                    <h4>Hello World</h4>
+                    <pre><code>"Hello, World!" println</code></pre>
+                </div>
+
+                <div class="example-item">
+                    <h4>Factorial</h4>
+                    <pre><code>factorial := [:n |
+    (n <= 1) ifTrue: [^ 1].
+    ^ n * (factorial value: (n - 1))
+]
+(factorial value: 5) println</code></pre>
+                </div>
+
+                <div class="example-item">
+                    <h4>Counter Class</h4>
+                    <pre><code>Counter := Object derive: #(count)
+
+Counter extend: [
+    self >> initialize [ count := 0 ]
+    self >> increment [
+        count := count + 1.
+        ^ count
+    ]
+]
+
+c := Counter new
+c initialize
+c increment println</code></pre>
+                </div>
+
+                <div class="example-item">
+                    <h4>Collections</h4>
+                    <pre><code>numbers := #(1 2 3 4 5)
+squares := numbers collect: [:n | n * n]
+evens := numbers select: [:n | (n \ 2) = 0]
+sum := numbers inject: 0 into: [:a :n | a + n]</code></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Reference Docs -->
+    <section class="content-section">
+        <div class="container">
+            <h2 class="section-title">Reference Documentation</h2>
+
+            <div class="ref-grid">
+                <div class="ref-category">
+                    <h3>Language Reference</h3>
+                    <ul>
+                        <li><a href="/docs/MANUAL.md">Language Manual</a> - Complete specification</li>
+                        <li><a href="/docs/QUICKREF.md">Quick Reference</a> - Syntax cheat sheet</li>
+                        <li><a href="/docs/IMPLEMENTATION.md">Implementation</a> - VM internals</li>
+                    </ul>
+                </div>
+
+                <div class="ref-category">
+                    <h3>Development</h3>
+                    <ul>
+                        <li><a href="/docs/TOOLS_AND_DEBUGGING.md">Tools & Debugging</a></li>
+                        <li><a href="/docs/VSCODE.md">VSCode Extension</a></li>
+                        <li><a href="/docs/GTK.md">GTK Integration</a></li>
+                    </ul>
+                </div>
+
+                <div class="ref-category">
+                    <h3>Project</h3>
+                    <ul>
+                        <li><a href="/docs/FUTURE.md">Future Plans</a> - Roadmap</li>
+                        <li><a href="/CLAUDE.md">Contributing</a> - Development guide</li>
+                        <li><a href="https://github.com/gokr/harding">GitHub</a> - Source code</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- For Smalltalkers -->
+    <section class="content-section alt">
+        <div class="container">
+            <h2 class="section-title">For Smalltalk Programmers</h2>
+
+            <div class="diff-table-wrapper">
+                <h3>Key Differences from Smalltalk-80</h3>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th>Smalltalk</th>
+                            <th>Harding</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Comments</td>
+                            <td><code>"comment"</code></td>
+                            <td><code># comment</code></td>
+                        </tr>
+                        <tr>
+                            <td>Strings</td>
+                            <td><code>'string'</code></td>
+                            <td><code>"string"</code></td>
+                        </tr>
+                        <tr>
+                            <td>Statement separator</td>
+                            <td>Period <code>.</code> only</td>
+                            <td>Period or newline</td>
+                        </tr>
+                        <tr>
+                            <td>Class creation</td>
+                            <td>Class definition</td>
+                            <td><code>Object derive: #(vars)</code></td>
+                        </tr>
+                        <tr>
+                            <td>Persistence</td>
+                            <td>Image-based</td>
+                            <td>File-based, git-friendly</td>
+                        </tr>
+                        <tr>
+                            <td>Execution</td>
+                            <td>VM</td>
+                            <td>Native compilation</td>
+                        </tr>
+                        <tr>
+                            <td>Inheritance</td>
+                            <td>Single</td>
+                            <td>Multiple</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Help -->
+    <section class="content-section">
+        <div class="container">
+            <h2 class="section-title">Getting Help</h2>
+
+            <div class="help-grid">
+                <div class="help-item">
+                    <h4>GitHub Issues</h4>
+                    <p>Bug reports and feature requests</p>
+                    <a href="https://github.com/gokr/harding/issues" class="btn btn-secondary">Open Issues</a>
+                </div>
+
+                <div class="help-item">
+                    <h4>Discussions</h4>
+                    <p>Questions, ideas, and community</p>
+                    <a href="https://github.com/gokr/harding/discussions" class="btn btn-secondary">Join Discussion</a>
+                </div>
+
+                <div class="help-item">
+                    <h4>Contributing</h4>
+                    <p>Development guidelines and setup</p>
+                    <a href="https://github.com/gokr/harding/blob/main/CLAUDE.md" class="btn btn-secondary">Read Guide</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <a href="index.html" class="logo">
+                        <span class="logo-icon">◉</span>
+                        <span class="logo-text">harding</span>
+                    </a>
+                    <p>A tribute to Dan Ingalls.<br>Smalltalk's wisdom, modern tooling.</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Resources</h4>
+                        <ul>
+                            <li><a href="https://github.com/gokr/harding">GitHub</a></li>
+                            <li><a href="docs.html">Documentation</a></li>
+                            <li><a href="features.html">Features</a></li>
+                            <li><a href="why.html">Why Harding?</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Community</h4>
+                        <ul>
+                            <li><a href="https://github.com/gokr/harding/issues">Issues</a></li>
+                            <li><a href="https://github.com/gokr/harding/discussions">Discussions</a></li>
+                            <li><a href="https://github.com/gokr/harding/blob/main/CLAUDE.md">Contributing</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>Released under the MIT License.</p>
+                <p>A tribute to Dan Ingalls and the Smalltalk community.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

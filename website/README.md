@@ -1,70 +1,89 @@
-# Harding Website
+# Harding Smalltalk Website
 
-This directory contains the static website for the Harding programming language, hosted at [harding-lang.org](https://harding-lang.org).
-
-## Overview
-
-The website is built with pure HTML, CSS, and JavaScript - no build step required. It's designed to be:
-
-- **Fast**: Static files served directly
-- **Modern**: Dark theme with gradients and smooth animations
-- **Responsive**: Works on all screen sizes
-- **Accessible**: Semantic HTML and keyboard navigation
-
-## Local Development
-
-To preview the website locally:
-
-```bash
-# Using Python
-python -m http.server 8080
-
-# Using Node.js (npx)
-npx serve .
-
-# Using PHP
-php -S localhost:8080
-```
-
-Then open http://localhost:8080 in your browser.
+This directory contains the static website for Harding Smalltalk.
 
 ## Structure
 
+This website uses a **content-driven static site** approach:
+
 ```
 website/
-├── index.html    # Main page with all sections
-├── styles.css    # All styling (no external CSS frameworks)
-├── script.js     # Interactive features
-└── README.md     # This file
+├── content/           # Markdown content (edit these!)
+│   ├── index.md      # Home page content
+│   ├── why.md        # "Why Harding?" page
+│   ├── features.md   # Features page
+│   └── docs.md       # Documentation page
+├── dist/             # Generated HTML (do not edit directly)
+│   ├── index.html
+│   ├── why.html
+│   ├── features.html
+│   ├── docs.html
+│   ├── styles.css
+│   └── script.js
+├── styles.css        # Source styles
+└── script.js         # Source scripts
 ```
+
+## How to Update Content
+
+1. **Edit the markdown files** in `content/` - these are the source of truth
+2. **Ask Claude to regenerate** the HTML site
+3. **The `dist/` folder** contains the generated site ready for deployment
+
+### Example Workflow
+
+```bash
+# Edit content files
+vim content/why.md
+
+# Ask Claude: "Regenerate the website from the content files"
+# Claude updates the dist/ folder with new HTML
+
+# Preview locally:
+cd website/dist
+python -m http.server 8000
+# Open http://localhost:8000
+```
+
+## Content Format
+
+Content files use YAML frontmatter for metadata:
+
+```markdown
+---
+title: Page Title
+---
+
+## Section Heading
+
+Regular markdown content here.
+```
+
+## Pages
+
+- **Home** (`index.html`) - Hero, features, quick start
+- **Why Harding?** (`why.html`) - The story behind Harding Smalltalk
+- **Features** (`features.html`) - Detailed feature list with code examples
+- **Documentation** (`docs.html`) - Getting started guide and links
 
 ## Deployment
 
-The website is automatically deployed to GitHub Pages when changes are pushed to the main branch. See `.github/workflows/website.yml` for the deployment configuration.
+The `dist/` folder contains a completely static website. Deploy it to any static hosting.
 
-## Custom Domain
+To deploy:
 
-The site is configured to use `harding-lang.org`. To set this up:
+```bash
+# The dist/ folder can be deployed directly
+# Copy contents to your web server, GitHub Pages, Netlify, etc.
+```
 
-1. In your GitHub repository, go to Settings → Pages
-2. Under "Custom domain", enter `harding-lang.org`
-3. Save and wait for DNS verification
-4. Configure your DNS provider with the following records:
-   - A records pointing to GitHub Pages IPs:
-     - 185.199.108.153
-     - 185.199.109.153
-     - 185.199.110.153
-     - 185.199.111.153
-   - Or a CNAME record pointing to `gokr.github.io`
+## Design
 
-## Features
-
-- **Hero Section**: Animated gradient background with code preview
-- **Features Grid**: 6 key Harding features with icons
-- **Code Examples**: Tabbed interface showing different language features
-- **Interactive Playground**: Browser-based code editor (simulated execution)
-- **Installation Guide**: Copy-paste ready commands
+- Modern dark theme with purple/cyan accents
+- Inter font for text, JetBrains Mono for code
+- Fully responsive
+- Smooth animations and transitions
 
 ## License
 
-Same as the Harding project (MIT).
+MIT (same as Harding)

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harding Smalltalk - Smalltalk Semantics, Nim Performance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="index.html" class="logo">
+                <span class="logo-icon">◉</span>
+                <span class="logo-text">harding</span>
+            </a>
+            <button class="nav-toggle" aria-label="Toggle navigation">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <ul class="nav-menu">
+                <li><a href="why.html">Why Harding?</a></li>
+                <li><a href="features.html">Features</a></li>
+                <li><a href="docs.html">Docs</a></li>
+                <li><a href="https://github.com/gokr/harding" class="nav-cta">GitHub</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-bg">
+            <div class="gradient-orb orb-1"></div>
+            <div class="gradient-orb orb-2"></div>
+            <div class="grid-pattern"></div>
+        </div>
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <span class="badge-dot"></span>
+                    A tribute to Dan Ingalls
+                </div>
+                <h1 class="hero-title">
+                    Harding<br>
+                    <span class="gradient-text">Smalltalk</span>
+                </h1>
+                <p class="hero-subtitle">
+                    A modern Smalltalk dialect that compiles to native code.
+                    File-based, git-friendly, and designed for the modern era.
+                </p>
+                <div class="hero-cta">
+                    <a href="docs.html" class="btn btn-primary">Get Started</a>
+                    <a href="why.html" class="btn btn-secondary">Why Harding?</a>
+                </div>
+            </div>
+            <div class="hero-code">
+                <div class="code-window">
+                    <div class="code-header">
+                        <div class="code-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <span class="code-title">example.hrd</span>
+                    </div>
+                    <div class="code-body">
+                        <pre><code><span class="comment"># Define a Point class with x and y slots</span>
+<span class="type">Point</span> := <span class="type">Object</span> derive: <span class="keyword">#</span>(x y)
+
+<span class="comment"># Add methods using the >> syntax</span>
+<span class="type">Point</span> extend: [
+    <span class="keyword">self</span> <span class="operator">>></span> moveBy: dx and: dy [
+        x := x <span class="operator">+</span> dx
+        y := y <span class="operator">+</span> dy
+        <span class="keyword">^</span> <span class="keyword">self</span>
+    ]
+
+    <span class="keyword">self</span> <span class="operator">>></span> distanceFromOrigin [
+        <span class="keyword">^</span> ((x <span class="operator">*</span> x) <span class="operator">+</span> (y <span class="operator">*</span> y)) sqrt
+    ]
+]
+
+<span class="comment"># Create and use a Point</span>
+p := <span class="type">Point</span> new
+p x: <span class="number">100</span> y: <span class="number">200</span>
+p distanceFromOrigin println</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="scroll-indicator">
+            <span>Scroll to explore</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M19 12l-7 7-7-7"/>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">Features</span>
+                <h2>Smalltalk's wisdom, modern tooling.</h2>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                            <path d="M2 17l10 5 10-5"/>
+                            <path d="M2 12l10 5 10-5"/>
+                        </svg>
+                    </div>
+                    <h3>Pure Smalltalk</h3>
+                    <p>Message passing, late binding, everything is an object. The essence of Smalltalk preserved.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <h3>Native Compilation</h3>
+                    <p>Compiles to Nim, to C, to machine code. Fast, efficient, no VM required.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/>
+                        </svg>
+                    </div>
+                    <h3>File-Based & Git-Friendly</h3>
+                    <p>No image files. Source code lives in .hrd files you can version control and diff.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="4" y="4" width="16" height="16" rx="2"/>
+                            <path d="M8 9h8M8 12h8M8 15h5"/>
+                        </svg>
+                    </div>
+                    <h3>Multiple Inheritance</h3>
+                    <p>Full support for multiple inheritance with conflict detection. Compose behaviors.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                    </div>
+                    <h3>Green Threads</h3>
+                    <p>Cooperative multitasking with first-class Process objects. Built-in scheduler.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 21a9 9 0 100-18 9 9 0 000 18z"/>
+                            <path d="M9 12l2 2 4-4"/>
+                        </svg>
+                    </div>
+                    <h3>Nim Interop</h3>
+                    <p>Call Nim code directly. Access the entire Nim ecosystem and C libraries.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- For Smalltalkers Section -->
+    <section class="examples">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">For Smalltalkers</span>
+                <h2>What you need to know.</h2>
+            </div>
+
+            <div class="comparison-section">
+                <div class="comparison-grid">
+                    <div class="comparison-card familiar">
+                        <h3>Feels Familiar</h3>
+                        <ul>
+                            <li>Message syntax: unary <code>obj size</code>, binary <code>3 + 4</code>, keyword <code>at:put:</code></li>
+                            <li>Cascade messages with <code>;</code></li>
+                            <li>Blocks are proper closures with non-local returns</li>
+                            <li>Everything is an object</li>
+                            <li>Collection messages: <code>do:</code>, <code>select:</code>, <code>collect:</code></li>
+                        </ul>
+                    </div>
+                    <div class="comparison-card different">
+                        <h3>What's Different</h3>
+                        <table class="diff-table">
+                            <tr>
+                                <th>Smalltalk</th>
+                                <th>Harding</th>
+                            </tr>
+                            <tr>
+                                <td>Period required</td>
+                                <td>Optional - newline works</td>
+                            </tr>
+                            <tr>
+                                <td>Double quotes for comments</td>
+                                <td>Hash <code>#</code> for comments</td>
+                            </tr>
+                            <tr>
+                                <td>Single quotes for strings</td>
+                                <td>Double quotes for strings</td>
+                            </tr>
+                            <tr>
+                                <td>Image-based</td>
+                                <td>File-based, git-friendly</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Start Section -->
+    <section id="install" class="install">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-label">Get Started</span>
+                <h2>Install Harding Smalltalk.</h2>
+            </div>
+
+            <div class="install-options">
+                <div class="install-card">
+                    <div class="install-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                            <path d="M2 17l10 5 10-5"/>
+                            <path d="M2 12l10 5 10-5"/>
+                        </svg>
+                    </div>
+                    <h3>Build from Source</h3>
+                    <div class="code-snippet">
+                        <pre><code>git clone https://github.com/gokr/harding.git
+cd harding
+nimble local</code></pre>
+                        <button class="copy-btn" data-clipboard="git clone https://github.com/gokr/harding.git
+cd harding
+nimble local">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <p>Requires <a href="https://nim-lang.org/install.html">Nim</a> 2.0+ and nimble.</p>
+                </div>
+
+                <div class="install-card">
+                    <div class="install-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                    </div>
+                    <h3>Quick Start</h3>
+                    <div class="code-snippet">
+                        <pre><code>harding                    <span class="comment"># Start REPL</span>
+harding script.hrd       <span class="comment"># Run a script</span>
+harding -e "3 + 4"       <span class="comment"># Evaluate</span></code></pre>
+                        <button class="copy-btn" data-clipboard="harding                    # Start REPL
+harding script.hrd       # Run a script
+harding -e "3 + 4"       # Evaluate">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <p>Use <code>--loglevel DEBUG</code> for verbose output.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <a href="index.html" class="logo">
+                        <span class="logo-icon">◉</span>
+                        <span class="logo-text">harding</span>
+                    </a>
+                    <p>A tribute to Dan Ingalls.<br>Smalltalk's wisdom, modern tooling.</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Resources</h4>
+                        <ul>
+                            <li><a href="https://github.com/gokr/harding">GitHub</a></li>
+                            <li><a href="docs.html">Documentation</a></li>
+                            <li><a href="features.html">Features</a></li>
+                            <li><a href="why.html">Why Harding?</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Community</h4>
+                        <ul>
+                            <li><a href="https://github.com/gokr/harding/issues">Issues</a></li>
+                            <li><a href="https://github.com/gokr/harding/discussions">Discussions</a></li>
+                            <li><a href="https://github.com/gokr/harding/blob/main/CLAUDE.md">Contributing</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>Released under the MIT License.</p>
+                <p>A tribute to Dan Ingalls and the Smalltalk community.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
