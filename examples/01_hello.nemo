@@ -1,6 +1,0 @@
-#!/usr/bin/env nemo
-#
-# Hello World - The simplest Nemo program
-#
-
-"Hello, World!" println
