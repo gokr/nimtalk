@@ -44,8 +44,8 @@ proc textViewNewImpl*(interp: var Interpreter, self: Instance, args: seq[NodeVal
 
   let obj = newInstance(cls)
   obj.isNimProxy = true
-  obj.nimValue = cast[pointer](proxy)
-  GC_ref(cast[ref RootObj](proxy))
+  storeInstanceWidget(obj, cast[GtkWidget](widget))
+  obj.nimValue = cast[pointer](widget)
   return obj.toValue()
 
 ## Native instance method: getText:
@@ -54,11 +54,9 @@ proc textViewGetTextImpl*(interp: var Interpreter, self: Instance, args: seq[Nod
   if not (self.isNimProxy and self.nimValue != nil):
     return nilValue()
 
-  let proxy = cast[GtkTextViewProxy](self.nimValue)
-  if proxy.widget == nil:
-    return nilValue()
+  let widget = cast[GtkTextView](self.nimValue)
 
-  let buffer = gtkTextViewGetBuffer(cast[GtkTextView](proxy.widget))
+  let buffer = gtkTextViewGetBuffer(widget)
   if buffer == nil:
     return "".toValue()
 
@@ -81,11 +79,9 @@ proc textViewSetTextImpl*(interp: var Interpreter, self: Instance, args: seq[Nod
   if not (self.isNimProxy and self.nimValue != nil):
     return nilValue()
 
-  let proxy = cast[GtkTextViewProxy](self.nimValue)
-  if proxy.widget == nil:
-    return nilValue()
+  let widget = cast[GtkTextView](self.nimValue)
 
-  let buffer = gtkTextViewGetBuffer(cast[GtkTextView](proxy.widget))
+  let buffer = gtkTextViewGetBuffer(widget)
   if buffer == nil:
     return nilValue()
 
@@ -101,14 +97,12 @@ proc textViewGetBufferImpl*(interp: var Interpreter, self: Instance, args: seq[N
   if not (self.isNimProxy and self.nimValue != nil):
     return nilValue()
 
-  let proxy = cast[GtkTextViewProxy](self.nimValue)
-  if proxy.widget == nil:
-    return nilValue()
+  let widget = cast[GtkTextView](self.nimValue)
 
-  let buffer = gtkTextViewGetBuffer(cast[GtkTextView](proxy.widget))
+  let buffer = gtkTextViewGetBuffer(widget)
   if buffer == nil:
     let newBuffer = gtkTextBufferNew()
-    gtkTextViewSetBuffer(cast[GtkTextView](proxy.widget), newBuffer)
+    gtkTextViewSetBuffer(widget, newBuffer)
 
     var cls: Class = nil
     if "GtkTextBuffer" in interp.globals[]:
@@ -136,9 +130,7 @@ proc textViewSetBufferImpl*(interp: var Interpreter, self: Instance, args: seq[N
   if not (self.isNimProxy and self.nimValue != nil):
     return nilValue()
 
-  let proxy = cast[GtkTextViewProxy](self.nimValue)
-  if proxy.widget == nil:
-    return nilValue()
+  let widget = cast[GtkTextView](self.nimValue)
 
   let bufferVal = args[0]
   if not (bufferVal.kind == vkInstance and bufferVal.instVal.isNimProxy):
@@ -148,7 +140,7 @@ proc textViewSetBufferImpl*(interp: var Interpreter, self: Instance, args: seq[N
   if bufferProxy.widget == nil:
     return nilValue()
 
-  gtkTextViewSetBuffer(cast[GtkTextView](proxy.widget), cast[GtkTextBuffer](bufferProxy.widget))
+  gtkTextViewSetBuffer(widget, cast[GtkTextBuffer](bufferProxy.widget))
 
   debug("Set text buffer on text view")
 
