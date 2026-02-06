@@ -1,0 +1,21 @@
+# GTK Label - Text display widget
+# Note: GtkLabel class is registered by Nim bridge, we just add methods here
+# No derive: needed - we extend the existing class
+
+# Native methods (registered in Nim bridge):
+# Class methods:
+# - new (create empty label)
+# - newLabel: (create label with text)
+#
+# Instance methods:
+# - text: (set label text)
+# - text (get label text)
+
+# Convenience alias
+GtkLabel>>label: aString [
+  self text: aString
+].
+
+GtkLabel>>label [
+  ^self text
+].

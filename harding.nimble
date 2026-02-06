@@ -1,11 +1,11 @@
-# Nemo - Modern Smalltalk dialect
+# Harding - Modern Smalltalk dialect
 version = "0.3.0"
 author = "Göran Krampe"
 description = "Modern Smalltalk dialect written in Nim"
 license = "MIT"
 
 srcDir = "src"
-bin = @["nemo/repl/nemo", "nemo/compiler/nemoc", "nemo/gui/ide"]
+binDir = "."
 
 # Current Nim version
 requires "nim == 2.2.6"
@@ -20,7 +20,7 @@ import os, strutils
 
 task test, "Run all tests (automatic discovery via testament)":
   exec """
-    echo "Running Nemo test suite..."
+    echo "Running Harding test suite..."
     echo "=== Running tests/test_*.nim ==="
     testament pattern "tests/test_*.nim" || true
     # echo "=== Running tests/category/*.nim ==="
@@ -31,49 +31,49 @@ task test, "Run all tests (automatic discovery via testament)":
 
 task local, "Build and copy binaries to root directory":
   # Build REPL directly (nimble build has path conflicts with package name)
-  exec "nim c -o:nemo src/nemo/repl/nemo.nim"
-  exec "nim c -o:nemoc src/nemo/compiler/nemoc.nim"
-  echo "Binaries available in root directory as nemo and nemoc"
+  exec "nim c -o:harding src/harding/repl/harding.nim"
+  exec "nim c -o:granite src/harding/compiler/granite.nim"
+  echo "Binaries available in root directory as harding and granite"
 
 task gui, "Build the GUI IDE with GTK4":
   # Build the GUI IDE with GTK4 (default)
-  exec "nim c -d:gtk4 -o:nemo-gui src/nemo/gui/ide.nim"
-  echo "GUI binary available as nemo-gui (GTK4)"
+  exec "nim c -d:gtk4 -o:bona src/harding/gui/bona.nim"
+  echo "GUI binary available as bona (GTK4)"
 
 task gui3, "Build the GUI IDE with GTK3":
   # Build the GUI IDE with GTK3
-  exec "nim c -o:nemo-gui src/nemo/gui/ide.nim"
-  echo "GUI binary available as nemo-gui (GTK3)"
+  exec "nim c -o:bona src/harding/gui/bona.nim"
+  echo "GUI binary available as bona (GTK3)"
 
 task clean, "Clean build artifacts using build.nims":
   exec "nim e build.nims clean"
 
-task install, "Install nemo to ~/.local/bin/":
+task install, "Install harding to ~/.local/bin/":
   var binPath = ""
-  for possiblePath in ["nemo", "nemo/repl/nemo"]:
+  for possiblePath in ["harding", "harding/repl/harding"]:
     if possiblePath.fileExists:
       binPath = possiblePath
       break
 
   when defined(windows):
     if binPath == "":
-      for possiblePath in ["nemo.exe", "nemo/repl/nemo.exe"]:
+      for possiblePath in ["harding.exe", "harding/repl/harding.exe"]:
         if possiblePath.fileExists:
           binPath = possiblePath
           break
 
   if binPath == "" or not binPath.fileExists:
-    echo "Error: nemo binary not found. Run 'nimble build' or 'nimble setup' first."
-    echo "Checked locations: ./nemo, nemo/repl/nemo"
+    echo "Error: harding binary not found. Run 'nimble build' or 'nimble setup' first."
+    echo "Checked locations: ./harding, harding/repl/harding"
     system.quit(1)
 
   when defined(windows):
-    let dest = getHomeDir() / "nemo" / "nemo.exe"
-    exec "mkdir -p " & (getHomeDir() / "nemo")
+    let dest = getHomeDir() / "harding" / "harding.exe"
+    exec "mkdir -p " & (getHomeDir() / "harding")
     exec "cp " & binPath & " " & dest
     echo "Installed to: " & dest
   else:
-    let dest = getHomeDir() / ".local" / "bin" / "nemo"
+    let dest = getHomeDir() / ".local" / "bin" / "harding"
     exec "mkdir -p " & (getHomeDir() / ".local" / "bin")
     exec "cp " & binPath & " " & dest & " && chmod +x " & dest
     echo "Installed to: " & dest

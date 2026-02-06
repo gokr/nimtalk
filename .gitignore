@@ -38,23 +38,24 @@ Thumbs.db
 *.out
 tests/test_core
 
-# Nemo binaries
-/nemo
-/nemoc
+# Harding binaries
+/harding
+/granite
+/bona
 
 # Binary patterns from source directories
-src/nemo/compiler/*
-!src/nemo/compiler/*.nim
-src/nemo/repl/*
-!src/nemo/repl/*.nim
-src/nemo/codegen/*
-!src/nemo/codegen/*.nim
+src/harding/compiler/*
+!src/harding/compiler/*.nim
+src/harding/repl/*
+!src/harding/repl/*.nim
+src/harding/codegen/*
+!src/harding/codegen/*.nim
 # Test binaries
 tests/test_evaluator
 tests/test_evaluator.nim
 tests/test_slot_ivars
 tests/test_simple_derive
-tests/test_derive_from_nemo
+tests/test_derive_from_harding
 tests/benchmark_simple
 examples/test_primitive
 tests/test_cascade
@@ -73,10 +74,10 @@ tests/test_super
 tests/test_process
 tests/test_scheduler
 *.vsix
-src/nemo/parser/lexer
+src/harding/parser/lexer
 tests/test_primitives
 
 # Temporary test files
 test_debug
 test_debug.nim
-nemo-gui
+bona

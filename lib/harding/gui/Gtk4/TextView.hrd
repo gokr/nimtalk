@@ -1,0 +1,30 @@
+# GTK TextView - Multiline text editing widget
+# Note: GtkTextView class is registered by Nim bridge, we just add methods here
+# No derive: needed - we extend the existing class
+
+# Native methods (registered in Nim bridge):
+# Class methods:
+# - new (create new text view)
+#
+# Instance methods:
+# - getBuffer: (get the text buffer, returns array [buffer])
+# - setBuffer: (set the text buffer)
+# - getText: (get all text, returns array [text])
+# - setText: (set text in the view)
+
+# Convenience methods
+GtkTextView>>text [
+  | result |
+  self getText: result.
+  ^result first
+].
+
+GtkTextView>>text: aString [
+  self setText: aString
+].
+
+GtkTextView>>buffer [
+  | result |
+  self getBuffer: result.
+  ^result first
+].

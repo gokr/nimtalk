@@ -1,0 +1,155 @@
+## ============================================================================
+## GtkWindowProxy - Window widget wrapper
+## ============================================================================
+
+import std/[logging, tables]
+import harding/core/types
+import harding/interpreter/evaluator
+import ./ffi
+import ./widget
+
+## GtkWindowProxy extends GtkWidgetProxy
+type
+  GtkWindowProxyObj* = object of GtkWidgetProxyObj
+    ## Additional window-specific fields can go here
+
+  GtkWindowProxy* = ref GtkWindowProxyObj
+
+## Create a new window proxy
+proc newGtkWindowProxy*(window: GtkWindow, interp: ptr Interpreter): GtkWindowProxy =
+  result = GtkWindowProxy(
+    widget: window,
+    interp: interp,
+    signalHandlers: initTable[string, seq[SignalHandler]](),
+    destroyed: false
+  )
+  proxyTable[cast[GtkWidget](window)] = result
+
+## Factory: create a new window
+proc createGtkWindow*(interp: var Interpreter): NodeValue =
+  ## Create a new GTK window and return a proxy object
+  when defined(gtk4):
+    let window = gtkWindowNew()
+  else:
+    let window = gtkWindowNew(GTKWINDOWTOPLEVEL)
+  discard newGtkWindowProxy(window, addr(interp))
+
+  # Create a Harding instance to wrap the proxy
+  # We need to get the GtkWindow class from globals
+  var windowClass: Class = nil
+  if "GtkWindow" in interp.globals[]:
+    let winVal = interp.globals[]["GtkWindow"]
+    if winVal.kind == vkClass:
+      windowClass = winVal.classVal
+
+  if windowClass == nil:
+    # Fallback to Object class
+    windowClass = objectClass
+
+  let obj = newInstance(windowClass)
+  obj.isNimProxy = true
+  storeInstanceWidget(obj, window)
+  obj.nimValue = cast[pointer](window)
+
+  return obj.toValue()
+
+## Native method: new (class method for Window)
+proc windowNewImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
+  createGtkWindow(interp)
+
+## Native method: title:
+proc windowSetTitleImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
+  if args.len < 1 or args[0].kind != vkString:
+    return nilValue()
+
+  if self.isNimProxy:
+    var window = getInstanceWidget(self)
+    if window == nil and self.nimValue != nil:
+      window = cast[GtkWindow](self.nimValue)
+    if window != nil:
+      let title = args[0].strVal
+      gtkWindowSetTitle(window, title.cstring)
+
+  nilValue()
+
+## Native method: setDefaultSize:height:
+proc windowSetDefaultSizeImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
+  if args.len < 2:
+    return nilValue()
+
+  if self.isNimProxy:
+    var window = getInstanceWidget(self)
+    if window == nil and self.nimValue != nil:
+      window = cast[GtkWindow](self.nimValue)
+    if window != nil:
+      let width = args[0].intVal
+      let height = args[1].intVal
+      gtkWindowSetDefaultSize(window, width.cint, height.cint)
+
+  nilValue()
+
+## Native method: setChild: (GTK3/GTK4 compatible)
+proc windowSetChildImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
+  if args.len < 1 or args[0].kind != vkInstance:
+    return nilValue()
+
+  if self.isNimProxy:
+    var window = getInstanceWidget(self)
+    if window == nil and self.nimValue != nil:
+      window = cast[GtkWindow](self.nimValue)
+    if window != nil:
+      let childInstance = args[0].instVal
+      if childInstance.isNimProxy:
+        var childWidget = getInstanceWidget(childInstance)
+        if childWidget == nil and childInstance.nimValue != nil:
+          childWidget = cast[GtkWidget](childInstance.nimValue)
+        if childWidget != nil:
+          when defined(gtk4):
+            gtkWindowSetChild(window, childWidget)
+            gtkWidgetShow(childWidget)
+          else:
+            gtkContainerAdd(window, childWidget)
+
+  nilValue()
+
+## Native method: present
+proc windowPresentImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
+  if self.isNimProxy:
+    var window = getInstanceWidget(self)
+    if window == nil and self.nimValue != nil:
+      window = cast[GtkWindow](self.nimValue)
+    if window != nil:
+      gtkWidgetShow(cast[GtkWidget](window))
+      gtkWindowPresent(window)
+
+  nilValue()
+
+## Native method: close
+proc windowCloseImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
+  if self.isNimProxy:
+    var window = getInstanceWidget(self)
+    if window == nil and self.nimValue != nil:
+      window = cast[GtkWindow](self.nimValue)
+    if window != nil:
+      gtkWindowClose(window)
+
+  nilValue()
+
+## Callback for window destroy signal
+proc onWindowDestroy(widget: GtkWidget, userData: pointer) {.cdecl.} =
+  ## Called when window is destroyed - exit the application
+  quit(0)
+
+## Native method: connectDestroy (to auto-exit on close)
+proc windowConnectDestroyImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
+  ## Connect destroy signal to exit the application
+  if self.isNimProxy:
+    var window = getInstanceWidget(self)
+    if window == nil and self.nimValue != nil:
+      window = cast[GtkWindow](self.nimValue)
+    if window != nil:
+      let gObject = cast[GObject](window)
+      discard gSignalConnect(gObject, "destroy",
+                             cast[GCallback](onWindowDestroy), nil)
+
+  nilValue()
