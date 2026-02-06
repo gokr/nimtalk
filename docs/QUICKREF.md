@@ -82,10 +82,9 @@ obj
 
 ```smalltalk
 [ code ]                         # No params, no temps
-[ :x | x * 2 ]                   # With params (no temps - Nemo style)
-[ :x | | x * 2 ]                 # With params (explicit)
-[ | temp1 temp2 | code ]         # With temps, no params
-[ :x :y | t1 t2 | code ]         # With params and temps
+[ :x | x * 2 ]                   # With params
+[ | t1 t2 | code ]               # With temps, no params
+[ :x :y | | t1 t2 | code ]       # With params and temps
 ```
 
 The `|` separates parameters/temporaries from body.
