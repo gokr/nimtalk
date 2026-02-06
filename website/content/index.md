@@ -7,7 +7,7 @@ tagline: Smalltalk Semantics, Nim Performance
 
 **Title:** Harding Smalltalk
 **Subtitle:** Smalltalk semantics. Nim performance.
-**Description:** A modern Smalltalk dialect that compiles to native code. File-based, git-friendly, and designed for the modern era.
+**Description:** A modern Smalltalk dialect that compiles to native code. File-based, git-friendly, and designed for modern tooling.
 
 **CTA Primary:** Get Started
 **CTA Secondary:** See Examples
@@ -43,13 +43,13 @@ p distanceFromOrigin println
 Everything you love about Smalltalk - message passing, blocks, live programming - preserved and modernized.
 
 ### Native Performance
-Compiles through Nim to C to machine code. No VM, no bytecode, just fast native binaries.
+Compiles through Nim to C to machine code **(future)**. No VM, no bytecode, just fast native binaries.
 
 ### File-Based
 No image files. Source lives in .hrd files you can version control, diff, and edit with any editor.
 
 ### Multiple Inheritance
-Full support for multiple inheritance with conflict detection. Compose behaviors, don't inherit monoliths.
+Experimental support for multiple inheritance with conflict detection.
 
 ### Green Threads
 Cooperative multitasking with first-class Process objects. Built-in scheduler with round-robin execution.

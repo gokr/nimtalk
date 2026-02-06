@@ -47,16 +47,16 @@ harding --loglevel DEBUG script.hrd
 Start here if you know Smalltalk:
 
 - **Key Differences** - [see below](#differences-from-smalltalk)
-- [Smalltalk Compatibility Guide](/docs/MANUAL.md#smalltalk-compatibility)
-- [Syntax Quick Reference](/docs/QUICKREF.md)
+- [Smalltalk Compatibility Guide](https://github.com/gokr/harding/blob/main/docs/MANUAL.md#smalltalk-compatibility)
+- [Syntax Quick Reference](https://github.com/gokr/harding/blob/main/docs/QUICKREF.md)
 
 ### For Newcomers
 
 New to Smalltalk? Harding is a great way to learn:
 
-1. Start with the [Language Manual](/docs/MANUAL.md)
-2. Try the [Examples](/examples/)
-3. Read the [Quick Reference](/docs/QUICKREF.md)
+1. Start with the [Language Manual](https://github.com/gokr/harding/blob/main/docs/MANUAL.md)
+2. Try the [Examples](https://github.com/gokr/harding/tree/main/examples/)
+3. Read the [Quick Reference](https://github.com/gokr/harding/blob/main/docs/QUICKREF.md)
 
 ### Example Code
 
@@ -106,24 +106,24 @@ c value println   # 1
 
 | Document | Description |
 |----------|-------------|
-| [Language Manual](/docs/MANUAL.md) | Complete language specification |
-| [Quick Reference](/docs/QUICKREF.md) | Syntax cheat sheet |
-| [Implementation Notes](/docs/IMPLEMENTATION.md) | VM internals |
+| [Language Manual](https://github.com/gokr/harding/blob/main/docs/MANUAL.md) | Complete language specification |
+| [Quick Reference](https://github.com/gokr/harding/blob/main/docs/QUICKREF.md) | Syntax cheat sheet |
+| [Implementation Notes](https://github.com/gokr/harding/blob/main/docs/IMPLEMENTATION.md) | VM internals |
 
 ### Tools and Development
 
 | Document | Description |
 |----------|-------------|
-| [Tools & Debugging](/docs/TOOLS_AND_DEBUGGING.md) | CLI usage, debugging |
-| [VSCode Extension](/docs/VSCODE.md) | Editor support |
-| [GTK Integration](/docs/GTK.md) | GUI development |
+| [Tools & Debugging](https://github.com/gokr/harding/blob/main/docs/TOOLS_AND_DEBUGGING.md) | CLI usage, debugging |
+| [VSCode Extension](https://github.com/gokr/harding/blob/main/docs/VSCODE.md) | Editor support |
+| [GTK Integration](https://github.com/gokr/harding/blob/main/docs/GTK.md) | GUI development |
 
 ### Project
 
 | Document | Description |
 |----------|-------------|
-| [Future Plans](/docs/FUTURE.md) | Roadmap |
-| [Contributing](/CLAUDE.md) | Development guidelines |
+| [Future Plans](https://github.com/gokr/harding/blob/main/docs/FUTURE.md) | Roadmap |
+| [Contributing](https://github.com/gokr/harding/blob/main/CONTRIBUTING.md) | Development guidelines |
 
 ## Differences from Smalltalk
 
@@ -184,7 +184,7 @@ Features:
 
 ## Contributing
 
-See [CLAUDE.md](/CLAUDE.md) for:
+See [CONTRIBUTING.md](https://github.com/gokr/harding/blob/main/CONTRIBUTING.md) for:
 - Code style guidelines
 - Build instructions
 - Architecture overview
