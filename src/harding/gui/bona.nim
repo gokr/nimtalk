@@ -8,8 +8,8 @@ import harding/core/types
 import harding/core/scheduler
 import harding/interpreter/vm
 import harding/repl/cli
-import harding/gui/gtk4/bridge
-import harding/gui/gtk4/ffi
+import harding/gui/gtk/bridge
+import harding/gui/gtk/ffi
 
 const
   AppName = "bona"
@@ -59,7 +59,7 @@ proc runIde*(opts: CliOptions) =
     stderr.writeLine("Error launching IDE: ", err)
     quit(1)
 
-  when defined(gtk4):
+  when not defined(gtk3):
     # GTK4: run the GLib main loop to process events
     while true:
       discard gMainContextIteration(nil, 1.cint)
