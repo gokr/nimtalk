@@ -730,6 +730,69 @@ When working with documentation, prefer the root-level user guides over research
 - Test files use `test_*.nim` pattern
 - Example files use `.harding` extension (Harding source)
 
+## Harding Language Syntax
+
+### Comments
+
+Harding uses `#` for comments (different from Nim's documentation comments):
+
+```harding
+# This is a comment in Harding
+# Comments use hash symbol followed by a space
+
+# You can also have inline comments
+window title: "Hello"  # Set the window title
+```
+
+**Important**: Do NOT use `"..."` (double quotes) for comments in Harding - these are strings. Always use `#` for comments.
+
+### Common Syntax Patterns
+
+**Class definition with slots:**
+```harding
+MyClass := Object derive: #(slot1 slot2 slot3)
+```
+
+**Method definition:**
+```harding
+MyClass>>methodName: arg1 with: arg2 [
+    | localVar |
+    localVar := arg1 + arg2.
+    ^localVar    # Return value using ^
+]
+```
+
+**Block closures:**
+```harding
+# Block with parameter
+[:param | param + 1]
+
+# Block with multiple parameters
+[:a :b | a + b]
+
+# Block with no parameters
+[Transcript showCr: "Hello"]
+```
+
+**Conditionals:**
+```harding
+condition ifTrue: [
+    # do something
+].
+
+condition ifFalse: [
+    # do something else
+].
+
+condition ifTrue: [...] ifFalse: [...]
+```
+
+**Common methods:**
+- `isEmpty` / `isEmpty not` - Check if string/collection is empty (use `isEmpty not` instead of `notEmpty`)
+- `notNil` - Check if object is not nil
+- `class` - Get the class of an object
+- `derive:` - Create a new class with slots
+
 ## Future Directions
 
 ### BitBarrel Integration

@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Harding language definition for GtkSourceView
+  Based on the VSCode syntax definition
+-->
+<language id="harding" name="Harding" version="2.0" _section="Source">
+  <metadata>
+    <property name="mimetypes">text/x-harding;application/x-harding</property>
+    <property name="globs">*.hrd</property>
+    <property name="line-comment-start">#</property>
+  </metadata>
+
+  <styles>
+    <style id="comment" name="Comment" map-to="def:comment"/>
+    <style id="string" name="String" map-to="def:string"/>
+    <style id="symbol" name="Symbol" map-to="def:constant"/>
+    <style id="number" name="Number" map-to="def:decimal"/>
+    <style id="keyword" name="Keyword" map-to="def:keyword"/>
+    <style id="operator" name="Operator" map-to="def:operator"/>
+    <style id="method-def" name="Method Definition" map-to="def:preprocessor"/>
+    <style id="class-name" name="Class Name" map-to="def:type"/>
+    <style id="variable" name="Variable" map-to="def:identifier"/>
+    <style id="constant" name="Constant" map-to="def:constant"/>
+    <style id="primitive" name="Primitive" map-to="def:special-char"/>
+  </styles>
+
+  <definitions>
+    <!-- Comments -->
+    <context id="line-comment" style-ref="comment" end-at-line-end="true" class="comment">
+      <start>#(?![a-zA-Z_"\(\{])</start>
+    </context>
+
+    <!-- Strings -->
+    <context id="string" style-ref="string" class="string">
+      <start>"</start>
+      <end>"</end>
+    </context>
+
+    <!-- Quoted Symbols -->
+    <context id="quoted-symbol" style-ref="symbol">
+      <start>#"</start>
+      <end>"</end>
+    </context>
+
+    <!-- Regular Symbols -->
+    <context id="symbol" style-ref="symbol">
+      <match>#[a-zA-Z_][a-zA-Z0-9_]*(:[a-zA-Z0-9_]+)*</match>
+    </context>
+
+    <!-- Numbers -->
+    <context id="number" style-ref="number">
+      <match>(?&lt;![\w\d])-?\d+\.?\d*([eE][+-]?\d+)?</match>
+    </context>
+
+    <!-- Constants -->
+    <context id="constant" style-ref="constant">
+      <match>\b(self|super|nil|true|false)\b</match>
+    </context>
+
+    <!-- Method Definition (>>) -->
+    <context id="method-def" style-ref="method-def">
+      <match>&gt;&gt;</match>
+    </context>
+
+    <!-- Assignment Operator -->
+    <context id="assignment" style-ref="operator">
+      <match>:=</match>
+    </context>
+
+    <!-- Return Operator -->
+    <context id="return-op" style-ref="operator">
+      <match>\^</match>
+    </context>
+
+    <!-- Cascade Operator -->
+    <context id="cascade" style-ref="operator">
+      <match>;</match>
+    </context>
+
+    <!-- Block Parameters (:param) -->
+    <context id="block-param" style-ref="constant">
+      <match>:[a-zA-Z_][a-zA-Z0-9_]*</match>
+    </context>
+
+    <!-- Keywords (foo:) -->
+    <context id="keyword-selector" style-ref="keyword">
+      <match>[a-zA-Z_][a-zA-Z0-9_]*:</match>
+    </context>
+
+    <!-- Class Names (Capitalized) -->
+    <context id="class-name" style-ref="class-name">
+      <match>\b[A-Z][a-zA-Z0-9_]*\b</match>
+    </context>
+
+    <!-- Variables (lowercase) -->
+    <context id="variable" style-ref="variable">
+      <match>\b[a-z_][a-zA-Z0-9_]*\b</match>
+    </context>
+
+    <!-- Arrays #( ) -->
+    <context id="array" style-ref="operator" class="no-spell-check">
+      <start>#\(</start>
+      <end>\)</end>
+      <include>
+        <context ref="string"/>
+        <context ref="symbol"/>
+        <context ref="number"/>
+        <context ref="constant"/>
+      </include>
+    </context>
+
+    <!-- Tables #{ } -->
+    <context id="table" style-ref="operator" class="no-spell-check">
+      <start>#\{</start>
+      <end>\}</end>
+      <include>
+        <context ref="string"/>
+        <context ref="symbol"/>
+        <context ref="number"/>
+        <context ref="constant"/>
+      </include>
+    </context>
+
+    <!-- Object Literals {||} -->
+    <context id="object-literal" style-ref="operator" class="no-spell-check">
+      <start>\{\|</start>
+      <end>\|\}</end>
+      <include>
+        <context ref="string"/>
+        <context ref="symbol"/>
+        <context ref="number"/>
+        <context ref="constant"/>
+      </include>
+    </context>
+
+    <!-- Blocks [ ] -->
+    <context id="block" style-ref="operator" class="no-spell-check">
+      <start>\[</start>
+      <end>\]</end>
+      <include>
+        <context ref="block-param"/>
+        <context ref="string"/>
+        <context ref="symbol"/>
+        <context ref="number"/>
+        <context ref="constant"/>
+        <context ref="line-comment"/>
+      </include>
+    </context>
+
+    <!-- Parentheses ( ) -->
+    <context id="parens" class="no-spell-check">
+      <start>\(</start>
+      <end>\)</end>
+      <include>
+        <context ref="string"/>
+        <context ref="symbol"/>
+        <context ref="number"/>
+        <context ref="constant"/>
+        <context ref="line-comment"/>
+      </include>
+    </context>
+
+    <!-- Primitives <primitive>...</primitive> -->
+    <context id="primitive" style-ref="primitive">
+      <start>&lt;primitive&gt;</start>
+      <end>&lt;/primitive&gt;</end>
+    </context>
+
+    <!-- Main context -->
+    <context id="harding" class="no-spell-check">
+      <include>
+        <context ref="line-comment"/>
+        <context ref="primitive"/>
+        <context ref="string"/>
+        <context ref="quoted-symbol"/>
+        <context ref="symbol"/>
+        <context ref="number"/>
+        <context ref="constant"/>
+        <context ref="method-def"/>
+        <context ref="assignment"/>
+        <context ref="return-op"/>
+        <context ref="cascade"/>
+        <context ref="array"/>
+        <context ref="table"/>
+        <context ref="object-literal"/>
+        <context ref="block"/>
+        <context ref="parens"/>
+        <context ref="block-param"/>
+        <context ref="keyword-selector"/>
+        <context ref="class-name"/>
+        <context ref="variable"/>
+      </include>
+    </context>
+  </definitions>
+</language>
