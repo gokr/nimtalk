@@ -136,6 +136,8 @@ Harding distinguishes globals from locals by capitalization and enforces this in
 - Multiple inheritance with conflict detection and scoped super send
 - Dynamic message sending: `perform:`, `perform:with:`
 - Automatic accessor generation: `deriveWithAccessors:`, `derive:getters:setters:`
+- Library/namespace system for modular code organization
+- String concatenation with auto-conversion using `,`
 - GTK-based IDE (`bona`) with Workspace and Transcript
 
 **In progress:**
@@ -151,7 +153,8 @@ Harding distinguishes globals from locals by capitalization and enforces this in
 - [Tools & Debugging](docs/TOOLS_AND_DEBUGGING.md) - Tool usage
 - [Future Plans](docs/FUTURE.md) - Roadmap
 - [GTK Integration](docs/GTK.md) - GUI development
-- [VSCode Extension](docs/VSCODE.md) - Editor support
+- [VSCode Extension](docs/VSCODE.md) - VSCode editor support
+- [GtkSourceView](docs/GTKSOURCEVIEW.md) - Gedit/GNOME Text Editor syntax highlighting
 
 ## Examples
 

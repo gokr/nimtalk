@@ -72,25 +72,20 @@
                     </div>
                     <div class="code-body">
                         <pre><code><span class="comment"># Define a Point class with x and y slots</span>
-<span class="type">Point</span> := <span class="type">Object</span> derive: <span class="keyword">#</span>(x y)
+<span class="comment"># auto generate setter and getter methods</span>
+<span class="type">Point</span> := <span class="type">Object</span> deriveWithAccessors: <span class="keyword">#</span>(x y)
 
-<span class="comment"># Add method using selector:put:</span>
+<span class="comment"># Add a method to the class using selector:put:</span>
+<span class="comment"># and a block representing the code</span>
 <span class="type">Point</span> selector: <span class="keyword">#</span>moveBy:and: put: [:dx :dy |
     x := x <span class="operator">+</span> dx
     y := y <span class="operator">+</span> dy
 ]
 
-<span class="comment"># Simpler way using >> syntactic sugar</span>
-<span class="type">Point</span> <span class="operator">>></span> x: val [
-    x := val
-]
-
-<span class="comment"># Add several methods at once using a special mechanism</span>
-<span class="comment"># to bind a block to a specific self - the Point class.</span>
-<span class="type">Point</span> extend: [
-    <span class="keyword">self</span> <span class="operator">>></span> y: val [ y := val ]
-    <span class="keyword">self</span> <span class="operator">>></span> y [ <span class="keyword">^</span> y ]
-    <span class="keyword">self</span> <span class="operator">>></span> x [ <span class="keyword">^</span> x ]
+<span class="comment"># Simpler way to add a method using >> syntactic sugar</span>
+<span class="type">Point</span> <span class="operator">>></span><span class="operator">+</span> aPoint [
+    x := x <span class="operator">+</span> aPoint x
+    y := y <span class="operator">+</span> aPoint y
 ]
 
 <span class="comment"># Create and use a Point, cascades work fine</span>

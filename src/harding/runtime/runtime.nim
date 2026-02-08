@@ -1,6 +1,5 @@
-import std/[tables, sequtils, strformat]
+import std/[tables, strformat]
 import ../core/types
-import ../interpreter/[objects, activation]
 
 # ============================================================================
 # Harding Runtime
@@ -106,12 +105,6 @@ proc toFloat*(value: NodeValue): float64 =
   if value.kind == vkInt:
     return float(value.intVal)
   raise newException(ValueError, fmt("Expected Float, got {value.kind}"))
-
-proc toString*(value: NodeValue): string =
-  ## Get string value, raise error if not a string
-  if value.kind != vkString:
-    raise newException(ValueError, fmt("Expected String, got {value.kind}"))
-  return value.strVal
 
 proc toBool*(value: NodeValue): bool =
   ## Get boolean value, raise error if not a boolean

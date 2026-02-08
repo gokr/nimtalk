@@ -1528,12 +1528,16 @@ proc initGlobals*(interp: var Interpreter) =
   objectCls.methods["primitiveIdentity:"] = objIdentityMethod
   objectCls.allMethods["primitiveIdentity:"] = objIdentityMethod
 
-  # Add primitiveAsSelfDo: for asSelfDo: implementation
+  # Add primitiveAsSelfDo: for asSelfDo: implementation (as both instance and class method)
   let objAsSelfDoMethod = createCoreMethod("primitiveAsSelfDo:")
   objAsSelfDoMethod.nativeImpl = cast[pointer](primitiveAsSelfDoImpl)
   objAsSelfDoMethod.hasInterpreterParam = true
+  # Register as instance method on Object (for instances)
   objectCls.methods["primitiveAsSelfDo:"] = objAsSelfDoMethod
   objectCls.allMethods["primitiveAsSelfDo:"] = objAsSelfDoMethod
+  # Also register as class method on Object (for class receivers/extend usage)
+  objectCls.classMethods["primitiveAsSelfDo:"] = objAsSelfDoMethod
+  objectCls.allClassMethods["primitiveAsSelfDo:"] = objAsSelfDoMethod
 
   # Add primitiveHasProperty: for hasProperty: implementation
   let objHasPropertyMethod = createCoreMethod("primitiveHasProperty:")

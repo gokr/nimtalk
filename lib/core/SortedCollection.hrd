@@ -62,7 +62,7 @@ SortedCollection>>insert: anObject at: index [
     # Insert object at specific index, shifting elements
     | i idx |
     i := self size.
-    self add: nil.  # Expand array by 1
+    super add: nil.  # Expand array by 1
     idx := index.
     [ i >= idx ] whileTrue: [
         self at: (i + 1) put: (self at: i).
