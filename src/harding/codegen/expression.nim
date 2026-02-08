@@ -189,9 +189,9 @@ proc genMessage*(ctx: GenContext, node: MessageNode): string =
   else:
     # Generic message - try to call compiled method or fall back to runtime
     let args = node.arguments.mapIt(genExpression(ctx, it)).join(", ")
-    let mangledName = mangleSelector(node.selector)
+    let escapedSelector = node.selector.replace("\\", "\\\\").replace("\"", "\\\"")
     # For now, use runtime dispatch - compiled methods will be registered
-    return fmt("sendMessage(currentRuntime[], {receiverCode}, \"{node.selector}\", @[{args}])")
+    return "sendMessage(currentRuntime[], " & receiverCode & ", \"" & escapedSelector & "\", @[" & args & "])"
 
 proc genExpression*(ctx: GenContext, node: Node): string =
   ## Dispatch to appropriate expression generator

@@ -218,9 +218,19 @@ proc genMethod*(cls: ClassInfo, meth: BlockNode,
   output.add("\n\n")
   return output
 
+proc escapeSelectorForNim(selector: string): string =
+  ## Escape a selector string for use in generated Nim code
+  ## Handles backslashes and quotes properly
+  result = selector
+  # Escape backslashes first (before we add any new ones)
+  result = result.replace("\\", "\\\\")
+  # Escape double quotes
+  result = result.replace("\"", "\\\"")
+
 proc genBinaryOpMethod*(selector: string): string =
   ## Generate a binary operator method (top-level, not class-scoped)
   let nimName = mangleSelector(selector)
+  let escapedSelector = escapeSelectorForNim(selector)
 
   var output = "\nproc " & nimName & "*(a: NodeValue, b: NodeValue): NodeValue {.cdecl, exportc.} =\n"
   output.add("  ## Binary operator: " & selector & "\n")
@@ -228,12 +238,13 @@ proc genBinaryOpMethod*(selector: string): string =
   output.add("  ##\n")
   output.add(genBinaryOpFastPath(selector))
   output.add("\n  # Slow path: dynamic dispatch\n")
-  output.add("  return sendMessage(currentRuntime[], a, \"" & selector & "\", @[b])\n\n")
+  output.add("  return sendMessage(currentRuntime[], a, \"" & escapedSelector & "\", @[b])\n\n")
   return output
 
 proc genComparisonMethod*(selector: string): string =
   ## Generate a comparison operator method
   let nimName = mangleSelector(selector)
+  let escapedSelector = escapeSelectorForNim(selector)
 
   var output = "\nproc " & nimName & "*(a: NodeValue, b: NodeValue): NodeValue {.cdecl, exportc.} =\n"
   output.add("  ## Comparison operator: " & selector & "\n")
@@ -241,7 +252,7 @@ proc genComparisonMethod*(selector: string): string =
   output.add("  ##\n")
   output.add(genComparisonFastPath(selector))
   output.add("\n  # Slow path: dynamic dispatch\n")
-  output.add("  return sendMessage(currentRuntime[], a, \"" & selector & "\", @[b])\n\n")
+  output.add("  return sendMessage(currentRuntime[], a, \"" & escapedSelector & "\", @[b])\n\n")
   return output
 
 proc genRuntimeHelperMethods*(): string =
