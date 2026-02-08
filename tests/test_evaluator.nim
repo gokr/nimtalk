@@ -134,28 +134,25 @@ suite "Evaluator: Method Execution with Parameters":
     check(result[0][^1].strVal == "Alice")
 
   test "methods with complex body execute all statements":
-    # Using Object deriveWithAccessors which we know works
+    # Test method with multiple statements and local variables
     let result = interp.evalStatements("""
       Counter := Object deriveWithAccessors: #(count).
-      Counter >> incrementBy: amount andReturn: label [ | oldValue |
+      Counter >> add: amount [
+        | oldValue newValue |
         oldValue := self count.
-        self count: oldValue + amount.
-        ^self count
+        newValue := oldValue + amount.
+        self count: newValue.
+        ^newValue
       ].
 
       Counter2 := Counter new.
       Counter2 count: 0.
-      Result := Counter2 incrementBy: 5 andReturn: "Incrementing"
+      Result := Counter2 add: 5
     """)
 
     if result[1].len > 0:
       echo "Complex body error: ", result[1]
-    # Debug output - comment out check to see error
-    # check(result[1].len == 0)
-    if result[1].len > 0:
-      echo "Complex body results count: ", result[0].len
-      for i, r in result[0]:
-        echo "  [", i, "] = ", r.toString()
+    check(result[1].len == 0)
     check(result[0][^1].kind == vkInt)
     check(result[0][^1].intVal == 5)
 
