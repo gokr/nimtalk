@@ -5,14 +5,23 @@
 # Native methods (registered in Nim bridge):
 # Class methods:
 # - new (create empty button)
-# - newLabel: (create button with label)
 #
 # Instance methods:
 # - label: (set button label)
 # - label (get button label)
 # - clicked: (connect clicked signal to a block)
 
-# Convenience alias for clicked: using connect:do:
+# Class method constructor moved from Nim to Harding
+GtkButton class>>newLabel: aString [
+    | btn |
+    # Create a new button with the given label
+    btn := self new.
+    btn label: aString.
+    ^btn
+].
+
+# Convenience aliases
 GtkButton>>onClicked: aBlock [
-  self connect: "clicked" do: aBlock
+    # Connect clicked signal to a block
+    self connect: "clicked" do: aBlock
 ].

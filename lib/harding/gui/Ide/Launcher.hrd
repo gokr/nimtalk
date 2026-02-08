@@ -37,9 +37,11 @@ Launcher>>openInstance [
 Launcher>>createMenuBar [
   | menuBar fileItem workspaceItem transcriptItem quitItem |
 
-  menuBar := GtkMenuBar new.
+  # Use horizontal box for menu bar (GTK4 compatible)
+  menuBar := GtkBox horizontal.
+  menuBar setSpacing: 5.
 
-  # File menu - in GTK4, we use buttons as menu items for now
+  # File menu button
   fileItem := GtkButton newLabel: "File".
   fileItem clicked: [ Transcript showCr: "File menu clicked" ].
   menuBar append: fileItem.

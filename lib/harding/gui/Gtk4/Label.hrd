@@ -5,17 +5,25 @@
 # Native methods (registered in Nim bridge):
 # Class methods:
 # - new (create empty label)
-# - newLabel: (create label with text)
 #
 # Instance methods:
 # - text: (set label text)
 # - text (get label text)
 
-# Convenience alias
+# Class method constructor moved from Nim to Harding
+GtkLabel class>>newLabel: aString [
+    | lbl |
+    # Create a new label with the given text
+    lbl := self new.
+    lbl text: aString.
+    ^lbl
+].
+
+# Convenience aliases
 GtkLabel>>label: aString [
-  self text: aString
+    self text: aString
 ].
 
 GtkLabel>>label [
-  ^self text
+    ^self text
 ].

@@ -9,3 +9,46 @@
 # - addCssClass: (add CSS class for styling)
 # - removeCssClass: (remove CSS class)
 # - connect:do: (connect a signal to a block)
+
+# Signal connection conveniences
+GtkWidget>>onDestroy: aBlock [
+    # Connect to destroy signal
+    self connect: "destroy" do: aBlock
+].
+
+GtkWidget>>onShow: aBlock [
+    # Connect to show signal
+    self connect: "show" do: aBlock
+].
+
+GtkWidget>>onHide: aBlock [
+    # Connect to hide signal
+    self connect: "hide" do: aBlock
+].
+
+GtkWidget>>onRealize: aBlock [
+    # Connect to realize signal
+    self connect: "realize" do: aBlock
+].
+
+# Visibility conveniences
+GtkWidget>>showWidget [
+    # Show the widget
+    self show
+].
+
+GtkWidget>>hideWidget [
+    # Hide the widget
+    self hide
+].
+
+# CSS styling conveniences
+GtkWidget>>addClass: aClassName [
+    # Add a CSS class
+    self addCssClass: aClassName
+].
+
+GtkWidget>>removeClass: aClassName [
+    # Remove a CSS class
+    self removeCssClass: aClassName
+].

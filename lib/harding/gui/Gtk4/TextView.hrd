@@ -12,19 +12,32 @@
 # - getText: (get all text, returns array [text])
 # - setText: (set text in the view)
 
-# Convenience methods
+# Convenience accessors
 GtkTextView>>text [
-  | result |
-  self getText: result.
-  ^result first
+    | result |
+    self getText: result.
+    ^result first
 ].
 
 GtkTextView>>text: aString [
-  self setText: aString
+    self setText: aString
 ].
 
 GtkTextView>>buffer [
-  | result |
-  self getBuffer: result.
-  ^result first
+    | result |
+    self getBuffer: result.
+    ^result first
+].
+
+# Signal conveniences
+GtkTextView>>onChanged: aBlock [
+    # Connect to buffer's changed signal
+    | buf |
+    buf := self buffer.
+    buf connect: "changed" do: aBlock
+].
+
+GtkTextView>>onTextChanged: aBlock [
+    # Alias for onChanged:
+    self onChanged: aBlock
 ].
