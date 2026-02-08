@@ -65,9 +65,9 @@ proc showUsage() =
   echo "  granite <command> [options] <file.hrd>"
   echo ""
   echo "Commands:"
-  echo "  compile               Compile Harding to Nim source code"
-  echo "  build                 Compile to Nim and build executable"
-  echo "  run                   Compile, build, and execute"
+  echo "  compile (c)           Compile Harding to Nim source code"
+  echo "  build (b)             Compile to Nim and build executable"
+  echo "  run (r)               Compile, build, and execute"
   echo "  help                  Show this help"
   echo "  version               Show version"
   echo ""
@@ -202,7 +202,7 @@ proc buildFile(config: Config): bool =
 
   let outputFile = computeOutputPath(config)
   let baseName = changeFileExt(outputFile, "")
-  let releaseFlag = if config.release: " --release" else: ""
+  let releaseFlag = if config.release: " -d:release" else: ""
   let cmd = fmt("nim c{releaseFlag} -o:{baseName} {outputFile}")
 
   echo "Building: ", cmd
@@ -254,7 +254,7 @@ proc main() =
     showUsage()
   of "--version", "-v", "version":
     showVersion()
-  of "compile":
+  of "compile", "c":
     var config = parseArgs()
     config.compile = true
     config.inputFile = if args.len >= 2: args[1] else: ""
@@ -273,7 +273,7 @@ proc main() =
     let success = config.compileFile()
     quit(if success: 0 else: 1)
 
-  of "build":
+  of "build", "b":
     var config = parseArgs()
     config.build = true
     config.inputFile = if args.len >= 2: args[1] else: ""
@@ -292,7 +292,7 @@ proc main() =
     let success = config.buildFile()
     quit(if success: 0 else: 1)
 
-  of "run":
+  of "run", "r":
     var config = parseArgs()
     config.run = true
     config.inputFile = if args.len >= 2: args[1] else: ""
