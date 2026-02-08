@@ -2,7 +2,7 @@
 # test_stdlib.nim - Comprehensive tests for Harding Standard Library
 #
 
-import std/unittest
+import std/[unittest, os]
 import ../src/harding/core/types
 import ../src/harding/interpreter/[vm, objects]
 
@@ -408,6 +408,7 @@ suite "Stdlib: Strings":
     check(result[0][^1].strVal == "abcd")
 
   test "string concatenation with number (auto-conversion)":
+    # Auto-conversion of numbers to strings via toString
     let result = interp.evalStatements("""
       Result := "The answer is " , 42
     """)
@@ -542,3 +543,167 @@ suite "Stdlib: Accessor Generation":
     check(result[1].len == 0)
     # In Harding, nil is represented as an instance of UndefinedObject
     check(result[0][^1].kind == vkInstance)
+
+suite "Stdlib: Library":
+  var interp {.used.}: Interpreter
+
+  setup:
+    interp = sharedInterp
+
+  test "Library new creates a Library instance":
+    let result = interp.evalStatements("""
+      Lib := Library new.
+      Result := Lib
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInstance)
+    check(result[0][^1].instVal.class.name == "Library")
+
+  test "Library at:put: and at: work":
+    let result = interp.evalStatements("""
+      Lib := Library new.
+      Lib at: "myKey" put: 42.
+      Result := Lib at: "myKey"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 42)
+
+  test "Library keys returns bindings keys":
+    let result = interp.evalStatements("""
+      Lib := Library new.
+      Lib at: "a" put: 1.
+      Lib at: "b" put: 2.
+      Result := Lib keys size
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 2)
+
+  test "Library includesKey: works":
+    let result = interp.evalStatements("""
+      Lib := Library new.
+      Lib at: "present" put: 99.
+      Result := Lib includesKey: "present"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == true)
+
+  test "Library includesKey: returns false for missing key":
+    let result = interp.evalStatements("""
+      Lib := Library new.
+      Result := Lib includesKey: "absent"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == false)
+
+  test "Harding import: makes Library bindings accessible":
+    # Use a fresh interpreter to avoid polluting shared state
+    var freshInterp = newInterpreter()
+    initGlobals(freshInterp)
+    loadStdlib(freshInterp)
+
+    let result = freshInterp.evalStatements("""
+      Lib := Library new.
+      Lib at: "LibTestVal" put: 42.
+      Harding import: Lib.
+      Result := LibTestVal
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 42)
+
+  test "imported Library does not pollute globals":
+    var freshInterp = newInterpreter()
+    initGlobals(freshInterp)
+    loadStdlib(freshInterp)
+
+    let result = freshInterp.evalStatements("""
+      Lib := Library new.
+      Lib at: "LibPrivate" put: 99.
+      Result := Harding includesKey: "LibPrivate"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == false)
+
+  test "globals still accessible after Library import":
+    var freshInterp = newInterpreter()
+    initGlobals(freshInterp)
+    loadStdlib(freshInterp)
+
+    let result = freshInterp.evalStatements("""
+      Lib := Library new.
+      Harding import: Lib.
+      Result := Object
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkClass)
+
+  test "most recent import wins on conflict":
+    var freshInterp = newInterpreter()
+    initGlobals(freshInterp)
+    loadStdlib(freshInterp)
+
+    let result = freshInterp.evalStatements("""
+      Lib1 := Library new.
+      Lib1 at: "SharedKey" put: 1.
+      Lib2 := Library new.
+      Lib2 at: "SharedKey" put: 2.
+      Harding import: Lib1.
+      Harding import: Lib2.
+      Result := SharedKey
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 2)
+
+  test "Library load: captures definitions into library":
+    var freshInterp = newInterpreter()
+    initGlobals(freshInterp)
+    loadStdlib(freshInterp)
+
+    let testFile = getCurrentDir() / "tests" / "test_lib_content.hrd"
+    let result = freshInterp.evalStatements(
+      "Lib := Library new.\n" &
+      "Lib load: \"" & testFile & "\".\n" &
+      "Result := Lib includesKey: \"LibTestConstant\"\n"
+    )
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == true)
+
+  test "Library load: does not pollute globals":
+    var freshInterp = newInterpreter()
+    initGlobals(freshInterp)
+    loadStdlib(freshInterp)
+
+    let testFile = getCurrentDir() / "tests" / "test_lib_content.hrd"
+    let result = freshInterp.evalStatements(
+      "Lib := Library new.\n" &
+      "Lib load: \"" & testFile & "\".\n" &
+      "Result := Harding includesKey: \"LibTestClass\"\n"
+    )
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == false)
+
+  test "Library load: then import makes classes accessible":
+    var freshInterp = newInterpreter()
+    initGlobals(freshInterp)
+    loadStdlib(freshInterp)
+
+    let testFile = getCurrentDir() / "tests" / "test_lib_content.hrd"
+    let result = freshInterp.evalStatements(
+      "Lib := Library new.\n" &
+      "Lib load: \"" & testFile & "\".\n" &
+      "Harding import: Lib.\n" &
+      "Inst := LibTestClass new.\n" &
+      "Inst value: 99.\n" &
+      "Result := Inst value\n"
+    )
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 99)

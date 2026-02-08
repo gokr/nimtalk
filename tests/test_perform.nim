@@ -71,7 +71,8 @@ suite "Dynamic Message Sending":
     """)
     # Should produce an error
     check(result[1].len > 0)
-    check("nonExistentMethod" in result[1] or "does not understand" in result[1].toLowerAscii())
+    let errStr = result[1].join(" ")
+    check("nonExistentMethod" in errStr or "does not understand" in errStr.toLowerAscii())
 
   test "perform: inherits from parent class":
     let result = interp.evalStatements("""
