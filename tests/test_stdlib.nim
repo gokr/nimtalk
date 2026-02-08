@@ -389,6 +389,40 @@ suite "Stdlib: Strings":
     check(result[0][^1].kind == vkInt)
     check(result[0][^1].intVal == 3)
 
+  test "string concatenation with , (comma)":
+    let result = interp.evalStatements("""
+      S1 := "Hello".
+      S2 := " World".
+      Result := S1 , S2
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "Hello World")
+
+  test "string concatenation chains":
+    let result = interp.evalStatements("""
+      Result := "a" , "b" , "c" , "d"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "abcd")
+
+  test "string concatenation with number (auto-conversion)":
+    let result = interp.evalStatements("""
+      Result := "The answer is " , 42
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "The answer is 42")
+
+  test "string concatenation with empty string":
+    let result = interp.evalStatements("""
+      Result := "hello" , ""
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "hello")
+
 suite "Stdlib: Object utilities":
   var interp {.used.}: Interpreter
 

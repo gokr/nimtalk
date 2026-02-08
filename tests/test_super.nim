@@ -41,12 +41,28 @@ suite "Super Syntax Parsing":
     check(superNode.arguments.len == 1)
 
   test "Parse qualified super send":
-    # Skip this test for now - qualified super syntax needs more work
-    skip()
+    let source = "super<Parent> method"
+    let tokens = lex(source)
+    var parser = initParser(tokens)
+    let node = parser.parsePrimary()
+    check(not parser.hasError)
+    check(node.kind == nkSuperSend)
+    let superNode = node.SuperSendNode
+    check(superNode.selector == "method")
+    check(superNode.explicitParent == "Parent")
+    check(superNode.arguments.len == 0)
 
   test "Parse qualified super with keyword":
-    # Skip this test for now - qualified super syntax needs more work
-    skip()
+    let source = "super<Parent> foo: 42"
+    let tokens = lex(source)
+    var parser = initParser(tokens)
+    let node = parser.parsePrimary()
+    check(not parser.hasError)
+    check(node.kind == nkSuperSend)
+    let superNode = node.SuperSendNode
+    check(superNode.selector == "foo:")
+    check(superNode.explicitParent == "Parent")
+    check(superNode.arguments.len == 1)
 
 suite "SuperSendNode AST":
 
