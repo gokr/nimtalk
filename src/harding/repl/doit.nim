@@ -20,10 +20,8 @@ type
 
 # Create a REPL context
 proc newDoitContext*(trace: bool = false, maxStackDepth: int = 10000,
-                     hardingHome: string = ".", bootstrapFile: string = "",
-                     stackless: bool = true): DoitContext =
+                     hardingHome: string = ".", bootstrapFile: string = ""): DoitContext =
   ## Create new REPL context with scheduler support for processes
-  ## Note: stackless VM is now the default and only evaluator
   # Create scheduler context (initializes Processor, Process, Scheduler globals)
   let schedCtx = newSchedulerContext()
 
@@ -102,8 +100,7 @@ proc doit*(ctx: DoitContext, source: string, dumpAst = false): (NodeValue, strin
     ctx.history.add(code)
 
   try:
-    # Use stackless VM (now the default and only evaluator)
-    return ctx.interpreter.doitStackless(code, dumpAst)
+    return ctx.interpreter.doit(code, dumpAst)
   except Exception as e:
     return (nilValue(), "Error: " & e.msg)
 
@@ -160,11 +157,10 @@ proc main*() =
 
 # File-based script execution
 proc runScript*(filename: string, ctx: DoitContext = nil, dumpAst = false, maxStackDepth: int = 10000,
-                hardingHome: string = ".", bootstrapFile: string = "", stackless: bool = true): (string, string) =
+                hardingHome: string = ".", bootstrapFile: string = ""): (string, string) =
   ## Run a Harding script file
   ## Scripts are auto-wrapped in [ ... ] to enable temporary variable declarations
   ## using Smalltalk syntax: | temp1 temp2 |
-  ## Note: stackless VM is now the default and only evaluator
   var scriptCtx = if ctx != nil: ctx else: newDoitContext(maxStackDepth = maxStackDepth, hardingHome = hardingHome,
                                                            bootstrapFile = bootstrapFile)
 

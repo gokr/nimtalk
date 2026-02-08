@@ -75,4 +75,4 @@ proc printActivation*(activation: Activation, indent: int = 0): string =
     output.add(spaces & "  sender: <activation>\n")
   return output
 
-# Note: Context switching and interpreter integration procs have been moved to evaluator.nim
+# Note: Context switching and interpreter integration procs are in vm.nim

@@ -160,9 +160,7 @@ type
     schedulerContextPtr*: pointer  # Scheduler context (cast to SchedulerContext when needed)
     hardingHome*: string  # Home directory for loading libraries
     shouldYield*: bool  # Set to true when Processor yield is called for immediate context switch
-    # Note: Stackless VM is now the default and only evaluator
-    # The recursive evaluator has been removed
-    # Explicit stack VM fields
+    # VM work queue and value stack
     workQueue*: seq[WorkFrame]  # Work queue for AST interpreter
     evalStack*: seq[NodeValue]  # Value stack for expression results
 
@@ -374,7 +372,11 @@ proc toString*(val: NodeValue): string =
       of ikInt: $(val.instVal.intVal)
       of ikFloat: $(val.instVal.floatVal)
       of ikString: val.instVal.strVal
-      of ikArray: "#(" & $val.instVal.elements.len & ")"
+      of ikArray:
+        var parts: seq[string] = @[]
+        for v in val.instVal.elements:
+          parts.add(toString(v))
+        "#(" & parts.join(" ") & ")"
       of ikTable:
         var parts: seq[string] = @[]
         for k, v in val.instVal.entries:
@@ -382,7 +384,11 @@ proc toString*(val: NodeValue): string =
         "#{" & parts.join(" . ") & "}"
       of ikObject: "<instance of " & val.instVal.class.name & ">"
   of vkBlock: "<block>"
-  of vkArray: "#(" & $val.arrayVal.len & ")"
+  of vkArray:
+    var parts: seq[string] = @[]
+    for v in val.arrayVal:
+      parts.add(toString(v))
+    "#(" & parts.join(" ") & ")"
   of vkTable:
     var parts: seq[string] = @[]
     for k, v in val.tableVal:
@@ -409,7 +415,11 @@ proc formatLiteral*(val: NodeValue): string =
       of ikInt: $(val.instVal.intVal)
       of ikFloat: $(val.instVal.floatVal)
       of ikString: '"' & val.instVal.strVal & '"'
-      of ikArray: "#(" & $val.instVal.elements.len & ")"
+      of ikArray:
+        var parts: seq[string] = @[]
+        for v in val.instVal.elements:
+          parts.add(formatLiteral(v))
+        "#(" & parts.join(" ") & ")"
       of ikTable:
         var parts: seq[string] = @[]
         for k, v in val.instVal.entries:
@@ -417,7 +427,11 @@ proc formatLiteral*(val: NodeValue): string =
         "#{" & parts.join(" . ") & "}"
       of ikObject: "<instance of " & val.instVal.class.name & ">"
   of vkBlock: "<block>"
-  of vkArray: "#(" & $val.arrayVal.len & ")"
+  of vkArray:
+    var parts: seq[string] = @[]
+    for v in val.arrayVal:
+      parts.add(formatLiteral(v))
+    "#(" & parts.join(" ") & ")"
   of vkTable:
     var parts: seq[string] = @[]
     for k, v in val.tableVal:

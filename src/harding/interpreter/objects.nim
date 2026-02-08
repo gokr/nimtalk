@@ -15,7 +15,7 @@ import ../core/types
 #   - Registers class methods (new, derive:, selector:put:, etc.)
 #   - Registers basic instance methods
 #
-# Phase 2 - initGlobals() (in evaluator.nim):
+# Phase 2 - initGlobals() (in vm.nim):
 #   - Adds primitive methods that need evaluator context
 #   - MUST reuse existing classes via: if arrayClass != nil: arrayCls = arrayClass
 #
@@ -91,7 +91,7 @@ proc instanceCloneImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc classDeriveWithAccessorsImpl*(self: Class, args: seq[NodeValue]): NodeValue
 proc classDeriveGettersSettersImpl*(self: Class, args: seq[NodeValue]): NodeValue
 
-# Slot accessors are implemented in evaluator.nim to avoid circular import
+# Slot accessors are implemented in vm.nim to avoid circular import
 
 # ============================================================================
 # Helper: Extract integer value from NodeValue or wrapped object
@@ -248,6 +248,8 @@ proc rebuildAllDescendants*(cls: Class) =
 # Helper to add method to class
 proc addMethodToClass*(cls: Class, selector: string, meth: BlockNode, isClassMethod: bool = false) =
   ## Add a method to a class (instance or class method)
+  # Mark block as a method so return (^) has correct semantics
+  meth.isMethod = true
   if isClassMethod:
     cls.classMethods[selector] = meth
   else:

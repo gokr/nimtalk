@@ -25,7 +25,7 @@ type
     kind*: WaitKind
     target*: pointer  ## The monitor/queue being waited on
 
-  # Forward declaration - Interpreter defined in evaluator.nim
+  # Forward declaration - Interpreter defined in vm.nim
   # We use a pointer to avoid circular import
   InterpreterRef* = pointer
 
