@@ -70,7 +70,13 @@ proc signalCallbackProc*(widget: GtkWidget, userData: pointer) {.cdecl.} =
     # Keep the handler alive during invocation to prevent GC collection
     # of captured variables
     GC_ref(handler.blockNode)
-    let result = invokeBlock(interp[], handler.blockNode, @[])
+    let msgNode = MessageNode(
+      receiver: LiteralNode(value: NodeValue(kind: vkBlock, blockVal: handler.blockNode)),
+      selector: "value",
+      arguments: @[],
+      isCascade: false
+    )
+    let result = evalWithVM(interp[], msgNode)
     GC_unref(handler.blockNode)
     discard result  # Signal callbacks generally ignore return values
   except Exception as e:
@@ -96,7 +102,13 @@ proc destroyCallbackProc*(widget: GtkWidget, userData: pointer) {.cdecl.} =
 
   try:
     GC_ref(handler.blockNode)
-    let result = invokeBlock(proxy.interp[], handler.blockNode, @[])
+    let msgNode = MessageNode(
+      receiver: LiteralNode(value: NodeValue(kind: vkBlock, blockVal: handler.blockNode)),
+      selector: "value",
+      arguments: @[],
+      isCascade: false
+    )
+    let result = evalWithVM(proxy.interp[], msgNode)
     GC_unref(handler.blockNode)
     discard result
   except Exception as e:

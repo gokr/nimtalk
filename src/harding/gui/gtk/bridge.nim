@@ -154,10 +154,7 @@ proc initGtkBridge*(interp: var Interpreter) =
   buttonNewMethod.hasInterpreterParam = true
   addMethodToClass(buttonCls, "new", buttonNewMethod, isClassMethod = true)
 
-  let buttonNewLabelMethod = createCoreMethod("newLabel:")
-  buttonNewLabelMethod.nativeImpl = cast[pointer](buttonNewLabelImpl)
-  buttonNewLabelMethod.hasInterpreterParam = true
-  addMethodToClass(buttonCls, "newLabel:", buttonNewLabelMethod, isClassMethod = true)
+  # Note: newLabel: class method is implemented in Harding (Button.hrd)
 
   # Add Button instance methods
   let buttonSetLabelMethod = createCoreMethod("label:")
@@ -190,15 +187,8 @@ proc initGtkBridge*(interp: var Interpreter) =
   boxNewMethod.hasInterpreterParam = true
   addMethodToClass(boxCls, "new", boxNewMethod, isClassMethod = true)
 
-  let boxHorizontalMethod = createCoreMethod("horizontal")
-  boxHorizontalMethod.nativeImpl = cast[pointer](boxHorizontalImpl)
-  boxHorizontalMethod.hasInterpreterParam = true
-  addMethodToClass(boxCls, "horizontal", boxHorizontalMethod, isClassMethod = true)
-
-  let boxVerticalMethod = createCoreMethod("vertical")
-  boxVerticalMethod.nativeImpl = cast[pointer](boxVerticalImpl)
-  boxVerticalMethod.hasInterpreterParam = true
-  addMethodToClass(boxCls, "vertical", boxVerticalMethod, isClassMethod = true)
+  # Note: horizontal and vertical class methods are implemented in Harding (Box.hrd)
+  # They use newOrientation:spacing: primitive
 
   let boxNewOrientationSpacingMethod = createCoreMethod("newOrientation:spacing:")
   boxNewOrientationSpacingMethod.nativeImpl = cast[pointer](boxNewOrientationSpacingImpl)
@@ -236,10 +226,7 @@ proc initGtkBridge*(interp: var Interpreter) =
   labelNewMethod.hasInterpreterParam = true
   addMethodToClass(labelCls, "new", labelNewMethod, isClassMethod = true)
 
-  let labelNewLabelMethod = createCoreMethod("newLabel:")
-  labelNewLabelMethod.nativeImpl = cast[pointer](labelNewLabelImpl)
-  labelNewLabelMethod.hasInterpreterParam = true
-  addMethodToClass(labelCls, "newLabel:", labelNewLabelMethod, isClassMethod = true)
+  # Note: newLabel: class method is implemented in Harding (Label.hrd)
 
   # Add Label instance methods
   let labelSetTextMethod = createCoreMethod("text:")

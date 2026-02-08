@@ -47,33 +47,6 @@ proc labelNewImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]
   obj.nimValue = cast[pointer](widget)
   return obj.toValue()
 
-## Native class method: newLabel:
-proc labelNewLabelImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  ## Create a new label with text
-  if args.len < 1 or args[0].kind != vkString:
-    return nilValue()
-
-  let widget = gtkLabelNew(args[0].strVal.cstring)
-  discard newGtkLabelProxy(widget, addr(interp))
-
-  var cls: Class = nil
-  if "GtkLabel" in interp.globals[]:
-    let val = interp.globals[]["GtkLabel"]
-    if val.kind == vkClass:
-      cls = val.classVal
-  if cls == nil and "GtkWidget" in interp.globals[]:
-    let val = interp.globals[]["GtkWidget"]
-    if val.kind == vkClass:
-      cls = val.classVal
-  if cls == nil:
-    cls = objectClass
-
-  let obj = newInstance(cls)
-  obj.isNimProxy = true
-  storeInstanceWidget(obj, widget)
-  obj.nimValue = cast[pointer](widget)
-  return obj.toValue()
-
 ## Native instance method: text:
 proc labelSetTextImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Set label text

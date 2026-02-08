@@ -60,13 +60,6 @@ proc createGtkButton*(interp: var Interpreter, label: string = ""): NodeValue =
 proc buttonNewImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   createGtkButton(interp, "")
 
-## Native method: newLabel: (class method)
-proc buttonNewLabelImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  if args.len < 1 or args[0].kind != vkString:
-    return createGtkButton(interp, "")
-
-  createGtkButton(interp, args[0].strVal)
-
 ## Native method: label:
 proc buttonSetLabelImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   if args.len < 1 or args[0].kind != vkString:

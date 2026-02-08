@@ -55,16 +55,8 @@ proc createGtkBox*(interp: var Interpreter, orientation: cint, spacing: cint = 0
   echo "DEBUG createGtkBox: created instance ptr=", cast[int](obj), " class=", boxClass.name
   return obj.toValue()
 
-## Native method: new (class method)
+## Native method: new (class method) - creates vertical box by default
 proc boxNewImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  createGtkBox(interp, 1, 0)  # GTK_ORIENTATION_VERTICAL = 1
-
-## Native method: horizontal (class method)
-proc boxHorizontalImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  createGtkBox(interp, 0, 0)  # GTK_ORIENTATION_HORIZONTAL = 0
-
-## Native method: vertical (class method)
-proc boxVerticalImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   createGtkBox(interp, 1, 0)  # GTK_ORIENTATION_VERTICAL = 1
 
 ## Native method: newOrientation:spacing: (class method)
