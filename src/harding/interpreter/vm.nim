@@ -3683,6 +3683,15 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       blockInst.isNimProxy = false
       blockInst.nimValue = cast[pointer](receiverVal.blockVal)
       receiver = blockInst
+    of vkClass:
+      var classInst: Instance
+      new(classInst)
+      classInst.kind = ikObject
+      classInst.class = objectClass
+      classInst.slots = @[]
+      classInst.isNimProxy = false
+      classInst.nimValue = cast[pointer](receiverVal.classVal)
+      receiver = classInst
     else:
       raise newException(ValueError, "Cascade to unsupported value kind: " & $receiverVal.kind)
 
@@ -3802,6 +3811,15 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       blockInst.isNimProxy = false
       blockInst.nimValue = cast[pointer](receiverVal.blockVal)
       receiver = blockInst
+    of vkClass:
+      var classInst: Instance
+      new(classInst)
+      classInst.kind = ikObject
+      classInst.class = objectClass
+      classInst.slots = @[]
+      classInst.isNimProxy = false
+      classInst.nimValue = cast[pointer](receiverVal.classVal)
+      receiver = classInst
     else:
       raise newException(ValueError, "Cascade to unsupported value kind: " & $receiverVal.kind)
 
