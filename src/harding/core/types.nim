@@ -741,10 +741,7 @@ proc newClass*(superclasses: seq[Class] = @[], slotNames: seq[string] = @[], nam
   # Check for slot name conflicts between new slots and parent slots
   for slotName in slotNames:
     if slotName in seenSlotNames:
-      var parentInfo = ""
-      for parent in superclasses:
-        parentInfo.add(parent.name & " allSlotNames=" & $parent.allSlotNames & "; ")
-      raise newException(ValueError, "Slot name conflict: '" & slotName & "' already exists in parent class. Parents: " & parentInfo)
+      raise newException(ValueError, "Slot name conflict: '" & slotName & "' already exists in parent class")
 
   # Add new slot names to seen list for checking among new slots
   for slotName in slotNames:

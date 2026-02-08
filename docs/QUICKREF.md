@@ -529,11 +529,98 @@ sorted addAll: #(3 1 4 1 5).
 sorted asArray  # Returns #(5 4 3 1 1)
 ```
 
+### Set
+
+```smalltalk
+# Unordered collection of unique elements
+set := Set new.
+set add: 1.
+set add: 2.
+set add: 1.  # Duplicates ignored
+
+# Union, intersection, difference
+union := set1 union: set2
+intersect := set1 intersection: set2
+diff := set1 difference: set2
+```
+
+### Standard Library
+
+The Standard Library provides additional collection and utility classes, auto-imported at startup:
+
+- **Set** - Unordered unique-element collection
+- **Interval** - Numeric range with iteration
+- **SortedCollection** - Array maintaining sort order
+- **FileStream** - File I/O operations
+- **Exception hierarchy** - Error, MessageNotUnderstood, etc.
+
+---
+
 ## Type Checking Pattern
 
 ```smalltalk
 # Check if object responds to message
 obj respondsTo: #greet ifTrue: [obj greet]
+```
+
+## Libraries and Namespaces
+
+### Creating a Library
+
+```smalltalk
+MyLib := Library new
+MyLib at: "MyClass" put: SomeClass
+MyLib at: "Constant" put: 42
+```
+
+### Library Operations
+
+```smalltalk
+MyLib at: "Constant"                # Get binding (returns 42)
+MyLib at: "NewKey" put: "value"      # Set binding
+MyLib includesKey: "MyClass"        # Check if key exists (true)
+MyLib keys                           # Get all binding names
+```
+
+### Loading Code into a Library
+
+```smalltalk
+MyLib := Library new
+MyLib load: "path/to/file.hrd"       # Loads code, captures new globals into MyLib
+```
+
+### Importing Libraries
+
+```smalltalk
+MyLib := Library new
+MyLib load: "mylib.hrd"
+Harding import: MyLib                # Make MyLib bindings accessible
+
+# Now accessible by name
+Instance := MyClass new
+```
+
+### Variable Lookup Order
+
+1. Local scope (temporaries)
+2. Activation chain
+3. Imported libraries (most recent first)
+4. Global table (fallback)
+
+### Most Recent Import Wins
+
+```smalltalk
+Lib1 at: "SharedKey" put: 1.
+Lib2 at: "SharedKey" put: 2.
+Harding import: Lib1.
+Harding import: Lib2.
+SharedKey  # Returns 2 (Lib2 was imported last)
+```
+
+### Load to Globals
+
+```smalltalk
+Harding load: "path/to/file.hrd"      # Loads directly into global namespace
 ```
 
 ---

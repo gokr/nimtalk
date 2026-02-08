@@ -11,7 +11,7 @@ SortedCollection class>>new [
 
 SortedCollection class>>new: items sortBlock: aBlock [
     | sc |
-    sc := self derive: #(sortBlock).
+    sc := self new.
     sc sortBlock: aBlock.
     items do: [:item | sc add: item].
     ^sc

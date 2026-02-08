@@ -15,6 +15,13 @@ import ./expression
 # Generates complete Nim modules from Harding source
 # ============================================================================
 
+proc mangleModuleName*(name: string): string =
+  ## Convert module name to valid Nim identifier
+  ## Module names starting with digits get "module_" prefix
+  if name.len > 0 and name[0] in {'0'..'9'}:
+    return "module_" & name
+  return name
+
 proc genModuleHeader*(ctx: var CompilerContext, moduleName: string): string =
   ## Generate module header with imports and documentation
   var output = ""

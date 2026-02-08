@@ -10,10 +10,11 @@
 6. [Blocks and Closures](#blocks-and-closures)
 7. [Control Flow](#control-flow)
 8. [Exception Handling](#exception-handling)
-9. [Green Threads and Processes](#green-threads-and-processes)
-10. [Primitives](#primitives)
-11. [Smalltalk Compatibility](#smalltalk-compatibility)
-12. [Grammar Reference](#grammar-reference)
+9. [Libraries and Namespaces](#libraries-and-namespaces)
+10. [Green Threads and Processes](#green-threads-and-processes)
+11. [Primitives](#primitives)
+12. [Smalltalk Compatibility](#smalltalk-compatibility)
+13. [Grammar Reference](#grammar-reference)
 
 ---
 
@@ -28,6 +29,7 @@ Harding is a class-based Smalltalk dialect that compiles to Nim. It preserves Sm
 - **Block closures** with lexical scoping and non-local returns
 - **Direct slot access** for declared instance variables (O(1) access)
 - **Method definition syntax** using `>>` operator
+- **Libraries** for namespace isolation and modular code organization
 - **Green threads** for cooperative multitasking
 - **Nim integration** via primitive syntax
 
@@ -687,6 +689,111 @@ Harding trades Smalltalk's advanced features (resumable exceptions) for seamless
 
 ---
 
+## Libraries and Namespaces
+
+Harding provides a Library class for organizing code into isolated namespaces. Libraries allow you to group related classes and avoid polluting the global namespace.
+
+### Creating Libraries
+
+```smalltalk
+# Create a new library
+MyLib := Library new.
+
+# Add bindings (classes, constants, etc.)
+MyLib at: "MyClass" put: SomeClass.
+MyLib at: "Constant" put: 42.
+
+# Retrieve bindings
+MyLib at: "Constant"           # Returns 42
+MyLib includesKey: "MyClass"   # Returns true
+MyLib keys                     # Returns array of all binding names
+```
+
+### Loading Code into Libraries
+
+The `Library>>load:` message loads a file and captures new global definitions into the library's bindings, rather than polluting the global namespace:
+
+```smalltalk
+# mylib.hrd - defines classes like MyClass, UtilityClass, etc.
+MyLib := Library new.
+MyLib load: "mylib.hrd"
+
+# The classes from mylib.hrd are in MyLib's bindings
+MyLib at: "MyClass"             # Returns the class
+MyLib at: "UtilityClass"        # Returns the class
+
+# They are NOT in the global namespace
+Harding includesKey: "MyClass"  # Returns false
+```
+
+### Importing Libraries
+
+Import a library to make its bindings accessible for name resolution:
+
+```smalltalk
+MyLib := Library new.
+MyLib load: "mylib.hrd"
+Harding import: MyLib
+
+# Now classes from MyLib are accessible by name
+Instance := MyClass new.
+Value := UtilityClass doSomething.
+```
+
+### Variable Lookup Order
+
+When resolving a variable name, Harding searches in this order:
+
+1. **Local scope** (temporaries, captured variables)
+2. **Activation chain** (method locals)
+3. **Imported Libraries** (most recent first)
+4. **Global table** (fallback)
+
+Most recently imported libraries take precedence for conflict resolution:
+
+```smalltalk
+Lib1 := Library new.
+Lib1 at: "SharedKey" put: 1.
+
+Lib2 := Library new.
+Lib2 at: "SharedKey" put: 2.
+
+Harding import: Lib1.
+Harding import: Lib2.
+
+SharedKey  # Returns 2 (Lib2 was imported last)
+```
+
+### The Standard Library
+
+The Standard Library is pre-loaded with common classes and utilities:
+
+```smalltalk
+Standard load: "lib/core/Collections.hrd"      # Set
+Standard load: "lib/core/Interval.hrd"         # Interval
+Standard load: "lib/core/Exception.hrd"        # Exception hierarchy
+```
+
+The Standard Library is automatically imported at startup, so these classes are accessible by default:
+
+```smalltalk
+Set new                # Set collection (from Standard)
+1 to: 10               # Interval (from Standard)
+Error error: "oops"    # Exception class (from Standard)
+```
+
+### Loading Code into Global Scope
+
+To load code directly into the global namespace (for method extensions, etc.):
+
+```smalltalk
+ Harding load: "lib/core/Object.hrd"
+```
+
+This is used in `lib/core/Bootstrap.hrd` to load core method extensions before loading new classes into the Standard Library.
+
+---
+
 ## Green Threads and Processes
 
 Harding supports cooperative green processes:
@@ -959,6 +1066,7 @@ a // b           # Integer division
 a \ b            # Modulo
 a ~~ b           # Not identity
 "a" , "b"        # String concatenation
+"Value: " , 42    # Auto-converts to string: "Value: 42"
 a & b            # Logical AND
 a | b            # Logical OR
 ```
@@ -997,6 +1105,66 @@ dict at: "newKey" put: "newValue"
 # Methods
 dict keys               # All keys
 dict includesKey: "key" # Check if key exists
+```
+
+---
+
+## Libraries and Namespaces
+
+Harding provides a `Library` class for creating namespaces and managing imports. Libraries are useful for organizing code into modules and avoiding global namespace pollution.
+
+### Creating a Library
+
+```smalltalk
+# Create a new library
+MyLib := Library new
+
+# Add values to the library
+MyLib at: "greeting" put: "Hello"
+MyLib at: "pi" put: 3.14159
+
+# Access values
+MyLib at: "greeting"     # Returns "Hello"
+MyLib keys               # Returns all keys
+MyLib includesKey: "pi"  # Returns true
+```
+
+### Importing Libraries
+
+Import a library to make its bindings accessible in the current scope:
+
+```smalltalk
+# Create and populate a library
+Utils := Library new
+Utils at: "helper" put: [ :x | x * 2 ]
+
+# Import the library
+Harding import: Utils
+
+# Now "helper" is accessible directly
+helper value: 21    # Returns 42
+```
+
+### Library Scoping
+
+- Libraries are checked before globals when resolving variable names
+- Multiple libraries can be imported; most recent import takes precedence on conflict
+- Imported libraries are searched before the global namespace
+- Libraries are particularly useful for organizing reusable code modules
+
+### Example: Module Pattern
+
+```smalltalk
+# Create a math utilities module
+MathUtils := Library new
+MathUtils at: "square" put: [ :n | n * n ]
+MathUtils at: "cube" put: [ :n | n * n * n ]
+MathUtils at: "pi" put: 3.14159
+
+# Import and use
+Harding import: MathUtils
+square value: 5     # Returns 25
+cube value: 3       # Returns 27
 ```
 
 ---
