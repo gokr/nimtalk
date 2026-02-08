@@ -1,0 +1,246 @@
+#!/usr/bin/env harding
+#
+# Interval.hrd - Numeric range for iteration
+#
+
+Interval := Object derive: #(start stop step).
+
+Interval class>>from: startInteger to: stopInteger [
+    ^self from: startInteger to: stopInteger by: 1
+]
+
+Interval class>>from: startInteger to: stopInteger by: stepInteger [
+    | interval |
+    interval := self derive: #(start stop step).
+    interval start: startInteger.
+    interval stop: stopInteger.
+    interval step: stepInteger.
+    ^interval
+]
+
+Interval>>start [
+    ^start
+]
+
+Interval>>start: anInteger [
+    start := anInteger.
+]
+
+Interval>>stop [
+    ^stop
+]
+
+Interval>>stop: anInteger [
+    stop := anInteger.
+]
+
+Interval>>step [
+    ^step
+]
+
+Interval>>step: anInteger [
+    step := anInteger.
+]
+
+Interval>>size [
+    # Number of elements in the interval
+    step = 0 ifTrue: [ ^0 ].
+    step > 0
+        ifTrue: [
+            start > stop ifTrue: [ ^0 ].
+            ^((stop - start) // step) + 1
+        ]
+        ifFalse: [
+            start < stop ifTrue: [ ^0 ].
+            ^((start - stop) // (0 - step)) + 1
+        ].
+]
+
+Interval>>isEmpty [
+    ^self size = 0
+]
+
+Interval>>includes: aNumber [
+    # Check if number is in the interval
+    | remainder |
+    step = 0 ifTrue: [ ^false ].
+    step > 0
+        ifTrue: [
+            (aNumber < start or: [aNumber > stop]) ifTrue: [ ^false ].
+        ]
+        ifFalse: [
+            (aNumber > start or: [aNumber < stop]) ifTrue: [ ^false ].
+        ].
+    remainder := (aNumber - start) \\ step.
+    remainder = 0 ifTrue: [ ^true ].
+    # Handle negative step
+    remainder = step ifTrue: [ ^true ].
+    ^false
+]
+
+Interval>>do: aBlock [
+    # Iterate over each value in the interval
+    | current |
+    current := start.
+    step > 0
+        ifTrue: [
+            [ current <= stop ] whileTrue: [
+                aBlock value: current.
+                current := current + step.
+            ].
+        ]
+        ifFalse: [
+            [ current >= stop ] whileTrue: [
+                aBlock value: current.
+                current := current + step.
+            ].
+        ].
+    ^self
+]
+
+Interval>>collect: aBlock [
+    # Transform each element, return Array
+    | result |
+    result := Array new.
+    self do: [:each | result add: (aBlock value: each)].
+    ^result
+]
+
+Interval>>select: aBlock [
+    # Return Array with elements satisfying aBlock
+    | result |
+    result := Array new.
+    self do: [:each | (aBlock value: each) ifTrue: [ result add: each ]].
+    ^result
+]
+
+Interval>>reject: aBlock [
+    # Return Array with elements not satisfying aBlock
+    ^self select: [:each | (aBlock value: each) not]
+]
+
+Interval>>detect: aBlock [
+    # Find first element satisfying aBlock
+    self do: [:each | (aBlock value: each) ifTrue: [ ^each ]].
+    ^nil
+]
+
+Interval>>detect: aBlock ifNone: noneBlock [
+    # Find first element satisfying aBlock, or evaluate noneBlock
+    self do: [:each | (aBlock value: each) ifTrue: [ ^each ]].
+    ^noneBlock value
+]
+
+Interval>>inject: initialValue into: aBlock [
+    # Accumulate result
+    | result |
+    result := initialValue.
+    self do: [:each | result := aBlock value: result value: each].
+    ^result
+]
+
+Interval>>anySatisfy: aBlock [
+    # Return true if any element satisfies aBlock
+    self do: [:each | (aBlock value: each) ifTrue: [ ^true ]].
+    ^false
+]
+
+Interval>>allSatisfy: aBlock [
+    # Return true if all elements satisfy aBlock
+    self do: [:each | (aBlock value: each) ifFalse: [ ^false ]].
+    ^true
+]
+
+Interval>>sum [
+    # Sum of all elements
+    | total |
+    total := 0.
+    self do: [:each | total := total + each].
+    ^total
+]
+
+Interval>>max [
+    # Maximum value (largest by magnitude respecting step direction)
+    step >= 0 ifTrue: [ ^stop ].
+    ^start
+]
+
+Interval>>min [
+    # Minimum value (smallest by magnitude respecting step direction)
+    step >= 0 ifTrue: [ ^start ].
+    ^stop
+]
+
+Interval>>asArray [
+    # Convert to Array
+    | result |
+    result := Array new: self size.
+    self withIndexDo: [:each :index | result at: index put: each].
+    ^result
+]
+
+Interval>>withIndexDo: aBlock [
+    # Iterate with 1-based index
+    | index current |
+    index := 1.
+    current := start.
+    step > 0
+        ifTrue: [
+            [ current <= stop ] whileTrue: [
+                aBlock value: current value: index.
+                current := current + step.
+                index := index + 1.
+            ].
+        ]
+        ifFalse: [
+            [ current >= stop ] whileTrue: [
+                aBlock value: current value: index.
+                current := current + step.
+                index := index + 1.
+            ].
+        ].
+    ^self
+]
+
+Interval>>reversed [
+    # Return new Interval going in opposite direction
+    ^Interval from: stop to: start by: (0 - step)
+]
+
+Interval>>printString [
+    # String representation: (1 to: 10 by: 2)
+    ^"(" , (start printString) , " to: " , (stop printString) , " by: " , (step printString) , ")"
+]
+
+Interval>>= anInterval [
+    # Equality check
+    (anInterval isKindOf: Interval) ifFalse: [ ^false ].
+    ^(start = anInterval start) and: [
+        (stop = anInterval stop) and: [
+            step = anInterval step
+        ]
+    ]
+]
+
+# Add to: and to:by: methods to Number for convenience
+
+Number>>to: stopNumber [
+    ^Interval from: self to: stopNumber
+]
+
+Number>>to: stopNumber by: stepNumber [
+    ^Interval from: self to: stopNumber by: stepNumber
+]
+
+# Make Interval compatible with collection methods
+
+Interval>>first [
+    ^start
+]
+
+Interval>>last [
+    step > 0 ifTrue: [
+        ^stop - ((stop - start) \\ step)
+    ].
+    ^stop + ((start - stop) \\ (0 - step))
+]

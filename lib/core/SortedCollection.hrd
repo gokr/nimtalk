@@ -1,0 +1,169 @@
+#!/usr/bin/env harding
+#
+# SortedCollection.hrd - Array that maintains sorted order
+#
+
+SortedCollection := Array derive: #(sortBlock).
+
+SortedCollection class>>new [
+    ^self new: #() sortBlock: [:a :b | a < b]
+]
+
+SortedCollection class>>new: items sortBlock: aBlock [
+    | sc |
+    sc := self derive: #(sortBlock).
+    sc sortBlock: aBlock.
+    items do: [:item | sc add: item].
+    ^sc
+]
+
+SortedCollection class>>sortBlock: aBlock [
+    ^self new: #() sortBlock: aBlock
+]
+
+SortedCollection>>sortBlock [
+    ^sortBlock
+]
+
+SortedCollection>>sortBlock: aBlock [
+    sortBlock := aBlock.
+    self resort.
+]
+
+SortedCollection>>add: anObject [
+    # Add in sorted position using binary search for efficiency
+    | index low high mid |
+    self size = 0 ifTrue: [
+        super add: anObject.
+        ^anObject
+    ].
+
+    # Binary search for insertion point
+    low := 1.
+    high := self size.
+    index := high + 1.  # Default to end
+
+    [ low <= high ] whileTrue: [
+        mid := (low + high) // 2.
+        (sortBlock value: (self at: mid) value: anObject)
+            ifTrue: [ low := mid + 1 ]
+            ifFalse: [
+                index := mid.
+                high := mid - 1.
+            ].
+    ].
+
+    # Insert at index (1-based)
+    self insert: anObject at: index.
+    ^anObject
+]
+
+SortedCollection>>insert: anObject at: index [
+    # Insert object at specific index, shifting elements
+    | i |
+    i := self size.
+    self add: nil.  # Expand array by 1
+    [ i >= index ] whileTrue: [
+        self at: i + 1 put: (self at: i).
+        i := i - 1.
+    ].
+    self at: index put: anObject.
+    ^anObject
+]
+
+SortedCollection>>resort [
+    # Re-sort all elements after sortBlock change
+    | sorted |
+    sorted := self sorted: sortBlock.
+    self removeAll.
+    sorted do: [:item | super add: item].
+    ^self
+]
+
+SortedCollection>>includes: anObject [
+    # Use binary search for O(log n) lookup
+    ^(self find: anObject) notNil
+]
+
+SortedCollection>>find: anObject [
+    # Binary search for object, return it if found, nil otherwise
+    | low high mid |
+    low := 1.
+    high := self size.
+
+    [ low <= high ] whileTrue: [
+        mid := (low + high) // 2.
+        (self at: mid) = anObject ifTrue: [ ^self at: mid ].
+        (sortBlock value: (self at: mid) value: anObject)
+            ifTrue: [ low := mid + 1 ]
+            ifFalse: [ high := mid - 1 ].
+    ].
+    ^nil
+]
+
+SortedCollection>>remove: anObject [
+    # Remove first occurrence of anObject
+    | index |
+    index := self indexOf: anObject.
+    index notNil ifTrue: [ self removeAt: index ].
+    ^anObject
+]
+
+SortedCollection>>indexOf: anObject [
+    # Binary search for index of object
+    | low high mid |
+    low := 1.
+    high := self size.
+
+    [ low <= high ] whileTrue: [
+        mid := (low + high) // 2.
+        (self at: mid) = anObject ifTrue: [ ^mid ].
+        (sortBlock value: (self at: mid) value: anObject)
+            ifTrue: [ low := mid + 1 ]
+            ifFalse: [ high := mid - 1 ].
+    ].
+    ^nil
+]
+
+SortedCollection>>first [
+    # Smallest element (at index 1)
+    ^self at: 1
+]
+
+SortedCollection>>last [
+    # Largest element (at end)
+    ^self at: self size
+]
+
+SortedCollection>>select: aBlock [
+    # Return new SortedCollection with elements satisfying aBlock
+    | result |
+    result := SortedCollection new.
+    self do: [:each | (aBlock value: each) ifTrue: [ result add: each ]].
+    ^result
+]
+
+SortedCollection>>reject: aBlock [
+    # Return new SortedCollection with elements not satisfying aBlock
+    ^self select: [:each | (aBlock value: each) not]
+]
+
+SortedCollection>>copy [
+    # Return copy with same sortBlock
+    | copy |
+    copy := SortedCollection new: #() sortBlock: sortBlock.
+    self do: [:item | copy add: item].
+    ^copy
+]
+
+SortedCollection>>asSortedCollection [
+    ^self
+]
+
+Array>>asSortedCollection [
+    ^SortedCollection new: self sortBlock: [:a :b | a < b]
+]
+
+Array>>asSortedCollection: aBlock [
+    ^SortedCollection new: self sortBlock: aBlock
+]
