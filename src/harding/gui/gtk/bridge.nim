@@ -289,20 +289,20 @@ proc initGtkBridge*(interp: var Interpreter) =
   addMethodToClass(textViewCls, "new", textViewNewMethod, isClassMethod = true)
 
   # Add TextView instance methods
-  let textViewGetBufferMethod = createCoreMethod("getBuffer:")
+  let textViewGetBufferMethod = createCoreMethod("getBuffer")
   textViewGetBufferMethod.nativeImpl = cast[pointer](textViewGetBufferImpl)
   textViewGetBufferMethod.hasInterpreterParam = true
-  addMethodToClass(textViewCls, "getBuffer:", textViewGetBufferMethod)
+  addMethodToClass(textViewCls, "getBuffer", textViewGetBufferMethod)
 
   let textViewSetBufferMethod = createCoreMethod("setBuffer:")
   textViewSetBufferMethod.nativeImpl = cast[pointer](textViewSetBufferImpl)
   textViewSetBufferMethod.hasInterpreterParam = true
   addMethodToClass(textViewCls, "setBuffer:", textViewSetBufferMethod)
 
-  let textViewGetTextMethod = createCoreMethod("getText:")
+  let textViewGetTextMethod = createCoreMethod("getText")
   textViewGetTextMethod.nativeImpl = cast[pointer](textViewGetTextImpl)
   textViewGetTextMethod.hasInterpreterParam = true
-  addMethodToClass(textViewCls, "getText:", textViewGetTextMethod)
+  addMethodToClass(textViewCls, "getText", textViewGetTextMethod)
 
   let textViewSetTextMethod = createCoreMethod("setText:")
   textViewSetTextMethod.nativeImpl = cast[pointer](textViewSetTextImpl)
@@ -325,20 +325,20 @@ proc initGtkBridge*(interp: var Interpreter) =
   addMethodToClass(sourceViewCls, "new", sourceViewNewMethod, isClassMethod = true)
 
   # Add SourceView instance methods
-  let sourceViewGetTextMethod = createCoreMethod("getText:")
+  let sourceViewGetTextMethod = createCoreMethod("getText")
   sourceViewGetTextMethod.nativeImpl = cast[pointer](sourceViewGetTextImpl)
   sourceViewGetTextMethod.hasInterpreterParam = true
-  addMethodToClass(sourceViewCls, "getText:", sourceViewGetTextMethod)
+  addMethodToClass(sourceViewCls, "getText", sourceViewGetTextMethod)
 
   let sourceViewSetTextMethod = createCoreMethod("setText:")
   sourceViewSetTextMethod.nativeImpl = cast[pointer](sourceViewSetTextImpl)
   sourceViewSetTextMethod.hasInterpreterParam = true
   addMethodToClass(sourceViewCls, "setText:", sourceViewSetTextMethod)
 
-  let sourceViewGetSelectedTextMethod = createCoreMethod("getSelectedText:")
+  let sourceViewGetSelectedTextMethod = createCoreMethod("getSelectedText")
   sourceViewGetSelectedTextMethod.nativeImpl = cast[pointer](sourceViewGetSelectedTextImpl)
   sourceViewGetSelectedTextMethod.hasInterpreterParam = true
-  addMethodToClass(sourceViewCls, "getSelectedText:", sourceViewGetSelectedTextMethod)
+  addMethodToClass(sourceViewCls, "getSelectedText", sourceViewGetSelectedTextMethod)
 
   let sourceViewShowLineNumbersMethod = createCoreMethod("showLineNumbers:")
   sourceViewShowLineNumbersMethod.nativeImpl = cast[pointer](sourceViewShowLineNumbersImpl)
@@ -402,10 +402,10 @@ proc initGtkBridge*(interp: var Interpreter) =
   textBufferSetTextMethod.hasInterpreterParam = true
   addMethodToClass(textBufferCls, "setText:", textBufferSetTextMethod)
 
-  let textBufferGetTextMethod = createCoreMethod("getText:")
+  let textBufferGetTextMethod = createCoreMethod("getText")
   textBufferGetTextMethod.nativeImpl = cast[pointer](textBufferGetTextImpl)
   textBufferGetTextMethod.hasInterpreterParam = true
-  addMethodToClass(textBufferCls, "getText:", textBufferGetTextMethod)
+  addMethodToClass(textBufferCls, "getText", textBufferGetTextMethod)
 
   let textBufferInsertAtMethod = createCoreMethod("insert:at:")
   textBufferInsertAtMethod.nativeImpl = cast[pointer](textBufferInsertAtImpl)

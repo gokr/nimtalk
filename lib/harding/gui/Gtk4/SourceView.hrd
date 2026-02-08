@@ -7,16 +7,15 @@
 # - new (create new source view with Harding syntax highlighting)
 #
 # Instance methods:
-# - getText: (get all text, returns array [text])
+# - getText (get all text, returns string)
 # - setText: (set text in the view)
-# - getSelectedText: (get selected text or current line)
+# - getSelectedText (get selected text or current line, returns string)
 # - showLineNumbers: (show/hide line numbers)
 # - setTabWidth: (set tab width in spaces)
 
 # Convenience accessors
 GtkSourceView>>text [
-    # Get all text - native method returns the string directly
-    ^self getText: nil
+    ^self getText
 ].
 
 GtkSourceView>>text: aString [
@@ -24,8 +23,7 @@ GtkSourceView>>text: aString [
 ].
 
 GtkSourceView>>selectedText [
-    # Get selected text - native method returns the string directly
-    ^self getSelectedText: nil
+    ^self getSelectedText
 ].
 
 # Signal conveniences
@@ -43,6 +41,5 @@ GtkSourceView>>onTextChanged: aBlock [
 
 # Buffer access (inherits from GtkTextView)
 GtkSourceView>>buffer [
-    # Get buffer - native method returns it directly
-    ^self getBuffer: nil
+    ^self getBuffer
 ].

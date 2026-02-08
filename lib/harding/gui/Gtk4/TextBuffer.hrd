@@ -8,14 +8,13 @@
 #
 # Instance methods:
 # - setText: (set all text)
-# - getText: (get all text, returns the string directly)
+# - getText (get all text, returns string)
 # - insert:at: (insert text at position)
 # - delete:to: (delete text from startPos to endPos)
 
 # Convenience methods
 GtkTextBuffer>>text [
-  # Get all text - native method returns the string directly
-  ^self getText: nil
+  ^self getText
 ].
 
 GtkTextBuffer>>text: aString [
