@@ -127,11 +127,11 @@ proc classDeriveParentsSlotsGettersSettersMethodsImpl*(self: Class, args: seq[No
 proc classNewImpl*(self: Class, args: seq[NodeValue]): NodeValue
 proc classAddMethodImpl*(self: Class, args: seq[NodeValue]): NodeValue
 proc classAddClassMethodImpl*(self: Class, args: seq[NodeValue]): NodeValue
-proc classParentsImpl*(self: Class, args: seq[NodeValue]): NodeValue
-proc classSlotsImpl*(self: Class, args: seq[NodeValue]): NodeValue
-proc classGettersImpl*(self: Class, args: seq[NodeValue]): NodeValue
-proc classSettersImpl*(self: Class, args: seq[NodeValue]): NodeValue
-proc classMethodsImpl*(self: Class, args: seq[NodeValue]): NodeValue
+proc classParentsImpl*(self: Instance, args: seq[NodeValue]): NodeValue
+proc classSlotsImpl*(self: Instance, args: seq[NodeValue]): NodeValue
+proc classGettersImpl*(self: Instance, args: seq[NodeValue]): NodeValue
+proc classSettersImpl*(self: Instance, args: seq[NodeValue]): NodeValue
+proc classMethodsImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc invalidateSubclasses*(cls: Class)
 proc rebuildAllTables*(cls: Class)
 proc registerPrimitivesOnObjectClass*(objCls: Class)
@@ -1177,9 +1177,13 @@ proc classDeriveParentsSlotsGettersSettersMethodsImpl*(self: Class, args: seq[No
 
   return NodeValue(kind: vkClass, classVal: newClass)
 
-proc classParentsImpl*(self: Class, args: seq[NodeValue]): NodeValue =
+proc classParentsImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Add parent classes to an existing class (cascade-style construction)
   ## args[0]: parents array
+  if self.nimValue == nil:
+    return nilValue()
+
+  let cls = cast[ptr Class](self.nimValue)
   if args.len > 0 and args[0].kind == vkInstance and args[0].instVal.kind == ikArray:
     var parents: seq[Class] = @[]
     for elem in args[0].instVal.elements:
@@ -1188,17 +1192,21 @@ proc classParentsImpl*(self: Class, args: seq[NodeValue]): NodeValue =
 
     # Add each parent to superclasses
     for parent in parents:
-      if parent notin self.superclasses:
-        self.superclasses.add(parent)
-        invalidateSubclasses(self)
-        rebuildAllTables(self)
+      if parent notin cls[].superclasses:
+        cls[].superclasses.add(parent)
+        invalidateSubclasses(cls[])
+        rebuildAllTables(cls[])
 
-  return NodeValue(kind: vkClass, classVal: self)
+  return NodeValue(kind: vkClass, classVal: cls[])
 
-proc classSlotsImpl*(self: Class, args: seq[NodeValue]): NodeValue =
+proc classSlotsImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Add slots to an existing class (cascade-style construction)
   ## Note: This creates a new class with the additional slots
   ## args[0]: slot names array
+  if self.nimValue == nil:
+    return nilValue()
+
+  let cls = cast[ptr Class](self.nimValue)
   if args.len > 0 and args[0].kind == vkInstance and args[0].instVal.kind == ikArray:
     var extraSlotNames: seq[string] = @[]
     for elem in args[0].instVal.elements:
@@ -1209,7 +1217,7 @@ proc classSlotsImpl*(self: Class, args: seq[NodeValue]): NodeValue =
 
     # Create new slot names list combining existing and new
     var newSlotNames: seq[string] = @[]
-    for slot in self.allSlotNames:
+    for slot in cls[].allSlotNames:
       newSlotNames.add(slot)
     for slot in extraSlotNames:
       if slot notin newSlotNames:
@@ -1217,64 +1225,75 @@ proc classSlotsImpl*(self: Class, args: seq[NodeValue]): NodeValue =
 
     # Rebuild class with new slot names (create a replacement class)
     let replacementClass = newClass(
-      superclasses = self.superclasses,
+      superclasses = cls[].superclasses,
       slotNames = newSlotNames,
-      name = self.name
+      name = cls[].name
     )
 
     # Copy existing methods
-    for selector, meth in self.methods.pairs:
+    for selector, meth in cls[].methods.pairs:
       replacementClass.methods[selector] = meth
-    for selector, meth in self.allMethods.pairs:
+    for selector, meth in cls[].allMethods.pairs:
       replacementClass.allMethods[selector] = meth
 
-    # Invalidate and rebuild subclasses won't work in cascade context
-    # For cascades, we typically return self (self-modifying) or handle differently
-    # This is a limitation of the current approach
+    # For cascades, we update the nimValue pointer
+    cast[ptr Class](self.nimValue)[] = replacementClass
 
     return NodeValue(kind: vkClass, classVal: replacementClass)
 
-  return NodeValue(kind: vkClass, classVal: self)
+  return NodeValue(kind: vkClass, classVal: cls[])
 
-proc classGettersImpl*(self: Class, args: seq[NodeValue]): NodeValue =
+proc classGettersImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Generate getter methods for specified slots (cascade-style construction)
   ## args[0]: slot names array
+  if self.nimValue == nil:
+    return nilValue()
+
+  let cls = cast[ptr Class](self.nimValue)
   if args.len > 0 and args[0].kind == vkInstance and args[0].instVal.kind == ikArray:
     for elem in args[0].instVal.elements:
       if elem.kind == vkString or elem.kind == vkSymbol:
         let slotName = if elem.kind == vkString: elem.strVal else: elem.symVal
-        let getter = createGetterMethod(self, slotName)
+        let getter = createGetterMethod(cls[], slotName)
         if getter != nil:
-          addMethodToClass(self, slotName, getter, isClassMethod = false)
+          addMethodToClass(cls[], slotName, getter, isClassMethod = false)
 
-  return NodeValue(kind: vkClass, classVal: self)
+  return NodeValue(kind: vkClass, classVal: cls[])
 
-proc classSettersImpl*(self: Class, args: seq[NodeValue]): NodeValue =
+proc classSettersImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Generate setter methods for specified slots (cascade-style construction)
   ## args[0]: slot names array
+  if self.nimValue == nil:
+    return nilValue()
+
+  let cls = cast[ptr Class](self.nimValue)
   if args.len > 0 and args[0].kind == vkInstance and args[0].instVal.kind == ikArray:
     for elem in args[0].instVal.elements:
       if elem.kind == vkString or elem.kind == vkSymbol:
         let slotName = if elem.kind == vkString: elem.strVal else: elem.symVal
         let setterName = slotName & ":"
-        let setter = createSetterMethod(self, slotName)
+        let setter = createSetterMethod(cls[], slotName)
         if setter != nil:
-          addMethodToClass(self, setterName, setter, isClassMethod = false)
+          addMethodToClass(cls[], setterName, setter, isClassMethod = false)
 
-  return NodeValue(kind: vkClass, classVal: self)
+  return NodeValue(kind: vkClass, classVal: cls[])
 
-proc classMethodsImpl*(self: Class, args: seq[NodeValue]): NodeValue =
+proc classMethodsImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Add methods from a table literal (cascade-style construction)
   ## args[0]: methods table #{#selector -> [:arg|...], ...}
+  if self.nimValue == nil:
+    return nilValue()
+
+  let cls = cast[ptr Class](self.nimValue)
   if args.len > 0 and args[0].kind == vkInstance and args[0].instVal.kind == ikTable:
     let methodTable = args[0].instVal
     for key, value in methodTable.entries.pairs:
       if key.kind == vkSymbol and value.kind == vkBlock:
         let selector = key.symVal
         let meth = value.blockVal
-        addMethodToClass(self, selector, meth, isClassMethod = false)
+        addMethodToClass(cls[], selector, meth, isClassMethod = false)
 
-  return NodeValue(kind: vkClass, classVal: self)
+  return NodeValue(kind: vkClass, classVal: cls[])
 
 proc classNewImpl*(self: Class, args: seq[NodeValue]): NodeValue =
   ## Create a new instance of this class

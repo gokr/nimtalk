@@ -166,18 +166,27 @@ proc compileFile(config: Config): bool =
     for node in nodes:
       echo printAST(node)
 
-  let rawModuleName = changeFileExt(extractFilename(config.inputFile), "")
-  let moduleName = mangleModuleName(rawModuleName)
   let outputDir = if config.outputDir.len > 0: config.outputDir else: "./build"
+
+  # Determine module name and output path
+  # If -o is specified, use that as the base name; otherwise use input filename
+  var moduleName: string
+  var outputPath: string
+  if config.outputFile.len > 0:
+    # Use output file name as module name (without extension)
+    moduleName = changeFileExt(extractFilename(config.outputFile), "")
+    # If output file doesn't have .nim extension, add it
+    if not config.outputFile.endsWith(".nim"):
+      outputPath = config.outputFile & ".nim"
+    else:
+      outputPath = config.outputFile
+  else:
+    let rawModuleName = changeFileExt(extractFilename(config.inputFile), "")
+    moduleName = mangleModuleName(rawModuleName)
+    outputPath = outputDir / moduleName & ".nim"
 
   var ctx = newCompiler(outputDir, moduleName)
   let nimCode = genModule(ctx, nodes, moduleName)
-
-  var outputPath: string
-  if config.outputFile.len > 0:
-    outputPath = config.outputFile
-  else:
-    outputPath = outputDir / moduleName & ".nim"
 
   createDir(parentDir(outputPath))
   writeFile(outputPath, nimCode)
@@ -188,7 +197,11 @@ proc compileFile(config: Config): bool =
 proc computeOutputPath(config: Config): string =
   ## Compute the output Nim file path
   if config.outputFile.len > 0:
-    result = config.outputFile
+    # If output file doesn't have .nim extension, add it
+    if not config.outputFile.endsWith(".nim"):
+      result = config.outputFile & ".nim"
+    else:
+      result = config.outputFile
   else:
     let rawModuleName = changeFileExt(extractFilename(config.inputFile), "")
     let moduleName = mangleModuleName(rawModuleName)
