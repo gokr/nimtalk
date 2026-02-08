@@ -1,22 +1,25 @@
 #!/usr/bin/env harding
 #
-# Bootstrap.hrd - Loads the core library
-# This is the entry point for loading the Harding standard library.
-# All core library files are loaded from here using Harding load: syntax.
+# Bootstrap.hrd - Loads the core library using Standard Library pattern
+# All core library files are loaded from here.
 
-# Core object system
+# Create Standard Library for new classes
+Standard := Library new.
+
+# Load method extensions (core usability methods) into globals
 Harding load: "lib/core/Object.hrd"
 Harding load: "lib/core/Boolean.hrd"
 Harding load: "lib/core/Block.hrd"
-
-# Core numeric and collection classes
 Harding load: "lib/core/Number.hrd"
-Harding load: "lib/core/Collections.hrd"
-Harding load: "lib/core/SortedCollection.hrd"
-Harding load: "lib/core/Interval.hrd"
 Harding load: "lib/core/String.hrd"
 
-# I/O and utilities
-Harding load: "lib/core/FileStream.hrd"
-Harding load: "lib/core/Exception.hrd"
-Harding load: "lib/core/TestCase.hrd"
+# Load new classes into Standard Library
+Standard load: "lib/core/Collections.hrd"
+Standard load: "lib/core/SortedCollection.hrd"
+Standard load: "lib/core/Interval.hrd"
+Standard load: "lib/core/FileStream.hrd"
+Standard load: "lib/core/Exception.hrd"
+Standard load: "lib/core/TestCase.hrd"
+
+# Auto-import Standard for backward compatibility
+Harding import: Standard.

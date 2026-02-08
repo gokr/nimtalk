@@ -3,7 +3,7 @@
 # Interval.hrd - Numeric range for iteration
 #
 
-Interval := Object derive: #(intervalStart intervalStop intervalStep).
+Interval := Object derive: #(start stop step).
 
 Interval class>>from: startInteger to: stopInteger [
     ^self from: startInteger to: stopInteger by: 1
@@ -11,60 +11,48 @@ Interval class>>from: startInteger to: stopInteger [
 
 Interval class>>from: startInteger to: stopInteger by: stepInteger [
     | interval |
-    interval := self derive: #(intervalStart intervalStop intervalStep).
-    interval intervalStart: startInteger.
-    interval intervalStop: stopInteger.
-    interval intervalStep: stepInteger.
+    interval := self new.
+    interval start: startInteger.
+    interval stop: stopInteger.
+    interval step: stepInteger.
     ^interval
 ]
 
-Interval>>intervalStart [
-    ^intervalStart
-]
-
-Interval>>intervalStart: anInteger [
-    intervalStart := anInteger.
-]
-
-Interval>>intervalStop [
-    ^intervalStop
-]
-
-Interval>>intervalStop: anInteger [
-    intervalStop := anInteger.
-]
-
-Interval>>intervalStep [
-    ^intervalStep
-]
-
-Interval>>intervalStep: anInteger [
-    intervalStep := anInteger.
-]
-
 Interval>>start [
-    ^intervalStart
+    ^start
+]
+
+Interval>>start: anInteger [
+    start := anInteger.
 ]
 
 Interval>>stop [
-    ^intervalStop
+    ^stop
+]
+
+Interval>>stop: anInteger [
+    stop := anInteger.
 ]
 
 Interval>>step [
-    ^intervalStep
+    ^step
+]
+
+Interval>>step: anInteger [
+    step := anInteger.
 ]
 
 Interval>>size [
     # Number of elements in the interval
-    intervalStep = 0 ifTrue: [ ^0 ].
-    intervalStep > 0
+    step = 0 ifTrue: [ ^0 ].
+    step > 0
         ifTrue: [
-            intervalStart > intervalStop ifTrue: [ ^0 ].
-            ^((intervalStop - intervalStart) // intervalStep) + 1
+            start > stop ifTrue: [ ^0 ].
+            ^((stop - start) // step) + 1
         ]
         ifFalse: [
-            intervalStart < intervalStop ifTrue: [ ^0 ].
-            ^((intervalStart - intervalStop) // (0 - intervalStep)) + 1
+            start < stop ifTrue: [ ^0 ].
+            ^((start - stop) // (0 - step)) + 1
         ].
 ]
 
@@ -75,36 +63,36 @@ Interval>>isEmpty [
 Interval>>includes: aNumber [
     # Check if number is in the interval
     | remainder |
-    intervalStep = 0 ifTrue: [ ^false ].
-    intervalStep > 0
+    step = 0 ifTrue: [ ^false ].
+    step > 0
         ifTrue: [
-            (aNumber < intervalStart or: [aNumber > intervalStop]) ifTrue: [ ^false ].
+            (aNumber < start or: [aNumber > stop]) ifTrue: [ ^false ].
         ]
         ifFalse: [
-            (aNumber > intervalStart or: [aNumber < intervalStop]) ifTrue: [ ^false ].
+            (aNumber > start or: [aNumber < stop]) ifTrue: [ ^false ].
         ].
-    remainder := (aNumber - intervalStart) \\ intervalStep.
+    remainder := (aNumber - start) \\ step.
     remainder = 0 ifTrue: [ ^true ].
     # Handle negative step
-    remainder = intervalStep ifTrue: [ ^true ].
+    remainder = step ifTrue: [ ^true ].
     ^false
 ]
 
 Interval>>do: aBlock [
     # Iterate over each value in the interval
     | current |
-    current := intervalStart.
-    intervalStep > 0
+    current := start.
+    step > 0
         ifTrue: [
-            [ current <= intervalStop ] whileTrue: [
+            [ current <= stop ] whileTrue: [
                 aBlock value: current.
-                current := current + intervalStep.
+                current := current + step.
             ].
         ]
         ifFalse: [
-            [ current >= intervalStop ] whileTrue: [
+            [ current >= stop ] whileTrue: [
                 aBlock value: current.
-                current := current + intervalStep.
+                current := current + step.
             ].
         ].
     ^self
@@ -173,14 +161,14 @@ Interval>>sum [
 
 Interval>>max [
     # Maximum value (largest by magnitude respecting step direction)
-    intervalStep >= 0 ifTrue: [ ^intervalStop ].
-    ^intervalStart
+    step >= 0 ifTrue: [ ^stop ].
+    ^start
 ]
 
 Interval>>min [
     # Minimum value (smallest by magnitude respecting step direction)
-    intervalStep >= 0 ifTrue: [ ^intervalStart ].
-    ^intervalStop
+    step >= 0 ifTrue: [ ^start ].
+    ^stop
 ]
 
 Interval>>asArray [
@@ -195,19 +183,19 @@ Interval>>withIndexDo: aBlock [
     # Iterate with 1-based index
     | index current |
     index := 1.
-    current := intervalStart.
-    intervalStep > 0
+    current := start.
+    step > 0
         ifTrue: [
-            [ current <= intervalStop ] whileTrue: [
+            [ current <= stop ] whileTrue: [
                 aBlock value: current value: index.
-                current := current + intervalStep.
+                current := current + step.
                 index := index + 1.
             ].
         ]
         ifFalse: [
-            [ current >= intervalStop ] whileTrue: [
+            [ current >= stop ] whileTrue: [
                 aBlock value: current value: index.
-                current := current + intervalStep.
+                current := current + step.
                 index := index + 1.
             ].
         ].
@@ -216,20 +204,20 @@ Interval>>withIndexDo: aBlock [
 
 Interval>>reversed [
     # Return new Interval going in opposite direction
-    ^Interval from: intervalStop to: intervalStart by: (0 - intervalStep)
+    ^Interval from: stop to: start by: (0 - step)
 ]
 
 Interval>>printString [
     # String representation: (1 to: 10 by: 2)
-    ^"(" , (intervalStart printString) , " to: " , (intervalStop printString) , " by: " , (intervalStep printString) , ")"
+    ^"(" , (start printString) , " to: " , (stop printString) , " by: " , (step printString) , ")"
 ]
 
 Interval>>= anInterval [
     # Equality check
     (anInterval isKindOf: Interval) ifFalse: [ ^false ].
-    ^(intervalStart = anInterval intervalStart) and: [
-        (intervalStop = anInterval intervalStop) and: [
-            intervalStep = anInterval intervalStep
+    ^(start = anInterval start) and: [
+        (stop = anInterval stop) and: [
+            step = anInterval step
         ]
     ]
 ]
@@ -247,12 +235,12 @@ Number>>to: stopNumber by: stepNumber [
 # Make Interval compatible with collection methods
 
 Interval>>first [
-    ^intervalStart
+    ^start
 ]
 
 Interval>>last [
-    intervalStep > 0 ifTrue: [
-        ^intervalStop - ((intervalStop - intervalStart) \\ intervalStep)
+    step > 0 ifTrue: [
+        ^stop - ((stop - start) \\ step)
     ].
-    ^intervalStop + ((intervalStart - intervalStop) \\ (0 - intervalStep))
+    ^stop + ((start - stop) \\ (0 - step))
 ]
