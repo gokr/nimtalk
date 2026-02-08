@@ -80,6 +80,20 @@ String>>repeat: count [
 ]
 
 #====================================================================
+# String printing
+#====================================================================
+
+String>>printString [
+  # Return the string itself as its string representation.
+  ^ self
+]
+
+String>>asString [
+  # Return the string itself.
+  ^ self
+]
+
+#====================================================================
 # String convenience methods
 #====================================================================
 
