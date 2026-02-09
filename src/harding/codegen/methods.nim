@@ -53,6 +53,7 @@ proc genBinaryOpFastPath*(op: string): string =
   ## Generate inline binary operation for numeric types
   var nimOp = ""
   var useDiv = false
+  var isMod = false
   case op
   of "+": nimOp = "+"
   of "-": nimOp = "-"
@@ -60,8 +61,12 @@ proc genBinaryOpFastPath*(op: string): string =
   of "/", "//":
     nimOp = "/"
     useDiv = true
-  of "\\": nimOp = "mod"
-  of "%": nimOp = "mod"
+  of "\\":
+    nimOp = "mod"
+    isMod = true
+  of "%":
+    nimOp = "mod"
+    isMod = true
   else: nimOp = op
 
   var output = "\n  # Fast path: both operands are integers\n"
@@ -70,14 +75,17 @@ proc genBinaryOpFastPath*(op: string): string =
     output.add("    return NodeValue(kind: vkInt, intVal: a.intVal div b.intVal)\n")
   else:
     output.add("    return NodeValue(kind: vkInt, intVal: a.intVal " & nimOp & " b.intVal)\n")
-  output.add("  # Fast path: both operands are floats\n")
-  output.add("  if a.kind == vkFloat and b.kind == vkFloat:\n")
-  output.add("    return NodeValue(kind: vkFloat, floatVal: a.floatVal " & nimOp & " b.floatVal)\n")
-  output.add("  # Mixed int/float - promote to float\n")
-  output.add("  if a.kind == vkInt and b.kind == vkFloat:\n")
-  output.add("    return NodeValue(kind: vkFloat, floatVal: float(a.intVal) " & nimOp & " b.floatVal)\n")
-  output.add("  if a.kind == vkFloat and b.kind == vkInt:\n")
-  output.add("    return NodeValue(kind: vkFloat, floatVal: a.floatVal " & nimOp & " float(b.intVal))\n")
+
+  # Modulo only works on integers in Nim, skip float paths for mod
+  if not isMod:
+    output.add("  # Fast path: both operands are floats\n")
+    output.add("  if a.kind == vkFloat and b.kind == vkFloat:\n")
+    output.add("    return NodeValue(kind: vkFloat, floatVal: a.floatVal " & nimOp & " b.floatVal)\n")
+    output.add("  # Mixed int/float - promote to float\n")
+    output.add("  if a.kind == vkInt and b.kind == vkFloat:\n")
+    output.add("    return NodeValue(kind: vkFloat, floatVal: float(a.intVal) " & nimOp & " b.floatVal)\n")
+    output.add("  if a.kind == vkFloat and b.kind == vkInt:\n")
+    output.add("    return NodeValue(kind: vkFloat, floatVal: a.floatVal " & nimOp & " float(b.intVal))\n")
   return output
 
 proc genComparisonFastPath*(op: string): string =

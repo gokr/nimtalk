@@ -46,6 +46,21 @@ proc getSlotIndex*(ctx: GenContext, name: string): int =
     return -1
   return ctx.cls.getSlotIndex(name)
 
+proc escapeNimString*(s: string): string =
+  ## Escape a string for use in Nim code
+  ## Handles backslashes, quotes, and other special characters
+  result = s
+  # Escape backslashes first (before we add new ones)
+  result = result.replace("\\", "\\\\")
+  # Escape double quotes
+  result = result.replace("\"", "\\\"")
+  # Escape newlines
+  result = result.replace("\n", "\\n")
+  # Escape carriage returns
+  result = result.replace("\r", "\\r")
+  # Escape tabs
+  result = result.replace("\t", "\\t")
+
 proc genLiteral*(node: LiteralNode): string =
   ## Generate code for literal node
   let value = node.value
@@ -55,10 +70,12 @@ proc genLiteral*(node: LiteralNode): string =
   of vkFloat:
     return fmt("NodeValue(kind: vkFloat, floatVal: {value.floatVal})")
   of vkString:
-    return fmt("NodeValue(kind: vkString, strVal: \"{value.strVal}\")")
+    let escaped = escapeNimString(value.strVal)
+    return fmt("NodeValue(kind: vkString, strVal: \"{escaped}\")")
   of vkSymbol:
     # Symbols need runtime lookup
-    return fmt("NodeValue(kind: vkSymbol, symVal: \"{value.symVal}\")")
+    let escaped = escapeNimString(value.symVal)
+    return fmt("NodeValue(kind: vkSymbol, symVal: \"{escaped}\")")
   of vkBool:
     return fmt("NodeValue(kind: vkBool, boolVal: {value.boolVal})")
   of vkNil:
