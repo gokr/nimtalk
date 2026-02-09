@@ -1,0 +1,38 @@
+Application := Object derive: #(name libraries)
+
+Application>>initialize [
+  # Initialize application with defaults
+  super initialize.
+  name := "Application".
+  libraries := Array new: 0
+]
+
+Application>>main: args [
+  # Entry point - subclasses must override this
+  self subclassResponsibility
+]
+
+Application>>build [
+  # Compile this application to a binary using Granite
+  Granite build: self
+]
+
+Application>>libraries: anArray [
+  # Set the libraries this application imports
+  libraries := anArray
+]
+
+Application>>libraries [
+  # Get the libraries this application imports
+  ^libraries
+]
+
+Application>>name: aString [
+  # Set the application name (used for output binary)
+  name := aString
+]
+
+Application>>name [
+  # Get the application name
+  ^name
+]
