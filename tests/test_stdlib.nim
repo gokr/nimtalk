@@ -4,6 +4,7 @@
 
 import std/[unittest, os]
 import ../src/harding/core/types
+import ../src/harding/core/scheduler
 import ../src/harding/interpreter/[vm, objects]
 
 # Shared interpreter initialized once for all suites
@@ -11,6 +12,7 @@ import ../src/harding/interpreter/[vm, objects]
 var sharedInterp: Interpreter
 sharedInterp = newInterpreter()
 initGlobals(sharedInterp)
+initProcessorGlobal(sharedInterp)
 loadStdlib(sharedInterp)
 
 suite "Stdlib: Numbers":
