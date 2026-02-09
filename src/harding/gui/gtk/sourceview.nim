@@ -98,11 +98,16 @@ proc sourceViewGetTextImpl*(interp: var Interpreter, self: Instance, args: seq[N
   if buffer == nil:
     return "".toValue()
 
-  var startIter, endIter: GtkTextIter
-  gtkTextBufferGetStartIter(buffer, addr(startIter))
-  gtkTextBufferGetEndIter(buffer, addr(endIter))
+  # GtkTextIter is an opaque struct - allocate storage (256 bytes to be safe)
+  var startIterStorage: array[256, byte]
+  var endIterStorage: array[256, byte]
+  let startIter = cast[GtkTextIter](addr(startIterStorage[0]))
+  let endIter = cast[GtkTextIter](addr(endIterStorage[0]))
 
-  let text = gtkTextBufferGetText(buffer, addr(startIter), addr(endIter), 1)
+  gtkTextBufferGetStartIter(buffer, startIter)
+  gtkTextBufferGetEndIter(buffer, endIter)
+
+  let text = gtkTextBufferGetText(buffer, startIter, endIter, 1)
   if text == nil:
     return "".toValue()
 
@@ -132,32 +137,54 @@ proc sourceViewSetTextImpl*(interp: var Interpreter, self: Instance, args: seq[N
 ## Native instance method: getSelectedText:
 proc sourceViewGetSelectedTextImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
   ## Get selected text or current line if no selection
+  debug("getSelectedTextImpl: ENTRY")
   if not (self.isNimProxy and self.nimValue != nil):
+    debug("getSelectedTextImpl: Not a NimProxy or nimValue is nil")
     return nilValue()
 
   let widget = cast[GtkSourceView](self.nimValue)
+  debug("getSelectedTextImpl: widget=", cast[int](widget))
   let buffer = gtkTextViewGetBuffer(cast[GtkTextView](widget))
+  debug("getSelectedTextImpl: buffer=", cast[int](buffer))
   if buffer == nil:
+    debug("getSelectedTextImpl: buffer is nil, returning empty")
     return "".toValue()
 
-  var startIter, endIter: GtkTextIter
+  # GtkTextIter is an opaque struct - allocate storage (256 bytes to be safe)
+  var startIterStorage: array[256, byte]
+  var endIterStorage: array[256, byte]
+  let startIter = cast[GtkTextIter](addr(startIterStorage[0]))
+  let endIter = cast[GtkTextIter](addr(endIterStorage[0]))
+
+  debug("getSelectedTextImpl: About to get selection bounds")
 
   # Check if there's a selection using selection bounds
-  let hasSelection = gtkTextBufferGetSelectionBounds(buffer, addr(startIter), addr(endIter))
+  let hasSelection = gtkTextBufferGetSelectionBounds(buffer, startIter, endIter)
+  debug("getSelectedTextImpl: hasSelection=", hasSelection)
 
   if hasSelection == 0:
     # No selection, get current line
+    debug("getSelectedTextImpl: No selection, getting current line")
     let insertMark = gtkTextBufferGetInsert(buffer)
-    gtkTextBufferGetIterAtMark(buffer, addr(startIter), insertMark)
-    gtkTextIterSetLineOffset(addr(startIter), 0)
-    endIter = startIter
-    discard gtkTextIterForwardToLineEnd(addr(endIter))
+    debug("getSelectedTextImpl: insertMark=", cast[int](insertMark))
+    gtkTextBufferGetIterAtMark(buffer, startIter, insertMark)
+    debug("getSelectedTextImpl: Got iter at mark")
+    gtkTextIterSetLineOffset(startIter, 0)
+    debug("getSelectedTextImpl: Set line offset")
+    gtkTextBufferGetIterAtMark(buffer, endIter, insertMark)
+    debug("getSelectedTextImpl: About to forward to line end")
+    discard gtkTextIterForwardToLineEnd(endIter)
+    debug("getSelectedTextImpl: Forwarded to line end")
 
-  let text = gtkTextBufferGetText(buffer, addr(startIter), addr(endIter), 1)
+  debug("getSelectedTextImpl: About to get text")
+  let text = gtkTextBufferGetText(buffer, startIter, endIter, 1)
+  debug("getSelectedTextImpl: text=", cast[int](text))
   if text == nil:
+    debug("getSelectedTextImpl: text is nil, returning empty")
     return "".toValue()
 
   result = toValue($text)
+  debug("getSelectedTextImpl: EXIT, result=", result.toString())
 
 ## Native instance method: showLineNumbers:
 proc sourceViewShowLineNumbersImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =

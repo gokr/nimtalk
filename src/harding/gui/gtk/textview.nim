@@ -60,11 +60,16 @@ proc textViewGetTextImpl*(interp: var Interpreter, self: Instance, args: seq[Nod
   if buffer == nil:
     return "".toValue()
 
-  var startIter, endIter: GtkTextIter
-  gtkTextBufferGetStartIter(buffer, addr(startIter))
-  gtkTextBufferGetEndIter(buffer, addr(endIter))
+  # GtkTextIter is an opaque struct - allocate storage (256 bytes to be safe)
+  var startIterStorage: array[256, byte]
+  var endIterStorage: array[256, byte]
+  let startIter = cast[GtkTextIter](addr(startIterStorage[0]))
+  let endIter = cast[GtkTextIter](addr(endIterStorage[0]))
 
-  let text = gtkTextBufferGetText(buffer, addr(startIter), addr(endIter), 1)
+  gtkTextBufferGetStartIter(buffer, startIter)
+  gtkTextBufferGetEndIter(buffer, endIter)
+
+  let text = gtkTextBufferGetText(buffer, startIter, endIter, 1)
   if text == nil:
     return "".toValue()
 
@@ -145,3 +150,115 @@ proc textViewSetBufferImpl*(interp: var Interpreter, self: Instance, args: seq[N
   debug("Set text buffer on text view")
 
   nilValue()
+
+## Native instance method: insertText:at:
+proc textViewInsertTextAtImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+  ## Insert text at a specific position in the text view
+  if args.len < 2 or args[0].kind != vkString or args[1].kind != vkInt:
+    return nilValue()
+
+  if not (self.isNimProxy and self.nimValue != nil):
+    return nilValue()
+
+  let widget = cast[GtkTextView](self.nimValue)
+  let buffer = gtkTextViewGetBuffer(widget)
+  if buffer == nil:
+    return nilValue()
+
+  # GtkTextIter is an opaque struct - allocate storage (256 bytes to be safe)
+  var iterStorage: array[256, byte]
+  let iter = cast[GtkTextIter](addr(iterStorage[0]))
+
+  gtkTextBufferGetIterAtOffset(buffer, iter, args[1].intVal.cint)
+
+  gtkTextBufferInsert(buffer, iter, args[0].strVal.cstring, -1)
+
+  nilValue()
+
+## Native instance method: selectRangeFrom:to:
+proc textViewSelectRangeFromToImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+  ## Select a range of text in the text view
+  if args.len < 2 or args[0].kind != vkInt or args[1].kind != vkInt:
+    return nilValue()
+
+  if not (self.isNimProxy and self.nimValue != nil):
+    return nilValue()
+
+  let widget = cast[GtkTextView](self.nimValue)
+  let buffer = gtkTextViewGetBuffer(widget)
+  if buffer == nil:
+    return nilValue()
+
+  # Get end position iterator
+  var startIterStorage: array[256, byte]
+  var endIterStorage: array[256, byte]
+  let startIter = cast[GtkTextIter](addr(startIterStorage[0]))
+  let endIter = cast[GtkTextIter](addr(endIterStorage[0]))
+
+  gtkTextBufferGetIterAtOffset(buffer, startIter, args[0].intVal.cint)
+  gtkTextBufferGetIterAtOffset(buffer, endIter, args[1].intVal.cint)
+
+  gtkTextBufferSelectRange(buffer, startIter, endIter)
+
+  nilValue()
+
+## Native instance method: insertTextAtSelectedEnd:
+proc textViewInsertTextAtSelectedEndImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+  ## Insert text after the end of the current selection
+  if args.len < 1 or args[0].kind != vkString:
+    return nilValue()
+
+  if not (self.isNimProxy and self.nimValue != nil):
+    return nilValue()
+
+  let widget = cast[GtkTextView](self.nimValue)
+  let buffer = gtkTextViewGetBuffer(widget)
+  if buffer == nil:
+    return nilValue()
+
+  var endIterStorage: array[256, byte]
+  var startIterStorage: array[256, byte]
+  let endIter = cast[GtkTextIter](addr(endIterStorage[0]))
+  let startIter = cast[GtkTextIter](addr(startIterStorage[0]))
+
+  # Get selection bounds
+  let hasSelection = gtkTextBufferGetSelectionBounds(buffer, startIter, endIter)
+
+  let insertPos = if hasSelection != 0:
+    gtkTextIterGetOffset(endIter)
+  else:
+    # No selection, use cursor position
+    let insertMark = gtkTextBufferGetInsert(buffer)
+    gtkTextBufferGetIterAtMark(buffer, endIter, insertMark)
+    gtkTextIterGetOffset(endIter)
+
+  # Insert the text
+  gtkTextBufferGetIterAtOffset(buffer, endIter, insertPos)
+  gtkTextBufferInsert(buffer, endIter, args[0].strVal.cstring, -1)
+
+  # Return the position where text was inserted
+  NodeValue(kind: vkInt, intVal: insertPos)
+
+## Native instance method: getSelectionEnd:
+proc textViewGetSelectionEndImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+  ## Get the end position of the current selection (or cursor position if no selection)
+  if not (self.isNimProxy and self.nimValue != nil):
+    return nilValue()
+
+  let widget = cast[GtkTextView](self.nimValue)
+  let buffer = gtkTextViewGetBuffer(widget)
+  if buffer == nil:
+    return nilValue()
+
+  var endIterStorage: array[256, byte]
+  var startIterStorage: array[256, byte]
+  let endIter = cast[GtkTextIter](addr(endIterStorage[0]))
+  let startIter = cast[GtkTextIter](addr(startIterStorage[0]))
+
+  let hasSelection = gtkTextBufferGetSelectionBounds(buffer, startIter, endIter)
+
+  # Use the cursor position (insert mark) as reference
+  let insertMark = gtkTextBufferGetInsert(buffer)
+  gtkTextBufferGetIterAtMark(buffer, endIter, insertMark)
+
+  result = NodeValue(kind: vkInt, intVal: gtkTextIterGetOffset(endIter))

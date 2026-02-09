@@ -73,13 +73,18 @@ proc textBufferGetTextImpl*(interp: var Interpreter, self: Instance, args: seq[N
   if proxy.buffer == nil:
     return nilValue()
 
+  # GtkTextIter is an opaque struct - allocate storage (256 bytes to be safe)
+  var startIterStorage: array[256, byte]
+  var endIterStorage: array[256, byte]
+  let startIter = cast[GtkTextIter](addr(startIterStorage[0]))
+  let endIter = cast[GtkTextIter](addr(endIterStorage[0]))
+
   # Get start and end iterators
-  var startIter, endIter: GtkTextIter
-  gtkTextBufferGetStartIter(proxy.buffer, addr(startIter))
-  gtkTextBufferGetEndIter(proxy.buffer, addr(endIter))
+  gtkTextBufferGetStartIter(proxy.buffer, startIter)
+  gtkTextBufferGetEndIter(proxy.buffer, endIter)
 
   # Get text
-  let text = gtkTextBufferGetText(proxy.buffer, addr(startIter), addr(endIter), 1)
+  let text = gtkTextBufferGetText(proxy.buffer, startIter, endIter, 1)
   if text == nil:
     return "".toValue()
 
@@ -101,8 +106,11 @@ proc textBufferInsertAtImpl*(interp: var Interpreter, self: Instance, args: seq[
   if proxy.buffer == nil:
     return nilValue()
 
-  var iter: GtkTextIter
-  gtkTextBufferGetIterAtOffset(proxy.buffer, addr(iter), args[1].intVal.cint)
+  # GtkTextIter is an opaque struct - allocate storage (256 bytes to be safe)
+  var iterStorage: array[256, byte]
+  let iter = cast[GtkTextIter](addr(iterStorage[0]))
+
+  gtkTextBufferGetIterAtOffset(proxy.buffer, iter, args[1].intVal.cint)
   gtkTextBufferInsertAtCursor(proxy.buffer, args[0].strVal.cstring, -1)
 
   debug("Inserted text at position ", args[1].intVal, " in text buffer")
@@ -125,10 +133,15 @@ proc textBufferDeleteToImpl*(interp: var Interpreter, self: Instance, args: seq[
   if proxy.buffer == nil:
     return nilValue()
 
-  var startIter, endIter: GtkTextIter
-  gtkTextBufferGetIterAtOffset(proxy.buffer, addr(startIter), args[0].intVal.cint)
-  gtkTextBufferGetIterAtOffset(proxy.buffer, addr(endIter), args[1].intVal.cint)
-  gtkTextBufferDelete(proxy.buffer, addr(startIter), addr(endIter))
+  # GtkTextIter is an opaque struct - allocate storage (256 bytes to be safe)
+  var startIterStorage: array[256, byte]
+  var endIterStorage: array[256, byte]
+  let startIter = cast[GtkTextIter](addr(startIterStorage[0]))
+  let endIter = cast[GtkTextIter](addr(endIterStorage[0]))
+
+  gtkTextBufferGetIterAtOffset(proxy.buffer, startIter, args[0].intVal.cint)
+  gtkTextBufferGetIterAtOffset(proxy.buffer, endIter, args[1].intVal.cint)
+  gtkTextBufferDelete(proxy.buffer, startIter, endIter)
 
   debug("Deleted text from ", args[0].intVal, " to ", args[1].intVal, " in text buffer")
 

@@ -309,11 +309,32 @@ proc initGtkBridge*(interp: var Interpreter) =
   textViewSetTextMethod.hasInterpreterParam = true
   addMethodToClass(textViewCls, "setText:", textViewSetTextMethod)
 
+  let textViewInsertTextAtMethod = createCoreMethod("insertText:at:")
+  textViewInsertTextAtMethod.nativeImpl = cast[pointer](textViewInsertTextAtImpl)
+  textViewInsertTextAtMethod.hasInterpreterParam = true
+  addMethodToClass(textViewCls, "insertText:at:", textViewInsertTextAtMethod)
+
+  let textViewSelectRangeFromToMethod = createCoreMethod("selectRangeFrom:to:")
+  textViewSelectRangeFromToMethod.nativeImpl = cast[pointer](textViewSelectRangeFromToImpl)
+  textViewSelectRangeFromToMethod.hasInterpreterParam = true
+  addMethodToClass(textViewCls, "selectRangeFrom:to:", textViewSelectRangeFromToMethod)
+
+  let textViewInsertTextAtSelectedEndMethod = createCoreMethod("insertTextAtSelectedEnd:")
+  textViewInsertTextAtSelectedEndMethod.nativeImpl = cast[pointer](textViewInsertTextAtSelectedEndImpl)
+  textViewInsertTextAtSelectedEndMethod.hasInterpreterParam = true
+  addMethodToClass(textViewCls, "insertTextAtSelectedEnd:", textViewInsertTextAtSelectedEndMethod)
+
+  let textViewGetSelectionEndMethod = createCoreMethod("getSelectionEnd")
+  textViewGetSelectionEndMethod.nativeImpl = cast[pointer](textViewGetSelectionEndImpl)
+  textViewGetSelectionEndMethod.hasInterpreterParam = true
+  addMethodToClass(textViewCls, "getSelectionEnd", textViewGetSelectionEndMethod)
+
   interp.globals[]["GtkTextView"] = textViewCls.toValue()
   debug("Registered GtkTextView class")
 
   # Create GtkSourceView class (for source code editing with syntax highlighting)
-  let sourceViewCls = newClass(superclasses = @[widgetCls], name = "GtkSourceView")
+  # Inherits from GtkTextView so it gets the text manipulation methods
+  let sourceViewCls = newClass(superclasses = @[textViewCls], name = "GtkSourceView")
   sourceViewCls.tags = @["GTK", "SourceView", "Editor"]
   sourceViewCls.isNimProxy = true
   sourceViewCls.hardingType = "GtkSourceView"
@@ -336,7 +357,9 @@ proc initGtkBridge*(interp: var Interpreter) =
   addMethodToClass(sourceViewCls, "setText:", sourceViewSetTextMethod)
 
   let sourceViewGetSelectedTextMethod = createCoreMethod("getSelectedText")
-  sourceViewGetSelectedTextMethod.nativeImpl = cast[pointer](sourceViewGetSelectedTextImpl)
+  let funcPtr = cast[pointer](sourceViewGetSelectedTextImpl)
+  debug("Registering getSelectedTextImpl, funcPtr=", cast[int](funcPtr))
+  sourceViewGetSelectedTextMethod.nativeImpl = funcPtr
   sourceViewGetSelectedTextMethod.hasInterpreterParam = true
   addMethodToClass(sourceViewCls, "getSelectedText", sourceViewGetSelectedTextMethod)
 
