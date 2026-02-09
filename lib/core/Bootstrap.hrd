@@ -21,5 +21,9 @@ Standard load: "lib/core/FileStream.hrd"
 Standard load: "lib/core/Exception.hrd"
 Standard load: "lib/core/TestCase.hrd"
 
+# Load Application and Granite compiler classes
+Harding load: "lib/core/Application.hrd"
+Harding load: "lib/core/Granite.hrd"
+
 # Auto-import Standard for backward compatibility
 Harding import: Standard.
