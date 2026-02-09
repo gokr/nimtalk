@@ -9,75 +9,47 @@
 # String primitives
 #====================================================================
 
-String>>, other [
+String>>, other <primitive primitiveConcat: other>
   # Concatenate strings (comma operator)
-  ^ self perform: #primitiveConcat: with: other
-]
 
-String>>size [
-  # Return string length.
-  ^ self perform: #primitiveStringSize
-]
+String>>size <primitive primitiveStringSize>
+  # Return string length
 
-String>>at: index [
-  # Return character at index (0-based or 1-based depending on convention).
-  ^ self perform: #primitiveStringAt: with: index
-]
+String>>at: index <primitive primitiveStringAt: index>
+  # Return character at index (0-based or 1-based depending on convention)
 
-String>>from: start to: end [
-  # Return substring from start to end (inclusive).
-  ^ self perform: #primitiveFromTo: with: start with: end
-]
+String>>from: start to: end <primitive primitiveFromTo: start to: end>
+  # Return substring from start to end (inclusive)
 
-String>>indexOf: substring [
-  # Return index of substring (0 if not found).
-  ^ self perform: #primitiveIndexOf: with: substring
-]
+String>>indexOf: substring <primitive primitiveIndexOf: substring>
+  # Return index of substring (0 if not found)
 
-String>>includesSubString: substring [
-  # Check if string includes substring.
-  ^ self perform: #primitiveIncludesSubString: with: substring
-]
+String>>includesSubString: substring <primitive primitiveIncludesSubString: substring>
+  # Check if string includes substring
 
-String>>replace: old with: new [
-  # Replace all occurrences of old with new.
-  ^ self perform: #primitiveReplaceWith: with: old with: new
-]
+String>>replace: old with: new <primitive primitiveReplaceWith: old with: new>
+  # Replace all occurrences of old with new
 
-String>>uppercase [
-  # Return uppercase version.
-  ^ self perform: #primitiveUppercase
-]
+String>>uppercase <primitive primitiveUppercase>
+  # Return uppercase version
 
-String>>lowercase [
-  # Return lowercase version.
-  ^ self perform: #primitiveLowercase
-]
+String>>lowercase <primitive primitiveLowercase>
+  # Return lowercase version
 
-String>>trim [
-  # Remove leading and trailing whitespace.
-  ^ self perform: #primitiveTrim
-]
+String>>trim <primitive primitiveTrim>
+  # Remove leading and trailing whitespace
 
-String>>split: delimiter [
-  # Split string by delimiter, return array.
-  ^ self perform: #primitiveSplit: with: delimiter
-]
+String>>split: delimiter <primitive primitiveSplit: delimiter>
+  # Split string by delimiter, return array
 
-String>>asInteger [
-  # Parse as integer.
-  ^ self perform: #primitiveAsInteger
-]
+String>>asInteger <primitive primitiveAsInteger>
+  # Parse as integer
 
-String>>asSymbol [
-  # Convert to symbol.
-  ^ self perform: #primitiveAsSymbol
-]
+String>>asSymbol <primitive primitiveAsSymbol>
+  # Convert to symbol
 
-String>>repeat: count [
-  # Repeat string count times (e.g., "ab" repeat: 3 -> "ababab").
-  ^ self perform: #primitiveRepeat: with: count
-]
+String>>repeat: count <primitive primitiveRepeat: count>
+  # Repeat string count times (e.g., "ab" repeat: 3 -> "ababab")
 
 #====================================================================
 # String printing

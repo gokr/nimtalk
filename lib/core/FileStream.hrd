@@ -9,25 +9,17 @@
 
 FileStream := Object derive: #(file mode isOpen)
 
-FileStream>>open: filename mode: mode [
+FileStream>>open: filename mode: mode <primitive primitiveFileOpen: filename mode: mode>
   # Open file with mode ("r", "w", "a", 'r+', 'w+')
-  ^ self perform: #primitiveFileOpen:mode: with: filename with: mode
-]
 
-FileStream>>close [
+FileStream>>close <primitive primitiveFileClose>
   # Close the file
-  ^ self perform: #primitiveFileClose
-]
 
-FileStream>>readLine [
+FileStream>>readLine <primitive primitiveFileReadLine>
   # Read one line from file
-  ^ self perform: #primitiveFileReadLine
-]
 
-FileStream>>write: string [
+FileStream>>write: string <primitive primitiveFileWrite: string>
   # Write string to file
-  ^ self perform: #primitiveFileWrite: with: string
-]
 
 FileStream>>writeline: string [
   # Write string with newline
@@ -36,15 +28,11 @@ FileStream>>writeline: string [
   ^ self
 ]
 
-FileStream>>atEnd [
+FileStream>>atEnd <primitive primitiveFileAtEnd>
   # Check if at end of file
-  ^ self perform: #primitiveFileAtEnd
-]
 
-FileStream>>readAll [
+FileStream>>readAll <primitive primitiveFileReadAll>
   # Read entire file contents
-  ^ self perform: #primitiveFileReadAll
-]
 
 FileStream>>isOpen [
   # Check if file is open
