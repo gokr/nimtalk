@@ -107,9 +107,10 @@ proc parseLogLevel(levelStr: string): Level =
     echo "Valid levels: DEBUG, INFO, WARN, ERROR, FATAL"
     quit(1)
 
-proc parseArgs(): Config =
+proc parseArgs(argsToParse: seq[string] = @[]): Config =
   result = newConfig()
-  var p = initOptParser(commandLineParams())
+  let args = if argsToParse.len > 0: argsToParse else: commandLineParams()
+  var p = initOptParser(args)
 
   while true:
     p.next()
@@ -135,10 +136,11 @@ proc parseArgs(): Config =
         echo "Unknown option: ", p.key
         quit(1)
     of cmdArgument:
+      # For cmdArgument, the value is in p.key, not p.val
       if result.inputFile.len == 0:
-        result.inputFile = p.val
+        result.inputFile = p.key
       else:
-        echo "Unexpected argument: ", p.val
+        echo "Unexpected argument: ", p.key
         quit(1)
 
 proc compileFile(config: Config): bool =
@@ -168,60 +170,56 @@ proc compileFile(config: Config): bool =
 
   let outputDir = if config.outputDir.len > 0: config.outputDir else: "./build"
 
-  # Determine module name and output path
-  # If -o is specified, use that as the base name; otherwise use input filename
-  var moduleName: string
-  var outputPath: string
-  if config.outputFile.len > 0:
-    # Use output file name as module name (without extension)
-    moduleName = changeFileExt(extractFilename(config.outputFile), "")
-    # If output file doesn't have .nim extension, add it
-    if not config.outputFile.endsWith(".nim"):
-      outputPath = config.outputFile & ".nim"
-    else:
-      outputPath = config.outputFile
-  else:
-    let rawModuleName = changeFileExt(extractFilename(config.inputFile), "")
-    moduleName = mangleModuleName(rawModuleName)
-    outputPath = outputDir / moduleName & ".nim"
+  # Determine module name: if -o is specified, use that name (for valid identifiers)
+  # otherwise use input filename
+  let moduleName = if config.outputFile.len > 0:
+                     changeFileExt(extractFilename(config.outputFile), "")
+                   else:
+                     mangleModuleName(changeFileExt(extractFilename(config.inputFile), ""))
+
+  # Nim file always goes in build directory
+  let outputPath = outputDir / moduleName & ".nim"
 
   var ctx = newCompiler(outputDir, moduleName)
   let nimCode = genModule(ctx, nodes, moduleName)
 
-  createDir(parentDir(outputPath))
+  createDir(outputDir)
   writeFile(outputPath, nimCode)
 
   echo "Generated: ", outputPath
   return true
 
-proc computeOutputPath(config: Config): string =
-  ## Compute the output Nim file path
+proc computeBinaryName(config: Config): string =
+  ## Compute the binary output name
+  ## If -o is specified, use that; otherwise derive from input file
+  let outputDir = if config.outputDir.len > 0: config.outputDir else: "./build"
   if config.outputFile.len > 0:
-    # If output file doesn't have .nim extension, add it
-    if not config.outputFile.endsWith(".nim"):
-      result = config.outputFile & ".nim"
-    else:
-      result = config.outputFile
+    result = config.outputFile
   else:
     let rawModuleName = changeFileExt(extractFilename(config.inputFile), "")
     let moduleName = mangleModuleName(rawModuleName)
-    result = config.outputDir / moduleName & ".nim"
+    result = outputDir / moduleName
 
 proc buildFile(config: Config): bool =
   ## Compile Harding and build with Nim compiler
   if not config.compileFile():
     return false
 
-  let outputFile = computeOutputPath(config)
-  let baseName = changeFileExt(outputFile, "")
+  let outputDir = if config.outputDir.len > 0: config.outputDir else: "./build"
+  let moduleName = if config.outputFile.len > 0:
+                     changeFileExt(extractFilename(config.outputFile), "")
+                   else:
+                     mangleModuleName(changeFileExt(extractFilename(config.inputFile), ""))
+  let nimFile = outputDir / moduleName & ".nim"
+  let binaryName = computeBinaryName(config)
   let releaseFlag = if config.release: " -d:release" else: ""
-  let cmd = fmt("nim c{releaseFlag} -o:{baseName} {outputFile}")
+  let cmd = fmt("nim c{releaseFlag} -o:{binaryName} {nimFile}")
 
   echo "Building: ", cmd
   let exitCode = execShellCmd(cmd)
 
   if exitCode == 0:
-    echo "Build successful: ", baseName
+    echo "Build successful: ", binaryName
     return true
   else:
     echo "Build failed with exit code: ", exitCode
@@ -232,11 +230,12 @@ proc runFile(config: Config): bool =
   if not config.buildFile():
     return false
 
-  let outputFile = computeOutputPath(config)
-  let baseName = changeFileExt(outputFile, "")
+  let binaryName = computeBinaryName(config)
+  # If binary is in current directory (no path separator), prefix with ./
+  let runCmd = if binaryName.contains("/") or binaryName.contains("\\"): binaryName else: "./" & binaryName
 
-  echo "Running: ", baseName
-  let exitCode = execShellCmd(baseName)
+  echo "Running: ", runCmd
+  let exitCode = execShellCmd(runCmd)
 
   if exitCode == 0:
     return true
@@ -267,9 +266,8 @@ proc main() =
   of "--version", "-v", "version":
     showVersion()
   of "compile", "c":
-    var config = parseArgs()
+    var config = if args.len > 1: parseArgs(args[1..^1]) else: parseArgs(@[])
     config.compile = true
-    config.inputFile = if args.len >= 2: args[1] else: ""
 
     if config.inputFile.len == 0:
       echo "Error: No input file specified"
@@ -286,9 +284,8 @@ proc main() =
     quit(if success: 0 else: 1)
 
   of "build", "b":
-    var config = parseArgs()
+    var config = if args.len > 1: parseArgs(args[1..^1]) else: parseArgs(@[])
     config.build = true
-    config.inputFile = if args.len >= 2: args[1] else: ""
 
     if config.inputFile.len == 0:
       echo "Error: No input file specified"
@@ -305,9 +302,8 @@ proc main() =
     quit(if success: 0 else: 1)
 
   of "run", "r":
-    var config = parseArgs()
+    var config = if args.len > 1: parseArgs(args[1..^1]) else: parseArgs(@[])
     config.run = true
-    config.inputFile = if args.len >= 2: args[1] else: ""
 
     if config.inputFile.len == 0:
       echo "Error: No input file specified"
@@ -326,7 +322,7 @@ proc main() =
   else:
     # Treat as file path for backward compatibility
     if fileExists(command) and command.endsWith(".hrd"):
-      var config = parseArgs()
+      var config = if args.len > 1: parseArgs(args[1..^1]) else: parseArgs(@[])
       config.compile = true
       config.inputFile = command
 
