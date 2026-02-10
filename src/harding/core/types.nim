@@ -1,4 +1,5 @@
 import std/[tables, logging, hashes, strutils]
+import ./tagged  # Tagged value support for VM performance
 
 # ============================================================================
 # Core Types for Harding
@@ -1012,3 +1013,44 @@ proc valueToInstance*(val: NodeValue): Instance =
 
 # Note: SchedulerContext is defined earlier in this file (line ~382)
 # to avoid circular dependencies between scheduler and evaluator
+
+# ============================================================================
+# Tagged Value Conversions (for VM performance)
+# ============================================================================
+
+proc toTagged*(val: NodeValue): tagged.Value =
+  ## Convert NodeValue to tagged Value (fast path for primitives)
+  case val.kind
+  of vkInt:
+    tagged.toValue(val.intVal)
+  of vkBool:
+    tagged.toValue(val.boolVal)
+  of vkNil:
+    tagged.nilValue()
+  of vkInstance:
+    # Convert Instance to HeapObject pointer
+    tagged.toValue(cast[tagged.HeapObject](val.instVal))
+  else:
+    # Other types not yet supported for tagged values
+    raise newException(ValueError, "Cannot convert " & $val.kind & " to tagged Value")
+
+proc toNodeValue*(val: tagged.Value): NodeValue =
+  ## Convert tagged Value to NodeValue
+  if tagged.isInt(val):
+    NodeValue(kind: vkInt, intVal: tagged.asInt(val))
+  elif tagged.isBool(val):
+    NodeValue(kind: vkBool, boolVal: tagged.asBool(val))
+  elif tagged.isNil(val):
+    nilValue()
+  elif tagged.isHeapObject(val):
+    let heapObj = tagged.asHeapObject(val)
+    if heapObj == nil:
+      nilValue()
+    else:
+      # Cast HeapObject back to Instance
+      NodeValue(kind: vkInstance, instVal: cast[Instance](heapObj))
+  else:
+    raise newException(ValueError, "Unknown tagged value type")
+
+# Re-export tagged Value type for convenience
+type TaggedValue* = tagged.Value
