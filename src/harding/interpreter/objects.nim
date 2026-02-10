@@ -6,13 +6,13 @@ import ../core/types
 # ============================================================================
 
 when defined(js):
-  template setNativeImpl(meth: BlockNode, impl: untyped) =
+  template setNativeImpl*(meth: BlockNode, impl: untyped) =
     ## No-op for JS builds - native methods not supported
     meth.nativeImpl = 0
 else:
-  template setNativeImpl(meth: BlockNode, impl: untyped) =
+  template setNativeImpl*(meth: BlockNode, impl: untyped) =
     ## Set native implementation for native builds
-    meth.nativeImpl = impl
+    meth.nativeImpl = cast[pointer](impl)
 
 # ============================================================================
 # Object System for Harding
