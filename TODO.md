@@ -51,10 +51,15 @@ This document tracks current work items and future directions for Harding develo
 ## High Priority
 
 ### Compiler
+- [x] Application class for structured builds
+- [x] Granite compiler primitives (`compile:`, `build:`)
+- [x] Transitive class collection
+- [x] Application binary generation
 - [ ] Method compilation from AST to Nim procedures
 - [ ] Nim type definitions for Class and Instance
 - [ ] Symbol export for compiled methods
-- [ ] Working `granite` (currently stub)
+- [ ] Dead code elimination
+- [ ] PIC (Polymorphic Inline Cache)
 
 ### FFI Integration
 - [ ] Nim type marshaling
@@ -192,6 +197,211 @@ harding --loglevel ERROR script.harding    # Errors only (default)
 - Getters use O(1) SlotAccessNode for fast direct slot access
 - Setters use O(1) SlotAccessNode for fast direct slot assignment
 - Added comprehensive tests in test_stdlib.nim
+
+## Granite Compiler Implementation (In Progress)
+
+### Current Status (2026-02-10)
+
+**Completed:**
+- ✅ Application base class (lib/core/Application.hrd)
+  - `name` and `libraries` slots
+  - `main: args` entry point method
+  - `build` method that calls `Granite build: self`
+- ✅ Granite compiler class (lib/core/Granite.hrd)
+  - `compile:` primitive - generates Nim code from Harding source
+  - `build:` primitive - fully functional application building
+  - Helper methods for transitive class collection
+- ✅ Primitive registration infrastructure
+  - `src/harding/interpreter/compiler_primitives.nim` with primitive implementations
+  - Registration in vm.nim when `-d:granite` is defined
+  - Build with: `nim c -d:granite -o:harding_granite src/harding/repl/harding.nim`
+- ✅ Transitive class collection
+  - Collects all classes reachable from Application
+  - Follows superclass chains
+  - Includes library-specified classes
+- ✅ Nim code generation for Application
+  - Generates main() procedure
+  - Creates build directory and writes .nim file
+  - Compiles with Nim to binary
+
+**Working Example:**
+```bash
+# Build with granite support
+nim c -d:granite -o:harding_granite src/harding/repl/harding.nim
+
+# Compile Harding to Nim
+./harding_granite -e 'Granite compile: "3 + 4"'
+
+# Build Application to binary
+./harding_granite -e '
+  App := Application new.
+  App name: "testapp".
+  Granite build: App
+'
+# Output: Build successful: build/testapp
+
+# Run compiled binary
+./build/testapp
+# Output: Application: testapp
+```
+
+**Next Steps (Priority Order):**
+
+#### 1. Transitive Class Collection
+Implement `collectFilesFor:` in `compiler_primitives.nim`:
+```nim
+proc collectTransitiveClasses*(app: Instance, interp: Interpreter): seq[ClassInfo]
+```
+- Start from Application's class
+- Follow superclass chain
+- Parse method bodies to find class references (e.g., `Array new`, `Set new`)
+- Collect all transitively referenced classes
+- Return as sequence of ClassInfo objects
+
+**Files to modify:**
+- `src/harding/interpreter/compiler_primitives.nim` - add class collection logic
+- `src/harding/compiler/analysis.nim` - add AST analysis for class references
+
+#### 2. Library Scoping
+When Application specifies `libraries: #(Core Collections)`:
+- Only include classes from those libraries
+- Filter out classes from other libraries
+- Core classes (Object, Integer, etc.) always included
+
+**Implementation approach:**
+```nim
+proc filterByLibraries*(classes: seq[ClassInfo],
+                       libraries: seq[string],
+                       interp: Interpreter): seq[ClassInfo]
+```
+
+#### 3. Dead Code Elimination (Optional)
+When no libraries specified, analyze message sends:
+```nim
+proc analyzeMessageSends*(classes: seq[ClassInfo]): HashSet[string]
+proc pruneUnusedMethods*(classes: seq[ClassInfo],
+                        usedSelectors: HashSet[string]): seq[ClassInfo]
+```
+- Walk all method bodies
+- Collect all message selectors sent
+- Keep only methods that are actually called
+- Mark entry point methods (`main:`) as always kept
+
+#### 4. Nim Code Generation for Application
+Extend `genModule` in `src/harding/codegen/module.nim`:
+- Generate a Nim `main()` procedure
+- Create Application instance
+- Call `main:` with command-line args
+- Include all collected class definitions
+- Generate method dispatch tables
+
+**Key design decisions:**
+- Each Harding class becomes a Nim type
+- Methods become Nim procedures with mangled names
+- Message dispatch via method table lookup
+- Native methods call existing interpreter primitives
+
+#### 5. Binary Compilation
+Implement full `graniteBuildImpl`:
+```nim
+proc graniteBuildImpl*(self: Instance, args: seq[NodeValue]): NodeValue
+```
+- Get Application instance from args
+- Extract `name` and `libraries` slots
+- Collect transitive classes
+- Apply library filter or dead code elimination
+- Generate Nim module
+- Write to `build/{appName}.nim`
+- Invoke `nim c` to compile to binary
+- Return path to binary or error message
+
+**Command sequence:**
+```harding
+# From Harding REPL
+app := MyApplication new.
+app name: "myapp".
+app libraries: #(Core Collections).
+Granite build: app.  # Creates build/myapp binary
+```
+
+#### 6. PIC (Polymorphic Inline Cache) - Future Enhancement
+After basic build works:
+- Add PIC data structures to runtime
+- Generate PIC-aware message sends
+- Cache method lookups at call sites
+- Measure performance improvement
+
+#### 7. Type Specialization - Future Enhancement
+- Analyze method return types
+- Generate type-specialized method variants
+- Call direct type-specific versions when types known
+
+### Implementation Order
+
+1. **Transitive class collection** - Required for build
+2. **Library scoping** - Required for library-based filtering
+3. **Nim code generation** - Required for output
+4. **Binary compilation** - Required for end-to-end build
+5. **Dead code elimination** - Optional optimization
+6. **PIC** - Performance optimization
+7. **Type specialization** - Advanced optimization
+
+### Testing Plan
+
+```bash
+# Build with granite
+nim c -d:granite -o:harding_granite src/harding/repl/harding.nim
+
+# Test compile:
+./harding_granite -e 'Granite compile: "3 + 4"'
+
+# Test Application class
+./harding_granite -e 'Application class'
+
+# Create test application
+cat > TestApp.hrd << 'EOF'
+TestApp := Application derive: #().
+TestApp>>initialize [
+  super initialize.
+  self name: "testapp".
+  self libraries: #(Core).
+].
+TestApp>>main: args [
+  Transcript showCr: "Hello from TestApp!".
+  ^0
+].
+EOF
+
+# Build application
+./harding_granite -e '
+  (File read: "TestApp.hrd") value.
+  app := TestApp new.
+  Granite build: app
+'
+
+# Run compiled binary
+./build/testapp
+```
+
+### Architecture Notes
+
+**Single Runtime Approach:**
+- Granite uses existing interpreter runtime
+- No need to bootstrap separate interpreter
+- Classes already loaded and available
+- Direct access to method tables and class hierarchy
+
+**Primitive-Based Design:**
+- Compiler exposed as Harding primitives
+- Harding code can compile Harding code
+- Smalltalk-style `Smalltalk compiler evaluate:`
+- No external `granite` process needed for IDE integration
+
+**Conditional Compilation:**
+- `-d:granite` flag enables compiler primitives
+- Regular `harding` binary doesn't include compiler
+- Separate `harding_granite` for compilation support
+- Smaller binary size when compiler not needed
 - Updated documentation in MANUAL.md and QUICKREF.md
 
 ### Script Files and Temporary Variables (2025-02-07)
