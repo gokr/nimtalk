@@ -260,6 +260,7 @@ proc widgetSetVexpandImpl*(interp: var Interpreter, self: Instance, args: seq[No
     if self.isNimProxy and self.nimValue != nil:
       let widget = cast[GtkWidget](self.nimValue)
       gtkWidgetSetVexpand(widget, if args[0].boolVal: 1 else: 0)
+      gtkWidgetSetVexpandSet(widget, 1)  # Always set to 1 to make the setting take effect
       debug("Set vexpand on widget")
 
   nilValue()
@@ -274,6 +275,7 @@ proc widgetSetHexpandImpl*(interp: var Interpreter, self: Instance, args: seq[No
     if self.isNimProxy and self.nimValue != nil:
       let widget = cast[GtkWidget](self.nimValue)
       gtkWidgetSetHexpand(widget, if args[0].boolVal: 1 else: 0)
+      gtkWidgetSetHexpandSet(widget, 1)  # Always set to 1 to make the setting take effect
       debug("Set hexpand on widget")
 
   nilValue()

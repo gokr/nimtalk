@@ -186,6 +186,12 @@ when not defined(gtk3):
 proc gtkTextViewNew*(): GtkTextView {.cdecl, importc: "gtk_text_view_new".}
 proc gtkTextViewGetBuffer*(view: GtkTextView): GtkTextBuffer {.cdecl, importc: "gtk_text_view_get_buffer".}
 proc gtkTextViewSetBuffer*(view: GtkTextView, buffer: GtkTextBuffer) {.cdecl, importc: "gtk_text_view_set_buffer".}
+proc gtkTextViewSetEditable*(view: GtkTextView, editable: cint) {.cdecl, importc: "gtk_text_view_set_editable".}
+
+# TextView scrolling
+proc gtkTextViewScrollToMark*(view: GtkTextView, mark: GtkTextMark, withinMargin: cdouble,
+                               useAlign: cint, xalign: cdouble, yalign: cdouble) {.cdecl, importc: "gtk_text_view_scroll_to_mark".}
+proc gtkTextViewPlaceCursorOnscreen*(view: GtkTextView): cint {.cdecl, importc: "gtk_text_view_place_cursor_onscreen".}
 
 proc gtkTextBufferNew*(tagTable: pointer = nil): GtkTextBuffer {.cdecl, importc: "gtk_text_buffer_new".}
 proc gtkTextBufferSetText*(buffer: GtkTextBuffer, text: cstring, len: cint = -1) {.cdecl, importc: "gtk_text_buffer_set_text".}

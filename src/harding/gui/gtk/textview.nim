@@ -262,3 +262,36 @@ proc textViewGetSelectionEndImpl*(interp: var Interpreter, self: Instance, args:
   gtkTextBufferGetIterAtMark(buffer, endIter, insertMark)
 
   result = NodeValue(kind: vkInt, intVal: gtkTextIterGetOffset(endIter))
+
+## Native instance method: scrollToEnd
+proc textViewScrollToEndImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+  ## Scroll the text view to the end (cursor position)
+  if not (self.isNimProxy and self.nimValue != nil):
+    return nilValue()
+
+  let widget = cast[GtkTextView](self.nimValue)
+  let buffer = gtkTextViewGetBuffer(widget)
+  if buffer == nil:
+    return nilValue()
+
+  # Get the insert mark (cursor position) and scroll to it
+  let insertMark = gtkTextBufferGetInsert(buffer)
+  gtkTextViewScrollToMark(widget, insertMark, 0.0'f64, 0, 0.0'f64, 1.0'f64)
+
+  debug("Scrolled text view to end")
+
+  nilValue()
+
+## Native instance method: setEditable:
+proc textViewSetEditableImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+  ## Set whether the text view is editable
+  if args.len < 1 or args[0].kind != vkBool:
+    return nilValue()
+
+  if not (self.isNimProxy and self.nimValue != nil):
+    return nilValue()
+
+  let widget = cast[GtkTextView](self.nimValue)
+  gtkTextViewSetEditable(widget, if args[0].boolVal: 1 else: 0)
+
+  nilValue()

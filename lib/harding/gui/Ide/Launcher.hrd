@@ -44,6 +44,8 @@ Launcher>>createHeaderBar [
 
   # Left section - File menu (using button with dropdown)
   fileMenuButton := GtkButton newLabel: "File".
+  fileMenuButton vexpand: false.
+  fileMenuButton hexpand: false.
   fileMenuButton clicked: [ self showFileMenu ].
   headerBar append: fileMenuButton.
 
@@ -53,10 +55,14 @@ Launcher>>createHeaderBar [
 
   # Middle section - Window controls
   workspaceButton := GtkButton newLabel: "Workspace".
+  workspaceButton vexpand: false.
+  workspaceButton hexpand: false.
   workspaceButton clicked: [ self openWorkspace ].
   headerBar append: workspaceButton.
 
   transcriptButton := GtkButton newLabel: "Transcript".
+  transcriptButton vexpand: false.
+  transcriptButton hexpand: false.
   transcriptButton clicked: [ self openTranscript ].
   headerBar append: transcriptButton.
 
@@ -67,6 +73,8 @@ Launcher>>createHeaderBar [
 
   # Quit button (right side, distinct styling)
   quitButton := GtkButton newLabel: "Quit".
+  quitButton vexpand: false.
+  quitButton hexpand: false.
   quitButton clicked: [ self quit ].
   headerBar append: quitButton.
 

@@ -2,6 +2,19 @@ import std/[tables, strutils, sequtils, math, hashes, logging]
 import ../core/types
 
 # ============================================================================
+# Platform-Specific Helpers
+# ============================================================================
+
+when defined(js):
+  template setNativeImpl(meth: BlockNode, impl: untyped) =
+    ## No-op for JS builds - native methods not supported
+    meth.nativeImpl = 0
+else:
+  template setNativeImpl(meth: BlockNode, impl: untyped) =
+    ## Set native implementation for native builds
+    meth.nativeImpl = impl
+
+# ============================================================================
 # Object System for Harding
 # Class-based objects with delegation/inheritance
 # ============================================================================
@@ -202,7 +215,7 @@ proc createCoreMethod*(name: string): BlockNode =
   let placeholder: Node = LiteralNode(value: NodeValue(kind: vkNil))  # Placeholder
   blk.body = @[placeholder]
   blk.isMethod = true
-  blk.nativeImpl = nil
+  blk.nativeImpl = (when defined(js): 0 else: nil)
   blk.capturedEnv = initTable[string, MutableCell]()
   blk.capturedEnvInitialized = true
   return blk
@@ -309,7 +322,7 @@ template registerInstanceMethod*(cls: Class, selector: string, procName: typed) 
   ##   proc(interp: var Interpreter, self: Instance, args: seq[NodeValue]) - with interpreter
   block:
     let meth = createCoreMethod(selector)
-    meth.nativeImpl = cast[pointer](procName)
+    meth.setNativeImpl(procName)
     # Auto-detect based on proc arity using type introspection
     when compiles(procName(default(Interpreter), default(Instance), default(seq[NodeValue]))):
       meth.hasInterpreterParam = true
@@ -321,7 +334,7 @@ template registerClassMethod*(cls: Class, selector: string, procName: typed) =
   ## Register a class method with automatic hasInterpreterParam detection.
   block:
     let meth = createCoreMethod(selector)
-    meth.nativeImpl = cast[pointer](procName)
+    meth.setNativeImpl(procName)
     when compiles(procName(default(Interpreter), default(Instance), default(seq[NodeValue]))):
       meth.hasInterpreterParam = true
     else:
@@ -375,87 +388,87 @@ proc initCoreClasses*(): Class =
 
     # Clone method (instance method)
     let cloneMethod = createCoreMethod("clone")
-    cloneMethod.nativeImpl = cast[pointer](instanceCloneImpl)
+    cloneMethod.setNativeImpl(instanceCloneImpl)
     addMethodToClass(objectClass, "clone", cloneMethod)
 
     # Class methods: derive and derive: (called on Class, not Instance)
     let deriveMethod = createCoreMethod("derive")
-    deriveMethod.nativeImpl = cast[pointer](classDeriveImpl)
+    deriveMethod.setNativeImpl(classDeriveImpl)
     addMethodToClass(objectClass, "derive", deriveMethod, isClassMethod = true)
 
     let deriveWithSlotsMethod = createCoreMethod("derive:")
-    deriveWithSlotsMethod.nativeImpl = cast[pointer](classDeriveImpl)
+    deriveWithSlotsMethod.setNativeImpl(classDeriveImpl)
     addMethodToClass(objectClass, "derive:", deriveWithSlotsMethod, isClassMethod = true)
 
     # derive:parents:slots:methods: - create class from multiple parents with slots and methods
     let deriveParentsSlotsMethod = createCoreMethod("derive:parents:slots:methods:")
-    deriveParentsSlotsMethod.nativeImpl = cast[pointer](classDeriveParentsSlotsMethodsImpl)
+    deriveParentsSlotsMethod.setNativeImpl(classDeriveParentsSlotsMethodsImpl)
     addMethodToClass(objectClass, "derive:parents:slots:methods:", deriveParentsSlotsMethod, isClassMethod = true)
 
     # derive:parents:slots:getters:setters:methods: - comprehensive class creation
     let deriveParentsSlotsGettersSettersMethodsMethod = createCoreMethod("derive:parents:slots:getters:setters:methods:")
-    deriveParentsSlotsGettersSettersMethodsMethod.nativeImpl = cast[pointer](classDeriveParentsSlotsGettersSettersMethodsImpl)
+    deriveParentsSlotsGettersSettersMethodsMethod.setNativeImpl(classDeriveParentsSlotsGettersSettersMethodsImpl)
     addMethodToClass(objectClass, "derive:parents:slots:getters:setters:methods:", deriveParentsSlotsGettersSettersMethodsMethod, isClassMethod = true)
 
     # deriveWithAccessors: - create class with auto-generated getters and setters
     let deriveWithAccessorsMethod = createCoreMethod("deriveWithAccessors:")
-    deriveWithAccessorsMethod.nativeImpl = cast[pointer](classDeriveWithAccessorsImpl)
+    deriveWithAccessorsMethod.setNativeImpl(classDeriveWithAccessorsImpl)
     addMethodToClass(objectClass, "deriveWithAccessors:", deriveWithAccessorsMethod, isClassMethod = true)
 
     # derive:getters:setters: - create class with selective accessor generation
     let deriveGettersSettersMethod = createCoreMethod("derive:getters:setters:")
-    deriveGettersSettersMethod.nativeImpl = cast[pointer](classDeriveGettersSettersImpl)
+    deriveGettersSettersMethod.setNativeImpl(classDeriveGettersSettersImpl)
     addMethodToClass(objectClass, "derive:getters:setters:", deriveGettersSettersMethod, isClassMethod = true)
 
     # new method (class method)
     let newMethod = createCoreMethod("new")
-    newMethod.nativeImpl = cast[pointer](classNewImpl)
+    newMethod.setNativeImpl(classNewImpl)
     addMethodToClass(objectClass, "new", newMethod, isClassMethod = true)
 
     # selector:put: method (class method for adding instance methods)
     let selectorPutMethod = createCoreMethod("selector:put:")
-    selectorPutMethod.nativeImpl = cast[pointer](classAddMethodImpl)
+    selectorPutMethod.setNativeImpl(classAddMethodImpl)
     addMethodToClass(objectClass, "selector:put:", selectorPutMethod, isClassMethod = true)
 
     # classSelector:put: method (class method for adding class methods)
     let classSelectorPutMethod = createCoreMethod("classSelector:put:")
-    classSelectorPutMethod.nativeImpl = cast[pointer](classAddClassMethodImpl)
+    classSelectorPutMethod.setNativeImpl(classAddClassMethodImpl)
     addMethodToClass(objectClass, "classSelector:put:", classSelectorPutMethod, isClassMethod = true)
 
     # Cascade-style construction methods (instance methods on Class instances)
     let parentsMethod = createCoreMethod("parents:")
-    parentsMethod.nativeImpl = cast[pointer](classParentsImpl)
+    parentsMethod.setNativeImpl(classParentsImpl)
     addMethodToClass(objectClass, "parents:", parentsMethod)
 
     let slotsMethod = createCoreMethod("slots:")
-    slotsMethod.nativeImpl = cast[pointer](classSlotsImpl)
+    slotsMethod.setNativeImpl(classSlotsImpl)
     addMethodToClass(objectClass, "slots:", slotsMethod)
 
     let gettersMethod = createCoreMethod("getters:")
-    gettersMethod.nativeImpl = cast[pointer](classGettersImpl)
+    gettersMethod.setNativeImpl(classGettersImpl)
     addMethodToClass(objectClass, "getters:", gettersMethod)
 
     let settersMethod = createCoreMethod("setters:")
-    settersMethod.nativeImpl = cast[pointer](classSettersImpl)
+    settersMethod.setNativeImpl(classSettersImpl)
     addMethodToClass(objectClass, "setters:", settersMethod)
 
     let methodsMethod = createCoreMethod("methods:")
-    methodsMethod.nativeImpl = cast[pointer](classMethodsImpl)
+    methodsMethod.setNativeImpl(classMethodsImpl)
     addMethodToClass(objectClass, "methods:", methodsMethod)
 
     # Identity method
     let identityMethod = createCoreMethod("==")
-    identityMethod.nativeImpl = cast[pointer](instIdentityImpl)
+    identityMethod.setNativeImpl(instIdentityImpl)
     addMethodToClass(objectClass, "==", identityMethod)
 
     # printString method
     let printStringMethod = createCoreMethod("printString")
-    printStringMethod.nativeImpl = cast[pointer](printStringImpl)
+    printStringMethod.setNativeImpl(printStringImpl)
     addMethodToClass(objectClass, "printString", printStringMethod)
 
     # class method - returns the receiver's class
     let classMethod = createCoreMethod("class")
-    classMethod.nativeImpl = cast[pointer](classImpl)
+    classMethod.setNativeImpl(classImpl)
     addMethodToClass(objectClass, "class", classMethod)
 
     # Add Object to globals as a Class value
@@ -468,56 +481,56 @@ proc initCoreClasses*(): Class =
 
     # Arithmetic methods
     let plusMethod = createCoreMethod("+")
-    plusMethod.nativeImpl = cast[pointer](plusImpl)
+    plusMethod.setNativeImpl(plusImpl)
     addMethodToClass(integerClass, "+", plusMethod)
 
     let minusMethod = createCoreMethod("-")
-    minusMethod.nativeImpl = cast[pointer](minusImpl)
+    minusMethod.setNativeImpl(minusImpl)
     addMethodToClass(integerClass, "-", minusMethod)
 
     let starMethod = createCoreMethod("*")
-    starMethod.nativeImpl = cast[pointer](starImpl)
+    starMethod.setNativeImpl(starImpl)
     addMethodToClass(integerClass, "*", starMethod)
 
     let slashMethod = createCoreMethod("/")
-    slashMethod.nativeImpl = cast[pointer](slashImpl)
+    slashMethod.setNativeImpl(slashImpl)
     addMethodToClass(integerClass, "/", slashMethod)
 
     let intDivMethod = createCoreMethod("//")
-    intDivMethod.nativeImpl = cast[pointer](intDivImpl)
+    intDivMethod.setNativeImpl(intDivImpl)
     addMethodToClass(integerClass, "//", intDivMethod)
 
     let moduloMethod = createCoreMethod("\\")
-    moduloMethod.nativeImpl = cast[pointer](backslashModuloImpl)
+    moduloMethod.setNativeImpl(backslashModuloImpl)
     addMethodToClass(integerClass, "\\", moduloMethod)
 
     let modMethod = createCoreMethod("%")
-    modMethod.nativeImpl = cast[pointer](moduloImpl)
+    modMethod.setNativeImpl(moduloImpl)
     addMethodToClass(integerClass, "%", modMethod)
 
     # Comparison methods
     let ltMethod = createCoreMethod("<")
-    ltMethod.nativeImpl = cast[pointer](ltImpl)
+    ltMethod.setNativeImpl(ltImpl)
     addMethodToClass(integerClass, "<", ltMethod)
 
     let gtMethod = createCoreMethod(">")
-    gtMethod.nativeImpl = cast[pointer](gtImpl)
+    gtMethod.setNativeImpl(gtImpl)
     addMethodToClass(integerClass, ">", gtMethod)
 
     let eqMethod = createCoreMethod("=")
-    eqMethod.nativeImpl = cast[pointer](eqImpl)
+    eqMethod.setNativeImpl(eqImpl)
     addMethodToClass(integerClass, "=", eqMethod)
 
     let leMethod = createCoreMethod("<=")
-    leMethod.nativeImpl = cast[pointer](leImpl)
+    leMethod.setNativeImpl(leImpl)
     addMethodToClass(integerClass, "<=", leMethod)
 
     let geMethod = createCoreMethod(">=")
-    geMethod.nativeImpl = cast[pointer](geImpl)
+    geMethod.setNativeImpl(geImpl)
     addMethodToClass(integerClass, ">=", geMethod)
 
     let neMethod = createCoreMethod("~=")
-    neMethod.nativeImpl = cast[pointer](neImpl)
+    neMethod.setNativeImpl(neImpl)
     addMethodToClass(integerClass, "~=", neMethod)
 
     addGlobal("Integer", NodeValue(kind: vkClass, classVal: integerClass))
@@ -529,54 +542,54 @@ proc initCoreClasses*(): Class =
 
     # Arithmetic (inherit from same impls as Integer - they handle both)
     let plusMethod = createCoreMethod("+")
-    plusMethod.nativeImpl = cast[pointer](plusImpl)
+    plusMethod.setNativeImpl(plusImpl)
     addMethodToClass(floatClass, "+", plusMethod)
 
     let minusMethod = createCoreMethod("-")
-    minusMethod.nativeImpl = cast[pointer](minusImpl)
+    minusMethod.setNativeImpl(minusImpl)
     addMethodToClass(floatClass, "-", minusMethod)
 
     let starMethod = createCoreMethod("*")
-    starMethod.nativeImpl = cast[pointer](starImpl)
+    starMethod.setNativeImpl(starImpl)
     addMethodToClass(floatClass, "*", starMethod)
 
     let slashMethod = createCoreMethod("/")
-    slashMethod.nativeImpl = cast[pointer](slashImpl)
+    slashMethod.setNativeImpl(slashImpl)
     addMethodToClass(floatClass, "/", slashMethod)
 
     let sqrtMethod = createCoreMethod("sqrt")
-    sqrtMethod.nativeImpl = cast[pointer](sqrtImpl)
+    sqrtMethod.setNativeImpl(sqrtImpl)
     addMethodToClass(floatClass, "sqrt", sqrtMethod)
 
     # Comparison methods
     let ltMethod = createCoreMethod("<")
-    ltMethod.nativeImpl = cast[pointer](ltImpl)
+    ltMethod.setNativeImpl(ltImpl)
     addMethodToClass(floatClass, "<", ltMethod)
 
     let gtMethod = createCoreMethod(">")
-    gtMethod.nativeImpl = cast[pointer](gtImpl)
+    gtMethod.setNativeImpl(gtImpl)
     addMethodToClass(floatClass, ">", gtMethod)
 
     let eqMethod = createCoreMethod("=")
-    eqMethod.nativeImpl = cast[pointer](eqImpl)
+    eqMethod.setNativeImpl(eqImpl)
     addMethodToClass(floatClass, "=", eqMethod)
 
     let leMethod = createCoreMethod("<=")
-    leMethod.nativeImpl = cast[pointer](leImpl)
+    leMethod.setNativeImpl(leImpl)
     addMethodToClass(floatClass, "<=", leMethod)
 
     let geMethod = createCoreMethod(">=")
-    geMethod.nativeImpl = cast[pointer](geImpl)
+    geMethod.setNativeImpl(geImpl)
     addMethodToClass(floatClass, ">=", geMethod)
 
     # printString method for Float
     let floatPrintStringMethod = createCoreMethod("printString")
-    floatPrintStringMethod.nativeImpl = cast[pointer](printStringImpl)
+    floatPrintStringMethod.setNativeImpl(printStringImpl)
     addMethodToClass(floatClass, "printString", floatPrintStringMethod)
 
     # asString method for Float (calls printString)
     let floatAsStringMethod = createCoreMethod("asString")
-    floatAsStringMethod.nativeImpl = cast[pointer](printStringImpl)
+    floatAsStringMethod.setNativeImpl(printStringImpl)
     addMethodToClass(floatClass, "asString", floatAsStringMethod)
 
     addGlobal("Float", NodeValue(kind: vkClass, classVal: floatClass))
@@ -587,55 +600,55 @@ proc initCoreClasses*(): Class =
     stringClass.tags = @["String"]
 
     let concatMethod = createCoreMethod(",")
-    concatMethod.nativeImpl = cast[pointer](instStringConcatImpl)
+    concatMethod.setNativeImpl(instStringConcatImpl)
     addMethodToClass(stringClass, ",", concatMethod)
 
     let sizeMethod = createCoreMethod("size")
-    sizeMethod.nativeImpl = cast[pointer](instStringSizeImpl)
+    sizeMethod.setNativeImpl(instStringSizeImpl)
     addMethodToClass(stringClass, "size", sizeMethod)
 
     let atMethod = createCoreMethod("at:")
-    atMethod.nativeImpl = cast[pointer](instStringAtImpl)
+    atMethod.setNativeImpl(instStringAtImpl)
     addMethodToClass(stringClass, "at:", atMethod)
 
     let fromToMethod = createCoreMethod("from:to:")
-    fromToMethod.nativeImpl = cast[pointer](instStringFromToImpl)
+    fromToMethod.setNativeImpl(instStringFromToImpl)
     addMethodToClass(stringClass, "from:to:", fromToMethod)
 
     let indexOfMethod = createCoreMethod("indexOf:")
-    indexOfMethod.nativeImpl = cast[pointer](instStringIndexOfImpl)
+    indexOfMethod.setNativeImpl(instStringIndexOfImpl)
     addMethodToClass(stringClass, "indexOf:", indexOfMethod)
 
     let includesMethod = createCoreMethod("includesSubString:")
-    includesMethod.nativeImpl = cast[pointer](instStringIncludesSubStringImpl)
+    includesMethod.setNativeImpl(instStringIncludesSubStringImpl)
     addMethodToClass(stringClass, "includesSubString:", includesMethod)
 
     let replaceMethod = createCoreMethod("replace:with:")
-    replaceMethod.nativeImpl = cast[pointer](instStringReplaceWithImpl)
+    replaceMethod.setNativeImpl(instStringReplaceWithImpl)
     addMethodToClass(stringClass, "replace:with:", replaceMethod)
 
     let uppercaseMethod = createCoreMethod("asUppercase")
-    uppercaseMethod.nativeImpl = cast[pointer](instStringUppercaseImpl)
+    uppercaseMethod.setNativeImpl(instStringUppercaseImpl)
     addMethodToClass(stringClass, "asUppercase", uppercaseMethod)
 
     let lowercaseMethod = createCoreMethod("asLowercase")
-    lowercaseMethod.nativeImpl = cast[pointer](instStringLowercaseImpl)
+    lowercaseMethod.setNativeImpl(instStringLowercaseImpl)
     addMethodToClass(stringClass, "asLowercase", lowercaseMethod)
 
     let trimMethod = createCoreMethod("trim")
-    trimMethod.nativeImpl = cast[pointer](instStringTrimImpl)
+    trimMethod.setNativeImpl(instStringTrimImpl)
     addMethodToClass(stringClass, "trim", trimMethod)
 
     let splitMethod = createCoreMethod("split:")
-    splitMethod.nativeImpl = cast[pointer](instStringSplitImpl)
+    splitMethod.setNativeImpl(instStringSplitImpl)
     addMethodToClass(stringClass, "split:", splitMethod)
 
     let asIntegerMethod = createCoreMethod("asInteger")
-    asIntegerMethod.nativeImpl = cast[pointer](instStringAsIntegerImpl)
+    asIntegerMethod.setNativeImpl(instStringAsIntegerImpl)
     addMethodToClass(stringClass, "asInteger", asIntegerMethod)
 
     let asSymbolMethod = createCoreMethod("asSymbol")
-    asSymbolMethod.nativeImpl = cast[pointer](instStringAsSymbolImpl)
+    asSymbolMethod.setNativeImpl(instStringAsSymbolImpl)
     addMethodToClass(stringClass, "asSymbol", asSymbolMethod)
 
     addGlobal("String", NodeValue(kind: vkClass, classVal: stringClass))
@@ -646,42 +659,42 @@ proc initCoreClasses*(): Class =
     arrayClass.tags = @["Array", "Collection"]
 
     let sizeMethod = createCoreMethod("size")
-    sizeMethod.nativeImpl = cast[pointer](arraySizeImpl)
+    sizeMethod.setNativeImpl(arraySizeImpl)
     addMethodToClass(arrayClass, "size", sizeMethod)
 
     let atMethod = createCoreMethod("at:")
-    atMethod.nativeImpl = cast[pointer](arrayAtImpl)
+    atMethod.setNativeImpl(arrayAtImpl)
     addMethodToClass(arrayClass, "at:", atMethod)
 
     let atPutMethod = createCoreMethod("at:put:")
-    atPutMethod.nativeImpl = cast[pointer](arrayAtPutImpl)
+    atPutMethod.setNativeImpl(arrayAtPutImpl)
     addMethodToClass(arrayClass, "at:put:", atPutMethod)
 
     let addMethod = createCoreMethod("add:")
-    addMethod.nativeImpl = cast[pointer](arrayAddImpl)
+    addMethod.setNativeImpl(arrayAddImpl)
     addMethodToClass(arrayClass, "add:", addMethod)
 
     let removeAtMethod = createCoreMethod("removeAt:")
-    removeAtMethod.nativeImpl = cast[pointer](arrayRemoveAtImpl)
+    removeAtMethod.setNativeImpl(arrayRemoveAtImpl)
     addMethodToClass(arrayClass, "removeAt:", removeAtMethod)
 
     let includesMethod = createCoreMethod("includes:")
-    includesMethod.nativeImpl = cast[pointer](arrayIncludesImpl)
+    includesMethod.setNativeImpl(arrayIncludesImpl)
     addMethodToClass(arrayClass, "includes:", includesMethod)
 
     let reverseMethod = createCoreMethod("reverse")
-    reverseMethod.nativeImpl = cast[pointer](arrayReverseImpl)
+    reverseMethod.setNativeImpl(arrayReverseImpl)
     addMethodToClass(arrayClass, "reverse", reverseMethod)
 
     # Array new: is a class method
     let newMethod = createCoreMethod("new")
-    newMethod.nativeImpl = cast[pointer](arrayNewImpl)
+    newMethod.setNativeImpl(arrayNewImpl)
     newMethod.hasInterpreterParam = true  # Required for Instance wrapper path
     addMethodToClass(arrayClass, "new", newMethod, isClassMethod = true)
 
     # Array new: with size argument
     let newSizeMethod = createCoreMethod("new:")
-    newSizeMethod.nativeImpl = cast[pointer](arrayNewImpl)
+    newSizeMethod.setNativeImpl(arrayNewImpl)
     newSizeMethod.hasInterpreterParam = true  # Required for Instance wrapper path
     addMethodToClass(arrayClass, "new:", newSizeMethod, isClassMethod = true)
 
@@ -693,28 +706,28 @@ proc initCoreClasses*(): Class =
     tableClass.tags = @["Table", "Collection", "Dictionary"]
 
     let atMethod = createCoreMethod("at:")
-    atMethod.nativeImpl = cast[pointer](tableAtImpl)
+    atMethod.setNativeImpl(tableAtImpl)
     addMethodToClass(tableClass, "at:", atMethod)
 
     let atPutMethod = createCoreMethod("at:put:")
-    atPutMethod.nativeImpl = cast[pointer](tableAtPutImpl)
+    atPutMethod.setNativeImpl(tableAtPutImpl)
     addMethodToClass(tableClass, "at:put:", atPutMethod)
 
     let keysMethod = createCoreMethod("keys")
-    keysMethod.nativeImpl = cast[pointer](tableKeysImpl)
+    keysMethod.setNativeImpl(tableKeysImpl)
     addMethodToClass(tableClass, "keys", keysMethod)
 
     let includesKeyMethod = createCoreMethod("includesKey:")
-    includesKeyMethod.nativeImpl = cast[pointer](tableIncludesKeyImpl)
+    includesKeyMethod.setNativeImpl(tableIncludesKeyImpl)
     addMethodToClass(tableClass, "includesKey:", includesKeyMethod)
 
     let removeKeyMethod = createCoreMethod("removeKey:")
-    removeKeyMethod.nativeImpl = cast[pointer](tableRemoveKeyImpl)
+    removeKeyMethod.setNativeImpl(tableRemoveKeyImpl)
     addMethodToClass(tableClass, "removeKey:", removeKeyMethod)
 
     # Table new is a class method
     let newMethod = createCoreMethod("new")
-    newMethod.nativeImpl = cast[pointer](tableNewImpl)
+    newMethod.setNativeImpl(tableNewImpl)
     addMethodToClass(tableClass, "new", newMethod, isClassMethod = true)
 
     addGlobal("Table", NodeValue(kind: vkClass, classVal: tableClass))
@@ -727,23 +740,23 @@ proc initCoreClasses*(): Class =
     libraryClass.tags = @["Library", "Namespace"]
 
     let libAtMethod = createCoreMethod("at:")
-    libAtMethod.nativeImpl = cast[pointer](libraryAtImpl)
+    libAtMethod.setNativeImpl(libraryAtImpl)
     addMethodToClass(libraryClass, "at:", libAtMethod)
 
     let libAtPutMethod = createCoreMethod("at:put:")
-    libAtPutMethod.nativeImpl = cast[pointer](libraryAtPutImpl)
+    libAtPutMethod.setNativeImpl(libraryAtPutImpl)
     addMethodToClass(libraryClass, "at:put:", libAtPutMethod)
 
     let libKeysMethod = createCoreMethod("keys")
-    libKeysMethod.nativeImpl = cast[pointer](libraryKeysImpl)
+    libKeysMethod.setNativeImpl(libraryKeysImpl)
     addMethodToClass(libraryClass, "keys", libKeysMethod)
 
     let libIncludesKeyMethod = createCoreMethod("includesKey:")
-    libIncludesKeyMethod.nativeImpl = cast[pointer](libraryIncludesKeyImpl)
+    libIncludesKeyMethod.setNativeImpl(libraryIncludesKeyImpl)
     addMethodToClass(libraryClass, "includesKey:", libIncludesKeyMethod)
 
     let libNewMethod = createCoreMethod("new")
-    libNewMethod.nativeImpl = cast[pointer](libraryNewImpl)
+    libNewMethod.setNativeImpl(libraryNewImpl)
     addMethodToClass(libraryClass, "new", libNewMethod, isClassMethod = true)
 
     addGlobal("Library", NodeValue(kind: vkClass, classVal: libraryClass))
@@ -754,39 +767,39 @@ proc initCoreClasses*(): Class =
     setClass.tags = @["Set", "Collection"]
 
     let primSetNewMethod = createCoreMethod("primitiveSetNew")
-    primSetNewMethod.nativeImpl = cast[pointer](primitiveSetNewImpl)
+    primSetNewMethod.setNativeImpl(primitiveSetNewImpl)
     addMethodToClass(setClass, "primitiveSetNew", primSetNewMethod, isClassMethod = true)
 
     let primSetAddMethod = createCoreMethod("primitiveSetAdd:")
-    primSetAddMethod.nativeImpl = cast[pointer](primitiveSetAddImpl)
+    primSetAddMethod.setNativeImpl(primitiveSetAddImpl)
     addMethodToClass(setClass, "primitiveSetAdd:", primSetAddMethod)
 
     let primSetRemoveMethod = createCoreMethod("primitiveSetRemove:")
-    primSetRemoveMethod.nativeImpl = cast[pointer](primitiveSetRemoveImpl)
+    primSetRemoveMethod.setNativeImpl(primitiveSetRemoveImpl)
     addMethodToClass(setClass, "primitiveSetRemove:", primSetRemoveMethod)
 
     let primSetIncludesMethod = createCoreMethod("primitiveSetIncludes:")
-    primSetIncludesMethod.nativeImpl = cast[pointer](primitiveSetIncludesImpl)
+    primSetIncludesMethod.setNativeImpl(primitiveSetIncludesImpl)
     addMethodToClass(setClass, "primitiveSetIncludes:", primSetIncludesMethod)
 
     let primSetSizeMethod = createCoreMethod("primitiveSetSize")
-    primSetSizeMethod.nativeImpl = cast[pointer](primitiveSetSizeImpl)
+    primSetSizeMethod.setNativeImpl(primitiveSetSizeImpl)
     addMethodToClass(setClass, "primitiveSetSize", primSetSizeMethod)
 
     let primSetUnionMethod = createCoreMethod("primitiveSetUnion:")
-    primSetUnionMethod.nativeImpl = cast[pointer](primitiveSetUnionImpl)
+    primSetUnionMethod.setNativeImpl(primitiveSetUnionImpl)
     addMethodToClass(setClass, "primitiveSetUnion:", primSetUnionMethod)
 
     let primSetIntersectionMethod = createCoreMethod("primitiveSetIntersection:")
-    primSetIntersectionMethod.nativeImpl = cast[pointer](primitiveSetIntersectionImpl)
+    primSetIntersectionMethod.setNativeImpl(primitiveSetIntersectionImpl)
     addMethodToClass(setClass, "primitiveSetIntersection:", primSetIntersectionMethod)
 
     let primSetDifferenceMethod = createCoreMethod("primitiveSetDifference:")
-    primSetDifferenceMethod.nativeImpl = cast[pointer](primitiveSetDifferenceImpl)
+    primSetDifferenceMethod.setNativeImpl(primitiveSetDifferenceImpl)
     addMethodToClass(setClass, "primitiveSetDifference:", primSetDifferenceMethod)
 
     let primSetKeysMethod = createCoreMethod("primitiveSetKeys")
-    primSetKeysMethod.nativeImpl = cast[pointer](primitiveSetKeysImpl)
+    primSetKeysMethod.setNativeImpl(primitiveSetKeysImpl)
     addMethodToClass(setClass, "primitiveSetKeys", primSetKeysMethod)
     # Note: primitiveSetDo: is registered in vm.nim with interpreter parameter
 
@@ -1030,16 +1043,25 @@ proc writeImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Write output without newline
   if args.len > 0:
     let s = args[0].toString()
-    stdout.write(s)
+    when defined(js):
+      {.emit: "if (typeof process !== 'undefined' && process.stdout) { process.stdout.write(`s`); } else { console.log(`s`); }".}
+    else:
+      stdout.write(s)
   return nilValue()
 
 proc writelineImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Write output with newline
   if args.len > 0:
     let s = args[0].toString()
-    echo(s)
+    when defined(js):
+      {.emit: "console.log(`s`);".}
+    else:
+      echo(s)
   else:
-    echo()
+    when defined(js):
+      {.emit: "console.log();".}
+    else:
+      echo()
   return nilValue()
 
 proc printStringImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
@@ -1099,7 +1121,7 @@ proc createGetterMethod*(cls: Class, slotName: string): BlockNode =
   meth.temporaries = @[]
   meth.body = @[cast[Node](returnNode)]
   meth.isMethod = true
-  meth.nativeImpl = nil
+  meth.nativeImpl = (when defined(js): 0 else: nil)
   meth.capturedEnv = initTable[string, MutableCell]()
   meth.capturedEnvInitialized = true
 
@@ -1132,7 +1154,7 @@ proc createSetterMethod*(cls: Class, slotName: string): BlockNode =
   meth.temporaries = @[]
   meth.body = @[cast[Node](slotAccess)]
   meth.isMethod = true
-  meth.nativeImpl = nil
+  meth.nativeImpl = (when defined(js): 0 else: nil)
   meth.capturedEnv = initTable[string, MutableCell]()
   meth.capturedEnvInitialized = true
 
@@ -1347,7 +1369,7 @@ proc classDeriveParentsSlotsGettersSettersMethodsImpl*(self: Class, args: seq[No
 proc classParentsImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Add parent classes to an existing class (cascade-style construction)
   ## args[0]: parents array
-  if self.nimValue == nil:
+  if nimValueIsNil(self.nimValue):
     return nilValue()
 
   let cls = cast[ptr Class](self.nimValue)
@@ -1370,7 +1392,7 @@ proc classSlotsImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Add slots to an existing class (cascade-style construction)
   ## Note: This creates a new class with the additional slots
   ## args[0]: slot names array
-  if self.nimValue == nil:
+  if nimValueIsNil(self.nimValue):
     return nilValue()
 
   let cls = cast[ptr Class](self.nimValue)
@@ -1413,7 +1435,7 @@ proc classSlotsImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
 proc classGettersImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Generate getter methods for specified slots (cascade-style construction)
   ## args[0]: slot names array
-  if self.nimValue == nil:
+  if nimValueIsNil(self.nimValue):
     return nilValue()
 
   let cls = cast[ptr Class](self.nimValue)
@@ -1430,7 +1452,7 @@ proc classGettersImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
 proc classSettersImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Generate setter methods for specified slots (cascade-style construction)
   ## args[0]: slot names array
-  if self.nimValue == nil:
+  if nimValueIsNil(self.nimValue):
     return nilValue()
 
   let cls = cast[ptr Class](self.nimValue)
@@ -1448,7 +1470,7 @@ proc classSettersImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
 proc classMethodsImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   ## Add methods from a table literal (cascade-style construction)
   ## args[0]: methods table #{#selector -> [:arg|...], ...}
-  if self.nimValue == nil:
+  if nimValueIsNil(self.nimValue):
     return nilValue()
 
   let cls = cast[ptr Class](self.nimValue)
@@ -2065,13 +2087,13 @@ proc registerPrimitivesOnObjectClass*(objCls: Class) =
   # These allow the declarative primitive syntax to work via standard lookup
 
   let primClone = createCoreMethod("primitiveClone")
-  primClone.nativeImpl = cast[pointer](primitiveCloneImpl)
+  primClone.setNativeImpl(primitiveCloneImpl)
   addMethodToClass(objCls, "primitiveClone", primClone)
 
   let primAt = createCoreMethod("primitiveAt:")
-  primAt.nativeImpl = cast[pointer](primitiveAtImpl)
+  primAt.setNativeImpl(primitiveAtImpl)
   addMethodToClass(objCls, "primitiveAt:", primAt)
 
   let primAtPut = createCoreMethod("primitiveAt:put:")
-  primAtPut.nativeImpl = cast[pointer](primitiveAtPutImpl)
+  primAtPut.setNativeImpl(primitiveAtPutImpl)
   addMethodToClass(objCls, "primitiveAt:put:", primAtPut)

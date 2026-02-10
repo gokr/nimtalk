@@ -329,6 +329,16 @@ proc initGtkBridge*(interp: var Interpreter) =
   textViewGetSelectionEndMethod.hasInterpreterParam = true
   addMethodToClass(textViewCls, "getSelectionEnd", textViewGetSelectionEndMethod)
 
+  let textViewScrollToEndMethod = createCoreMethod("scrollToEnd")
+  textViewScrollToEndMethod.nativeImpl = cast[pointer](textViewScrollToEndImpl)
+  textViewScrollToEndMethod.hasInterpreterParam = true
+  addMethodToClass(textViewCls, "scrollToEnd", textViewScrollToEndMethod)
+
+  let textViewSetEditableMethod = createCoreMethod("editable:")
+  textViewSetEditableMethod.nativeImpl = cast[pointer](textViewSetEditableImpl)
+  textViewSetEditableMethod.hasInterpreterParam = true
+  addMethodToClass(textViewCls, "editable:", textViewSetEditableMethod)
+
   interp.globals[]["GtkTextView"] = textViewCls.toValue()
   debug("Registered GtkTextView class")
 

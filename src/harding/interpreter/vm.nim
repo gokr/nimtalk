@@ -14,6 +14,21 @@ when defined(granite):
 # Note: These are imported from objects.nim via the import statement above
 
 # ============================================================================
+# Platform-Specific Output Helpers
+# ============================================================================
+
+when defined(js):
+  template writeStderr*(msg: string) =
+    {.emit: "console.error(`msg`);".}
+  template nativeImplIsSet*(meth: BlockNode): bool =
+    meth.nativeImpl != 0
+else:
+  template writeStderr*(msg: string) =
+    stderr.write(msg)
+  template nativeImplIsSet*(meth: BlockNode): bool =
+    meth.nativeImpl != nil
+
+# ============================================================================
 # Evaluation engine for Harding
 # Interprets AST nodes and executes currentMethods
 # ============================================================================
@@ -61,9 +76,9 @@ proc findSelectorForMethod(classObj: Class, methodBlk: BlockNode, isClassMethod:
 
 proc printStackTrace*(interp: var Interpreter) =
   ## Print the current activation stack for debugging
-  stderr.writeLine("\n=== Stack Trace ===")
+  writeStderr("\n=== Stack Trace ===")
   if interp.activationStack.len == 0:
-    stderr.writeLine("  (empty activation stack)")
+    writeStderr("  (empty activation stack)")
   else:
     for i in countdown(interp.activationStack.len - 1, 0):
       let activation = interp.activationStack[i]
@@ -84,8 +99,8 @@ proc printStackTrace*(interp: var Interpreter) =
                      else:
                        ""
       let methodDisplay = if selector.len > 0: selector else: methodType
-      stderr.writeLine(fmt("  {interp.activationStack.len - 1 - i}: {className}>>{methodDisplay}(self={receiverClass})"))
-  stderr.writeLine("===================\n")
+      writeStderr(fmt("  {interp.activationStack.len - 1 - i}: {className}>>{methodDisplay}(self={receiverClass})"))
+  writeStderr("===================\n")
 
 # ============================================================================
 # AST Rewriter for Slot Access
@@ -277,7 +292,7 @@ proc newInterpreterWithShared*(globals: ref Table[string, NodeValue],
     lastResult: nilValue(),
     rootObject: rootObject,
     exceptionHandlers: @[],
-    schedulerContextPtr: nil
+    schedulerContextPtr: (when defined(js): 0 else: nil)
   )
 
   # Use the shared root class and root object
@@ -725,7 +740,7 @@ proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
   debug("Executing method with ", arguments.len, " arguments")
 
   # Check for native implementation first
-  if currentMethod.nativeImpl != nil:
+  if nativeImplIsSet(currentMethod):
     debug("Calling native implementation")
     let savedReceiver = interp.currentReceiver
     try:
@@ -1252,7 +1267,7 @@ proc primitiveOnDoImpl(interp: var Interpreter, self: Instance, args: seq[NodeVa
   debug("primitiveOnDo: called but not fully implemented - evaluating block directly")
 
   # Get the block to execute (self is a Block instance here)
-  if self.kind == ikObject and self.class == blockClass and self.nimValue != nil:
+  if self.kind == ikObject and self.class == blockClass and nimValueIsSet(self.nimValue):
     let blockNode = cast[ptr BlockNode](self.nimValue)[]
     return invokeBlock(interp, blockNode, @[])
 
@@ -1274,7 +1289,7 @@ proc primitiveSignalImpl(interp: var Interpreter, self: Instance, args: seq[Node
   debug("primitiveSignal: called - raising exception: ", message)
 
   # For now, just print the error and return
-  stderr.writeLine("Exception: ", message)
+  writeStderr("Exception: " & message)
   return nilValue()
 
 proc primitiveHasPropertyImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
@@ -2269,7 +2284,7 @@ proc loadStdlib*(interp: var Interpreter, bootstrapFile: string = "") =
 
   # Initialize Process, Scheduler, Monitor, SharedQueue, Semaphore classes
   # Use a callback to avoid circular import with scheduler module
-  if interp.schedulerContextPtr != nil:
+  if (when defined(js): interp.schedulerContextPtr != 0 else: interp.schedulerContextPtr != nil):
     # Scheduler is already initialized, classes should be available
     discard
 
@@ -2488,7 +2503,7 @@ proc initHardingGlobal*(interp: var Interpreter) =
 # Special handling for GlobalTable - modify Table methods to access globals
 proc globalTableAtImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## GlobalTable at: - access global variable
-  let proxy = if self.isNimProxy and self.class.hardingType == "GlobalTable" and self.nimValue != nil:
+  let proxy = if self.isNimProxy and self.class.hardingType == "GlobalTable" and nimValueIsSet(self.nimValue):
                 cast[GlobalTableProxy](self.nimValue)
               else:
                 nil
@@ -2510,7 +2525,7 @@ proc globalTableAtImpl(interp: var Interpreter, self: Instance, args: seq[NodeVa
 
 proc globalTableAtPutImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## GlobalTable at:put: - set global variable
-  let proxy = if self.isNimProxy and self.class.hardingType == "GlobalTable" and self.nimValue != nil:
+  let proxy = if self.isNimProxy and self.class.hardingType == "GlobalTable" and nimValueIsSet(self.nimValue):
                 cast[GlobalTableProxy](self.nimValue)
               else:
                 nil
@@ -2531,7 +2546,7 @@ proc globalTableAtPutImpl(interp: var Interpreter, self: Instance, args: seq[Nod
 
 proc globalTableKeysImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## GlobalTable keys - get all global names as array
-  let proxy = if self.isNimProxy and self.class.hardingType == "GlobalTable" and self.nimValue != nil:
+  let proxy = if self.isNimProxy and self.class.hardingType == "GlobalTable" and nimValueIsSet(self.nimValue):
                 cast[GlobalTableProxy](self.nimValue)
               else:
                 nil
@@ -2549,7 +2564,7 @@ proc globalTableKeysImpl(interp: var Interpreter, self: Instance, args: seq[Node
 
 proc globalTableIncludesKeyImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## GlobalTable includesKey: - check if global exists
-  let proxy = if self.isNimProxy and self.class.hardingType == "GlobalTable" and self.nimValue != nil:
+  let proxy = if self.isNimProxy and self.class.hardingType == "GlobalTable" and nimValueIsSet(self.nimValue):
                 cast[GlobalTableProxy](self.nimValue)
               else:
                 nil
@@ -2591,7 +2606,7 @@ proc globalTableLoadImpl(interp: var Interpreter, self: Instance, args: seq[Node
 
   # Check if file exists
   if not fileExists(resolvedPath):
-    stderr.writeLine("Error: File not found: ", resolvedPath)
+    writeStderr("Error: File not found: " & resolvedPath)
     return nilValue()
 
   # Read and evaluate the file
@@ -2599,12 +2614,12 @@ proc globalTableLoadImpl(interp: var Interpreter, self: Instance, args: seq[Node
     let source = readFile(resolvedPath)
     let (_, err) = interp.evalStatements(source)
     if err.len > 0:
-      stderr.writeLine("Error loading ", resolvedPath, ": ", err)
+      writeStderr("Error loading " & resolvedPath & ": " & err)
       return nilValue()
     debug("Successfully loaded: ", resolvedPath)
     return toValue(true)
   except Exception as e:
-    stderr.writeLine("Error reading ", resolvedPath, ": ", e.msg)
+    writeStderr("Error reading " & resolvedPath & ": " & e.msg)
     return nilValue()
 
 # ============================================================================
@@ -2631,7 +2646,7 @@ proc libraryLoadImpl(interp: var Interpreter, self: Instance, args: seq[NodeValu
                        interp.hardingHome / filePath
 
   if not fileExists(resolvedPath):
-    stderr.writeLine("Error: File not found: ", resolvedPath)
+    writeStderr("Error: File not found: " & resolvedPath)
     return nilValue()
 
   # Save original globals and create a copy for capturing new definitions
@@ -2647,7 +2662,7 @@ proc libraryLoadImpl(interp: var Interpreter, self: Instance, args: seq[NodeValu
     let source = readFile(resolvedPath)
     let (_, err) = interp.evalStatements(source)
     if err.len > 0:
-      stderr.writeLine("Error loading ", resolvedPath, ": ", err)
+      writeStderr("Error loading " & resolvedPath & ": " & err)
       interp.globals = originalGlobals
       return nilValue()
 
@@ -2666,7 +2681,7 @@ proc libraryLoadImpl(interp: var Interpreter, self: Instance, args: seq[NodeValu
     return toValue(true)
   except Exception as e:
     interp.globals = originalGlobals
-    stderr.writeLine("Error reading ", resolvedPath, ": ", e.msg)
+    writeStderr("Error reading " & resolvedPath & ": " & e.msg)
     return nilValue()
 
 proc globalTableImportImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
@@ -2676,12 +2691,12 @@ proc globalTableImportImpl(interp: var Interpreter, self: Instance, args: seq[No
 
   let libArg = args[0]
   if libArg.kind != vkInstance or libArg.instVal == nil:
-    stderr.writeLine("Error: import: argument must be a Library instance")
+    writeStderr("Error: import: argument must be a Library instance")
     return nilValue()
 
   let lib = libArg.instVal
   if lib.class != libraryClass:
-    stderr.writeLine("Error: import: argument must be a Library instance")
+    writeStderr("Error: import: argument must be a Library instance")
     return nilValue()
 
   interp.importedLibraries.add(lib)
@@ -3236,10 +3251,10 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
         let currentMethod = lookup.currentMethod
 
         # Handle native class methods
-        if currentMethod.nativeImpl != nil:
+        if nativeImplIsSet(currentMethod):
           let savedReceiver = interp.currentReceiver
           # Create class receiver wrapper for consistent receiver handling
-          let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: nil)
+          let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: (when defined(js): 0 else: nil))
           # Set currentReceiver for consistent method context
           interp.currentReceiver = classReceiver
           try:
@@ -3260,7 +3275,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
           return true
 
         # Interpreted class method - create activation with class wrapper as receiver
-        let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: nil)
+        let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: (when defined(js): 0 else: nil))
 
         # Check parameter count
         if currentMethod.parameters.len != args.len:
@@ -3308,7 +3323,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       else:
         # Class method not found - try instance methods on the Class class
         # This allows methods like asSelfDo: to work on class receivers
-        let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: nil)
+        let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: (when defined(js): 0 else: nil))
         let instanceLookup = lookupMethod(interp, classReceiver, frame.selector)
 
         if instanceLookup.found:
@@ -3316,7 +3331,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
           debug("VM: Found instance method '", frame.selector, "' on Class class")
 
           # Handle native implementations
-          if currentMethod.nativeImpl != nil:
+          if nativeImplIsSet(currentMethod):
             let savedReceiver = interp.currentReceiver
             interp.currentReceiver = classReceiver
             try:
@@ -3377,7 +3392,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
             debug("VM: Found class method '", frame.selector, "' on class ", cls.name)
 
             # Handle native implementations
-            if currentMethod.nativeImpl != nil:
+            if nativeImplIsSet(currentMethod):
               let savedReceiver = interp.currentReceiver
               interp.currentReceiver = classReceiver
               try:
@@ -3507,8 +3522,8 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
 
     # Check for native implementation
     let currentMethod = lookup.currentMethod
-    debug("VM: Found method '", frame.selector, "', native=", currentMethod.nativeImpl != nil)
-    if currentMethod.nativeImpl != nil:
+    debug("VM: Found method '", frame.selector, "', native=", nativeImplIsSet(currentMethod))
+    if nativeImplIsSet(currentMethod):
       # Call native method
       debug("VM: Calling native method '", frame.selector, "'")
       let savedReceiver = interp.currentReceiver

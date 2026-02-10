@@ -19,6 +19,11 @@ GtkLabel class>>newLabel: aString [
     ^lbl
 ].
 
+# Alias for newLabel: - some code uses new: instead
+GtkLabel class>>new: aString [
+    ^ self newLabel: aString
+].
+
 # Convenience aliases
 GtkLabel>>label: aString [
     self text: aString
