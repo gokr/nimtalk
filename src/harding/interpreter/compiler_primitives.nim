@@ -2,7 +2,7 @@
 ## Exposes compilation functionality as Harding primitives
 
 when defined(granite):
-  import std/[os, strutils, strformat, tables]
+  import std/[os, strutils, strformat, tables, sets, hashes]
   import ../core/types
   import ../parser/parser
   import ../parser/lexer
@@ -16,15 +16,18 @@ when defined(granite):
 
   # Forward declarations for primitive implementations
   proc graniteCompileImpl*(self: Instance, args: seq[NodeValue]): NodeValue
-  proc graniteCompileToFileImpl*(self: Instance, args: seq[NodeValue]): NodeValue
-  proc graniteEvaluateImpl*(self: Instance, args: seq[NodeValue]): NodeValue
-  proc graniteGetASTImpl*(self: Instance, args: seq[NodeValue]): NodeValue
   proc graniteBuildImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 
   type
     CompileResult* = object
       nimCode*: string
       errors*: seq[string]
+
+    ClassInfoEx* = ref object
+      class*: Class
+      name*: string
+      superClass*: string
+      classMethods*: seq[tuple[selector: string, meth: BlockNode]]
 
   proc compileHrdToNim*(source: string, sourcePath: string = ""): CompileResult =
     ## Compile Harding source to Nim code
@@ -51,100 +54,142 @@ when defined(granite):
     except CatchableError as e:
       result.errors.add("Compilation error: " & e.msg)
 
-  proc evaluateHrd*(interp: Interpreter, source: string): NodeValue =
-    ## Compile and execute source directly
-    currentInterpreter = interp
-    try:
-      let result = compileHrdToNim(source, "")
-
-      if result.errors.len > 0:
-        return NodeValue(kind: vkString, strVal: result.errors.join("\n"))
-
-      # For now, return the generated code as string
-      # Full evaluation would require compiling and running the Nim code
-      return NodeValue(kind: vkString, strVal: result.nimCode)
-
-    finally:
-      currentInterpreter = nil
-
   # Primitive: Granite class>>compile: source
   proc graniteCompileImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
     if args.len < 1 or args[0].kind != vkString:
       return NodeValue(kind: vkNil)
 
     let source = args[0].strVal
-    let result = compileHrdToNim(source, "")
+    let compResult = compileHrdToNim(source, "")
 
-    if result.errors.len > 0:
-      return NodeValue(kind: vkString, strVal: result.errors.join("\n"))
+    if compResult.errors.len > 0:
+      return NodeValue(kind: vkString, strVal: compResult.errors.join("\n"))
 
-    return NodeValue(kind: vkString, strVal: result.nimCode)
+    return NodeValue(kind: vkString, strVal: compResult.nimCode)
 
-  # Primitive: Granite class>>compile: source toFile: filename
-  proc graniteCompileToFileImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
-    if args.len < 2:
-      return NodeValue(kind: vkNil)
+  proc getSlotValue*(inst: Instance, slotIdx: int): NodeValue =
+    ## Get slot value at index
+    if inst.kind == ikObject and slotIdx >= 0 and slotIdx < inst.slots.len:
+      return inst.slots[slotIdx]
+    return NodeValue(kind: vkNil)
 
-    let source = args[0].strVal
-    let filename = args[1].strVal
+  proc findClassInGlobals*(interp: Interpreter, className: string): Class =
+    ## Find a class by name in globals
+    if className in interp.globals[]:
+      let val = interp.globals[][className]
+      if val.kind == vkClass:
+        return val.classVal
+    return nil
 
-    let result = compileHrdToNim(source, "")
-    if result.errors.len > 0:
-      return NodeValue(kind: vkString, strVal: result.errors.join("\n"))
+  proc collectTransitiveClasses*(app: Instance, interp: Interpreter): seq[Class] =
+    ## Collect all classes transitively referenced from Application
+    result = @[]
+    var visited = initHashSet[string]()
+    var toProcess: seq[Class] = @[]
 
-    try:
-      writeFile(filename, result.nimCode)
-      return NodeValue(kind: vkBool, boolVal: true)
-    except CatchableError:
-      return NodeValue(kind: vkBool, boolVal: false)
+    # Start with Application's class
+    if app.class != nil:
+      toProcess.add(app.class)
 
-  # Primitive: Granite class>>evaluate: source
-  proc graniteEvaluateImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
-    if args.len < 1 or args[0].kind != vkString:
-      return NodeValue(kind: vkNil)
+    while toProcess.len > 0:
+      let cls = toProcess.pop()
+      if cls.name in visited:
+        continue
+      visited.incl(cls.name)
+      result.add(cls)
 
-    let source = args[0].strVal
-    if currentInterpreter != nil:
-      return evaluateHrd(currentInterpreter, source)
-    else:
-      return NodeValue(kind: vkString, strVal: "No interpreter context")
+      # Add superclasses if not Object/Root
+      for superCls in cls.superclasses:
+        if superCls.name != "Root" and superCls.name != "Object":
+          if not (superCls.name in visited):
+            toProcess.add(superCls)
 
-  # Primitive: Granite class>>getAST: source
-  proc graniteGetASTImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
-    if args.len < 1 or args[0].kind != vkString:
-      return NodeValue(kind: vkNil)
+      # Look for class references in method bodies
+      # For now, we include all classes in globals that might be used
+      # A more sophisticated analysis would parse method bodies
 
-    let source = args[0].strVal
-    try:
-      let tokens = lex(source)
-      var parser = initParser(tokens)
-      parser.lastLine = 1
-      let nodes = parser.parseStatements()
+    # Also include any classes referenced in Application's libraries slot
+    let librariesVal = getSlotValue(app, 1)  # libraries is slot 1
+    if librariesVal.kind == vkArray:
+      for libEntry in librariesVal.arrayVal:
+        if libEntry.kind == vkString:
+          let libName = libEntry.strVal
+          # Find classes from this library
+          # For now, we include common collection classes
+          case libName
+          of "Core":
+            discard  # Core classes already included
+          of "Collections":
+            let arrayCls = findClassInGlobals(interp, "Array")
+            if arrayCls != nil and not (arrayCls.name in visited):
+              result.add(arrayCls)
+            let tableCls = findClassInGlobals(interp, "Table")
+            if tableCls != nil and not (tableCls.name in visited):
+              result.add(tableCls)
+            let setCls = findClassInGlobals(interp, "Set")
+            if setCls != nil and not (setCls.name in visited):
+              result.add(setCls)
 
-      if parser.hasError:
-        return NodeValue(kind: vkString, strVal: "Parse error: " & parser.errorMsg)
+  proc generateApplicationCode*(app: Instance, classes: seq[Class], interp: Interpreter): string =
+    ## Generate Nim code for the application
+    var output = "## Generated by Granite Compiler\n"
+    output.add("## Application: " & getSlotValue(app, 0).strVal & "\n\n")
 
-      # Return AST as string representation for now
-      var astStr = ""
-      for node in nodes:
-        astStr.add($node.kind)
-        astStr.add("\n")
+    output.add("import std/[os, tables, sequtils]\n")
+    output.add("import ../src/harding/core/[types]\n")
+    output.add("import ../src/harding/interpreter/[objects]\n\n")
 
-      return NodeValue(kind: vkString, strVal: astStr)
+    output.add("# Main entry point\n")
+    output.add("proc main() =\n")
+    output.add("  echo \"Application: " & getSlotValue(app, 0).strVal & "\"\n")
+    output.add("  # TODO: Create Application instance and call main:\n")
+    output.add("\n")
 
-    except CatchableError as e:
-      return NodeValue(kind: vkString, strVal: "Error: " & e.msg)
+    output.add("when isMainModule:\n")
+    output.add("  main()\n")
+
+    return output
 
   # Primitive: Granite class>>build: application
   proc graniteBuildImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
     ## Build an Application to binary
     if args.len < 1 or args[0].kind != vkInstance:
-      return NodeValue(kind: vkNil)
+      return NodeValue(kind: vkString, strVal: "Error: Expected Application instance")
 
     let app = args[0].instVal
 
-    # Get application properties
-    # These would be accessed via slot indices
-    # For now, return a placeholder message
+    # Get application name from slot 0
+    let nameVal = getSlotValue(app, 0)
+    if nameVal.kind != vkString:
+      return NodeValue(kind: vkString, strVal: "Error: Application name not set")
+    let appName = nameVal.strVal
 
-    return NodeValue(kind: vkString, strVal: "Build not yet fully implemented")
+    if currentInterpreter == nil:
+      return NodeValue(kind: vkString, strVal: "Error: No interpreter context")
+
+    # Collect transitive classes
+    let classes = collectTransitiveClasses(app, currentInterpreter)
+
+    # Generate code
+    let nimCode = generateApplicationCode(app, classes, currentInterpreter)
+
+    # Write to file
+    let outputDir = "./build"
+    let nimPath = outputDir / appName & ".nim"
+
+    try:
+      createDir(outputDir)
+      writeFile(nimPath, nimCode)
+    except CatchableError as e:
+      return NodeValue(kind: vkString, strVal: "Error writing file: " & e.msg)
+
+    # Compile with Nim
+    let binaryPath = outputDir / appName
+    let cmd = fmt("nim c -o:{binaryPath} {nimPath}")
+
+    let exitCode = execShellCmd(cmd)
+
+    if exitCode == 0:
+      return NodeValue(kind: vkString, strVal: "Build successful: " & binaryPath)
+    else:
+      return NodeValue(kind: vkString, strVal: "Build failed with exit code: " & $exitCode)

@@ -1569,7 +1569,7 @@ proc initGlobals*(interp: var Interpreter) =
     return nilValue()
 
   let addSuperclassMethod = createCoreMethod("addSuperclass:")
-  addSuperclassMethod.nativeImpl = cast[pointer](addSuperclassImpl)
+  addSuperclassMethod.setNativeImpl(addSuperclassImpl)
   addSuperclassMethod.hasInterpreterParam = true
   rootCls.classMethods["addSuperclass:"] = addSuperclassMethod
   rootCls.allClassMethods["addSuperclass:"] = addSuperclassMethod
@@ -1594,7 +1594,7 @@ proc initGlobals*(interp: var Interpreter) =
     return newInstance(objectClass).toValue()
 
   let classNewMethod = createCoreMethod("new")
-  classNewMethod.nativeImpl = cast[pointer](objectClassNewImpl)
+  classNewMethod.setNativeImpl(objectClassNewImpl)
   classNewMethod.hasInterpreterParam = true
   objectCls.classMethods["new"] = classNewMethod
   objectCls.allClassMethods["new"] = classNewMethod
@@ -1607,39 +1607,39 @@ proc initGlobals*(interp: var Interpreter) =
     return newInstance(objectClass).toValue()
 
   let classNewInstanceMethod = createCoreMethod("newInstance")
-  classNewInstanceMethod.nativeImpl = cast[pointer](objectClassNewInstanceImpl)
+  classNewInstanceMethod.setNativeImpl(objectClassNewInstanceImpl)
   classNewInstanceMethod.hasInterpreterParam = true
   objectCls.classMethods["newInstance"] = classNewInstanceMethod
   objectCls.allClassMethods["newInstance"] = classNewInstanceMethod
 
   # Add perform: methods to Object class (for primitive dispatch from Smalltalk)
   let objPerformMethod = createCoreMethod("perform:")
-  objPerformMethod.nativeImpl = cast[pointer](performWithImpl)
+  objPerformMethod.setNativeImpl(performWithImpl)
   objPerformMethod.hasInterpreterParam = true
   objectCls.methods["perform:"] = objPerformMethod
   objectCls.allMethods["perform:"] = objPerformMethod
 
   let objPerformWithMethod = createCoreMethod("perform:with:")
-  objPerformWithMethod.nativeImpl = cast[pointer](performWithImpl)
+  objPerformWithMethod.setNativeImpl(performWithImpl)
   objPerformWithMethod.hasInterpreterParam = true
   objectCls.methods["perform:with:"] = objPerformWithMethod
   objectCls.allMethods["perform:with:"] = objPerformWithMethod
 
   let objPerformWithWithMethod = createCoreMethod("perform:with:with:")
-  objPerformWithWithMethod.nativeImpl = cast[pointer](performWithImpl)
+  objPerformWithWithMethod.setNativeImpl(performWithImpl)
   objPerformWithWithMethod.hasInterpreterParam = true
   objectCls.methods["perform:with:with:"] = objPerformWithWithMethod
   objectCls.allMethods["perform:with:with:"] = objPerformWithWithMethod
 
   # Add primitiveIdentity: for == comparison
   let objIdentityMethod = createCoreMethod("primitiveIdentity:")
-  objIdentityMethod.nativeImpl = cast[pointer](instIdentityImpl)
+  objIdentityMethod.setNativeImpl(instIdentityImpl)
   objectCls.methods["primitiveIdentity:"] = objIdentityMethod
   objectCls.allMethods["primitiveIdentity:"] = objIdentityMethod
 
   # Add primitiveAsSelfDo: for asSelfDo: implementation (as both instance and class method)
   let objAsSelfDoMethod = createCoreMethod("primitiveAsSelfDo:")
-  objAsSelfDoMethod.nativeImpl = cast[pointer](primitiveAsSelfDoImpl)
+  objAsSelfDoMethod.setNativeImpl(primitiveAsSelfDoImpl)
   objAsSelfDoMethod.hasInterpreterParam = true
   # Register as instance method on Object (for instances)
   objectCls.methods["primitiveAsSelfDo:"] = objAsSelfDoMethod
@@ -1650,76 +1650,76 @@ proc initGlobals*(interp: var Interpreter) =
 
   # Add primitiveHasProperty: for hasProperty: implementation
   let objHasPropertyMethod = createCoreMethod("primitiveHasProperty:")
-  objHasPropertyMethod.nativeImpl = cast[pointer](primitiveHasPropertyImpl)
+  objHasPropertyMethod.setNativeImpl(primitiveHasPropertyImpl)
   objHasPropertyMethod.hasInterpreterParam = true
   objectCls.methods["primitiveHasProperty:"] = objHasPropertyMethod
   objectCls.allMethods["primitiveHasProperty:"] = objHasPropertyMethod
 
   # Add primitiveProperties for properties implementation
   let objPropertiesMethod = createCoreMethod("primitiveProperties")
-  objPropertiesMethod.nativeImpl = cast[pointer](primitivePropertiesImpl)
+  objPropertiesMethod.setNativeImpl(primitivePropertiesImpl)
   objPropertiesMethod.hasInterpreterParam = true
   objectCls.methods["primitiveProperties"] = objPropertiesMethod
   objectCls.allMethods["primitiveProperties"] = objPropertiesMethod
 
   # Add primitiveRespondsTo: for respondsTo: implementation
   let objRespondsToMethod = createCoreMethod("primitiveRespondsTo:")
-  objRespondsToMethod.nativeImpl = cast[pointer](primitiveRespondsToImpl)
+  objRespondsToMethod.setNativeImpl(primitiveRespondsToImpl)
   objRespondsToMethod.hasInterpreterParam = true
   objectCls.methods["primitiveRespondsTo:"] = objRespondsToMethod
   objectCls.allMethods["primitiveRespondsTo:"] = objRespondsToMethod
 
   # Add primitiveMethods for methods implementation
   let objMethodsMethod = createCoreMethod("primitiveMethods")
-  objMethodsMethod.nativeImpl = cast[pointer](primitiveMethodsImpl)
+  objMethodsMethod.setNativeImpl(primitiveMethodsImpl)
   objMethodsMethod.hasInterpreterParam = true
   objectCls.methods["primitiveMethods"] = objMethodsMethod
   objectCls.allMethods["primitiveMethods"] = objMethodsMethod
 
   # Add primitiveAllInstanceMethods for allInstanceMethods implementation
   let objAllInstanceMethodsMethod = createCoreMethod("primitiveAllInstanceMethods")
-  objAllInstanceMethodsMethod.nativeImpl = cast[pointer](primitiveAllInstanceMethodsImpl)
+  objAllInstanceMethodsMethod.setNativeImpl(primitiveAllInstanceMethodsImpl)
   objAllInstanceMethodsMethod.hasInterpreterParam = true
   objectCls.methods["primitiveAllInstanceMethods"] = objAllInstanceMethodsMethod
   objectCls.allMethods["primitiveAllInstanceMethods"] = objAllInstanceMethodsMethod
 
   # Add primitiveAllClassMethods for allClassMethods implementation
   let objAllClassMethodsMethod = createCoreMethod("primitiveAllClassMethods")
-  objAllClassMethodsMethod.nativeImpl = cast[pointer](primitiveAllClassMethodsImpl)
+  objAllClassMethodsMethod.setNativeImpl(primitiveAllClassMethodsImpl)
   objAllClassMethodsMethod.hasInterpreterParam = true
   objectCls.methods["primitiveAllClassMethods"] = objAllClassMethodsMethod
   objectCls.allMethods["primitiveAllClassMethods"] = objAllClassMethodsMethod
 
   # Add primitiveClass for class implementation
   let objClassMethod = createCoreMethod("primitiveClass")
-  objClassMethod.nativeImpl = cast[pointer](classImpl)
+  objClassMethod.setNativeImpl(classImpl)
   objectCls.methods["primitiveClass"] = objClassMethod
   objectCls.allMethods["primitiveClass"] = objClassMethod
   objectCls.allMethods["primitiveMethods"] = objMethodsMethod
 
   # Add primitiveError: for error: implementation
   let objErrorMethod = createCoreMethod("primitiveError:")
-  objErrorMethod.nativeImpl = cast[pointer](primitiveErrorImpl)
+  objErrorMethod.setNativeImpl(primitiveErrorImpl)
   objErrorMethod.hasInterpreterParam = true
   objectCls.methods["primitiveError:"] = objErrorMethod
   objectCls.allMethods["primitiveError:"] = objErrorMethod
 
   # Add primitiveEquals: for == implementation
   let objEqualsMethod = createCoreMethod("primitiveEquals:")
-  objEqualsMethod.nativeImpl = cast[pointer](primitiveEqualsImpl)
+  objEqualsMethod.setNativeImpl(primitiveEqualsImpl)
   objectCls.methods["primitiveEquals:"] = objEqualsMethod
   objectCls.allMethods["primitiveEquals:"] = objEqualsMethod
 
   # Add primitiveIsKindOf: for isKindOf: implementation
   let objIsKindOfMethod = createCoreMethod("primitiveIsKindOf:")
-  objIsKindOfMethod.nativeImpl = cast[pointer](primitiveIsKindOfImpl)
+  objIsKindOfMethod.setNativeImpl(primitiveIsKindOfImpl)
   objIsKindOfMethod.hasInterpreterParam = true
   objectCls.methods["primitiveIsKindOf:"] = objIsKindOfMethod
   objectCls.allMethods["primitiveIsKindOf:"] = objIsKindOfMethod
 
   # Add slotNames for class introspection - returns slot names of this class
   let objSlotNamesMethod = createCoreMethod("slotNames")
-  objSlotNamesMethod.nativeImpl = cast[pointer](primitiveSlotNamesImpl)
+  objSlotNamesMethod.setNativeImpl(primitiveSlotNamesImpl)
   objSlotNamesMethod.hasInterpreterParam = true
   objectCls.methods["slotNames"] = objSlotNamesMethod
   objectCls.allMethods["slotNames"] = objSlotNamesMethod
@@ -1729,7 +1729,7 @@ proc initGlobals*(interp: var Interpreter) =
 
   # Add superclassNames for class introspection - returns names of superclasses
   let objSuperclassNamesMethod = createCoreMethod("superclassNames")
-  objSuperclassNamesMethod.nativeImpl = cast[pointer](primitiveSuperclassNamesImpl)
+  objSuperclassNamesMethod.setNativeImpl(primitiveSuperclassNamesImpl)
   objSuperclassNamesMethod.hasInterpreterParam = true
   objectCls.methods["superclassNames"] = objSuperclassNamesMethod
   objectCls.allMethods["superclassNames"] = objSuperclassNamesMethod
@@ -1744,7 +1744,7 @@ proc initGlobals*(interp: var Interpreter) =
     return toValue("")
 
   let classNameMethod = createCoreMethod("className")
-  classNameMethod.nativeImpl = cast[pointer](primitiveClassNameImpl)
+  classNameMethod.setNativeImpl(primitiveClassNameImpl)
   classNameMethod.hasInterpreterParam = true
   # Add to instance methods (for objects to get their class name via className)
   objectCls.methods["className"] = classNameMethod
@@ -1761,21 +1761,29 @@ proc initGlobals*(interp: var Interpreter) =
   # Add print and println as native methods
   proc objPrintImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
     # Print self to stdout without newline
-    stdout.write(self.toValue().toString())
+    let s = self.toValue().toString()
+    when defined(js):
+      {.emit: "if (typeof process !== 'undefined' && process.stdout) { process.stdout.write(`s`); } else { console.log(`s`); }".}
+    else:
+      stdout.write(s)
     return self.toValue()
 
   proc objPrintlnImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
     # Print self to stdout with newline
-    echo(self.toValue().toString())
+    let s = self.toValue().toString()
+    when defined(js):
+      {.emit: "console.log(`s`);".}
+    else:
+      echo(s)
     return self.toValue()
 
   let printMethod = createCoreMethod("print")
-  printMethod.nativeImpl = cast[pointer](objPrintImpl)
+  printMethod.setNativeImpl(objPrintImpl)
   objectCls.methods["print"] = printMethod
   objectCls.allMethods["print"] = printMethod
 
   let printlnMethod = createCoreMethod("println")
-  printlnMethod.nativeImpl = cast[pointer](objPrintlnImpl)
+  printlnMethod.setNativeImpl(objPrintlnImpl)
   objectCls.methods["println"] = printlnMethod
   objectCls.allMethods["println"] = printlnMethod
 
@@ -1797,7 +1805,7 @@ proc initGlobals*(interp: var Interpreter) =
     return nilValue()
 
   let evalMethod = createCoreMethod("eval:")
-  evalMethod.nativeImpl = cast[pointer](primitiveEvalImpl)
+  evalMethod.setNativeImpl(primitiveEvalImpl)
   evalMethod.hasInterpreterParam = true
   objectCls.classMethods["eval:"] = evalMethod
   objectCls.allClassMethods["eval:"] = evalMethod
@@ -1816,75 +1824,75 @@ proc initGlobals*(interp: var Interpreter) =
 
   # Register Integer arithmetic methods
   let plusMethod = createCoreMethod("+")
-  plusMethod.nativeImpl = cast[pointer](plusImpl)
+  plusMethod.setNativeImpl(plusImpl)
   intCls.methods["+"] = plusMethod
   intCls.allMethods["+"] = plusMethod
 
   let minusMethod = createCoreMethod("-")
-  minusMethod.nativeImpl = cast[pointer](minusImpl)
+  minusMethod.setNativeImpl(minusImpl)
   intCls.methods["-"] = minusMethod
   intCls.allMethods["-"] = minusMethod
 
   let starMethod = createCoreMethod("*")
-  starMethod.nativeImpl = cast[pointer](starImpl)
+  starMethod.setNativeImpl(starImpl)
   intCls.methods["*"] = starMethod
   intCls.allMethods["*"] = starMethod
 
   let slashMethod = createCoreMethod("/")
-  slashMethod.nativeImpl = cast[pointer](slashImpl)
+  slashMethod.setNativeImpl(slashImpl)
   intCls.methods["/"] = slashMethod
   intCls.allMethods["/"] = slashMethod
 
   # Register Integer comparison methods
   let ltMethod = createCoreMethod("<")
-  ltMethod.nativeImpl = cast[pointer](ltImpl)
+  ltMethod.setNativeImpl(ltImpl)
   intCls.methods["<"] = ltMethod
   intCls.allMethods["<"] = ltMethod
 
   let gtMethod = createCoreMethod(">")
-  gtMethod.nativeImpl = cast[pointer](gtImpl)
+  gtMethod.setNativeImpl(gtImpl)
   intCls.methods[">"] = gtMethod
   intCls.allMethods[">"] = gtMethod
 
   let eqMethod = createCoreMethod("=")
-  eqMethod.nativeImpl = cast[pointer](eqImpl)
+  eqMethod.setNativeImpl(eqImpl)
   intCls.methods["="] = eqMethod
   intCls.allMethods["="] = eqMethod
 
   let leMethod = createCoreMethod("<=")
-  leMethod.nativeImpl = cast[pointer](leImpl)
+  leMethod.setNativeImpl(leImpl)
   intCls.methods["<="] = leMethod
   intCls.allMethods["<="] = leMethod
 
   let geMethod = createCoreMethod(">=")
-  geMethod.nativeImpl = cast[pointer](geImpl)
+  geMethod.setNativeImpl(geImpl)
   intCls.methods[">="] = geMethod
   intCls.allMethods[">="] = geMethod
 
   let neMethod = createCoreMethod("<>")
-  neMethod.nativeImpl = cast[pointer](neImpl)
+  neMethod.setNativeImpl(neImpl)
   intCls.methods["<>"] = neMethod
   intCls.allMethods["<>"] = neMethod
 
   # Register printString on Integer
   let intPrintStringMethod = createCoreMethod("printString")
-  intPrintStringMethod.nativeImpl = cast[pointer](printStringImpl)
+  intPrintStringMethod.setNativeImpl(printStringImpl)
   intCls.methods["printString"] = intPrintStringMethod
   intCls.allMethods["printString"] = intPrintStringMethod
 
   # Register additional Integer methods
   let intDivMethod = createCoreMethod("//")
-  intDivMethod.nativeImpl = cast[pointer](intDivImpl)
+  intDivMethod.setNativeImpl(intDivImpl)
   intCls.methods["//"] = intDivMethod
   intCls.allMethods["//"] = intDivMethod
 
   let backslashModuloMethod = createCoreMethod("\\")
-  backslashModuloMethod.nativeImpl = cast[pointer](backslashModuloImpl)
+  backslashModuloMethod.setNativeImpl(backslashModuloImpl)
   intCls.methods["\\"] = backslashModuloMethod
   intCls.allMethods["\\"] = backslashModuloMethod
 
   let moduloMethod = createCoreMethod("%")
-  moduloMethod.nativeImpl = cast[pointer](moduloImpl)
+  moduloMethod.setNativeImpl(moduloImpl)
   intCls.methods["%"] = moduloMethod
   intCls.allMethods["%"] = moduloMethod
 
@@ -1897,65 +1905,65 @@ proc initGlobals*(interp: var Interpreter) =
 
   # Register Float arithmetic methods (same implementations as Integer)
   let floatPlusMethod = createCoreMethod("+")
-  floatPlusMethod.nativeImpl = cast[pointer](plusImpl)
+  floatPlusMethod.setNativeImpl(plusImpl)
   floatCls.methods["+"] = floatPlusMethod
   floatCls.allMethods["+"] = floatPlusMethod
 
   let floatMinusMethod = createCoreMethod("-")
-  floatMinusMethod.nativeImpl = cast[pointer](minusImpl)
+  floatMinusMethod.setNativeImpl(minusImpl)
   floatCls.methods["-"] = floatMinusMethod
   floatCls.allMethods["-"] = floatMinusMethod
 
   let floatStarMethod = createCoreMethod("*")
-  floatStarMethod.nativeImpl = cast[pointer](starImpl)
+  floatStarMethod.setNativeImpl(starImpl)
   floatCls.methods["*"] = floatStarMethod
   floatCls.allMethods["*"] = floatStarMethod
 
   let floatSlashMethod = createCoreMethod("/")
-  floatSlashMethod.nativeImpl = cast[pointer](slashImpl)
+  floatSlashMethod.setNativeImpl(slashImpl)
   floatCls.methods["/"] = floatSlashMethod
   floatCls.allMethods["/"] = floatSlashMethod
 
   # Register Float comparison methods
   let floatLtMethod = createCoreMethod("<")
-  floatLtMethod.nativeImpl = cast[pointer](ltImpl)
+  floatLtMethod.setNativeImpl(ltImpl)
   floatCls.methods["<"] = floatLtMethod
   floatCls.allMethods["<"] = floatLtMethod
 
   let floatGtMethod = createCoreMethod(">")
-  floatGtMethod.nativeImpl = cast[pointer](gtImpl)
+  floatGtMethod.setNativeImpl(gtImpl)
   floatCls.methods[">"] = floatGtMethod
   floatCls.allMethods[">"] = floatGtMethod
 
   let floatEqMethod = createCoreMethod("=")
-  floatEqMethod.nativeImpl = cast[pointer](eqImpl)
+  floatEqMethod.setNativeImpl(eqImpl)
   floatCls.methods["="] = floatEqMethod
   floatCls.allMethods["="] = floatEqMethod
 
   let floatLeMethod = createCoreMethod("<=")
-  floatLeMethod.nativeImpl = cast[pointer](leImpl)
+  floatLeMethod.setNativeImpl(leImpl)
   floatCls.methods["<="] = floatLeMethod
   floatCls.allMethods["<="] = floatLeMethod
 
   let floatGeMethod = createCoreMethod(">=")
-  floatGeMethod.nativeImpl = cast[pointer](geImpl)
+  floatGeMethod.setNativeImpl(geImpl)
   floatCls.methods[">="] = floatGeMethod
   floatCls.allMethods[">="] = floatGeMethod
 
   let floatNeMethod = createCoreMethod("<>")
-  floatNeMethod.nativeImpl = cast[pointer](neImpl)
+  floatNeMethod.setNativeImpl(neImpl)
   floatCls.methods["<>"] = floatNeMethod
   floatCls.allMethods["<>"] = floatNeMethod
 
   # Register printString on Float (to ensure it has direct access to the primitive)
   let floatPrintStringMethod = createCoreMethod("printString")
-  floatPrintStringMethod.nativeImpl = cast[pointer](printStringImpl)
+  floatPrintStringMethod.setNativeImpl(printStringImpl)
   floatCls.methods["printString"] = floatPrintStringMethod
   floatCls.allMethods["printString"] = floatPrintStringMethod
 
   # Add Float-specific methods
   let sqrtMethod = createCoreMethod("sqrt")
-  sqrtMethod.nativeImpl = cast[pointer](sqrtImpl)
+  sqrtMethod.setNativeImpl(sqrtImpl)
   floatCls.methods["sqrt"] = sqrtMethod
   floatCls.allMethods["sqrt"] = sqrtMethod
 
@@ -1966,73 +1974,73 @@ proc initGlobals*(interp: var Interpreter) =
 
   # Register String primitive methods
   let stringConcatMethod = createCoreMethod("primitiveConcat:")
-  stringConcatMethod.nativeImpl = cast[pointer](instStringConcatImpl)
+  stringConcatMethod.setNativeImpl(instStringConcatImpl)
   stringCls.methods["primitiveConcat:"] = stringConcatMethod
   stringCls.allMethods["primitiveConcat:"] = stringConcatMethod
 
   let stringSizeMethod = createCoreMethod("primitiveStringSize")
-  stringSizeMethod.nativeImpl = cast[pointer](instStringSizeImpl)
+  stringSizeMethod.setNativeImpl(instStringSizeImpl)
   stringCls.methods["primitiveStringSize"] = stringSizeMethod
   stringCls.allMethods["primitiveStringSize"] = stringSizeMethod
 
   let stringAtMethod = createCoreMethod("primitiveStringAt:")
-  stringAtMethod.nativeImpl = cast[pointer](instStringAtImpl)
+  stringAtMethod.setNativeImpl(instStringAtImpl)
   stringCls.methods["primitiveStringAt:"] = stringAtMethod
   stringCls.allMethods["primitiveStringAt:"] = stringAtMethod
 
   let stringSplitMethod = createCoreMethod("primitiveSplit:")
-  stringSplitMethod.nativeImpl = cast[pointer](instStringSplitImpl)
+  stringSplitMethod.setNativeImpl(instStringSplitImpl)
   stringCls.methods["primitiveSplit:"] = stringSplitMethod
   stringCls.allMethods["primitiveSplit:"] = stringSplitMethod
 
   # Register Instance-based String primitives
   let stringLowercaseMethod = createCoreMethod("primitiveLowercase")
-  stringLowercaseMethod.nativeImpl = cast[pointer](instStringLowercaseImpl)
+  stringLowercaseMethod.setNativeImpl(instStringLowercaseImpl)
   stringCls.methods["primitiveLowercase"] = stringLowercaseMethod
   stringCls.allMethods["primitiveLowercase"] = stringLowercaseMethod
 
   let stringUppercaseMethod = createCoreMethod("primitiveUppercase")
-  stringUppercaseMethod.nativeImpl = cast[pointer](instStringUppercaseImpl)
+  stringUppercaseMethod.setNativeImpl(instStringUppercaseImpl)
   stringCls.methods["primitiveUppercase"] = stringUppercaseMethod
   stringCls.allMethods["primitiveUppercase"] = stringUppercaseMethod
 
   let stringTrimMethod = createCoreMethod("primitiveTrim")
-  stringTrimMethod.nativeImpl = cast[pointer](instStringTrimImpl)
+  stringTrimMethod.setNativeImpl(instStringTrimImpl)
   stringCls.methods["primitiveTrim"] = stringTrimMethod
   stringCls.allMethods["primitiveTrim"] = stringTrimMethod
 
   let stringFromToMethod = createCoreMethod("primitiveFromTo:")
-  stringFromToMethod.nativeImpl = cast[pointer](instStringFromToImpl)
+  stringFromToMethod.setNativeImpl(instStringFromToImpl)
   stringCls.methods["primitiveFromTo:"] = stringFromToMethod
   stringCls.allMethods["primitiveFromTo:"] = stringFromToMethod
 
   let stringIndexOfMethod = createCoreMethod("primitiveIndexOf:")
-  stringIndexOfMethod.nativeImpl = cast[pointer](instStringIndexOfImpl)
+  stringIndexOfMethod.setNativeImpl(instStringIndexOfImpl)
   stringCls.methods["primitiveIndexOf:"] = stringIndexOfMethod
   stringCls.allMethods["primitiveIndexOf:"] = stringIndexOfMethod
 
   let stringIncludesSubStringMethod = createCoreMethod("primitiveIncludesSubString:")
-  stringIncludesSubStringMethod.nativeImpl = cast[pointer](instStringIncludesSubStringImpl)
+  stringIncludesSubStringMethod.setNativeImpl(instStringIncludesSubStringImpl)
   stringCls.methods["primitiveIncludesSubString:"] = stringIncludesSubStringMethod
   stringCls.allMethods["primitiveIncludesSubString:"] = stringIncludesSubStringMethod
 
   let stringReplaceWithMethod = createCoreMethod("primitiveReplaceWith:")
-  stringReplaceWithMethod.nativeImpl = cast[pointer](instStringReplaceWithImpl)
+  stringReplaceWithMethod.setNativeImpl(instStringReplaceWithImpl)
   stringCls.methods["primitiveReplaceWith:"] = stringReplaceWithMethod
   stringCls.allMethods["primitiveReplaceWith:"] = stringReplaceWithMethod
 
   let stringAsIntegerMethod = createCoreMethod("primitiveAsInteger")
-  stringAsIntegerMethod.nativeImpl = cast[pointer](instStringAsIntegerImpl)
+  stringAsIntegerMethod.setNativeImpl(instStringAsIntegerImpl)
   stringCls.methods["primitiveAsInteger"] = stringAsIntegerMethod
   stringCls.allMethods["primitiveAsInteger"] = stringAsIntegerMethod
 
   let stringAsSymbolMethod = createCoreMethod("primitiveAsSymbol")
-  stringAsSymbolMethod.nativeImpl = cast[pointer](instStringAsSymbolImpl)
+  stringAsSymbolMethod.setNativeImpl(instStringAsSymbolImpl)
   stringCls.methods["primitiveAsSymbol"] = stringAsSymbolMethod
   stringCls.allMethods["primitiveAsSymbol"] = stringAsSymbolMethod
 
   let stringRepeatMethod = createCoreMethod("primitiveRepeat:")
-  stringRepeatMethod.nativeImpl = cast[pointer](instStringRepeatImpl)
+  stringRepeatMethod.setNativeImpl(instStringRepeatImpl)
   stringCls.methods["primitiveRepeat:"] = stringRepeatMethod
   stringCls.allMethods["primitiveRepeat:"] = stringRepeatMethod
 
@@ -2047,42 +2055,42 @@ proc initGlobals*(interp: var Interpreter) =
 
   # Register Array methods
   let arraySizeMethod = createCoreMethod("size")
-  arraySizeMethod.nativeImpl = cast[pointer](arraySizeImpl)
+  arraySizeMethod.setNativeImpl(arraySizeImpl)
   arrayCls.methods["size"] = arraySizeMethod
   arrayCls.allMethods["size"] = arraySizeMethod
 
   let arrayAddMethod = createCoreMethod("add:")
-  arrayAddMethod.nativeImpl = cast[pointer](arrayAddImpl)
+  arrayAddMethod.setNativeImpl(arrayAddImpl)
   arrayCls.methods["add:"] = arrayAddMethod
   arrayCls.allMethods["add:"] = arrayAddMethod
 
   let arrayAtMethod = createCoreMethod("at:")
-  arrayAtMethod.nativeImpl = cast[pointer](arrayAtImpl)
+  arrayAtMethod.setNativeImpl(arrayAtImpl)
   arrayCls.methods["at:"] = arrayAtMethod
   arrayCls.allMethods["at:"] = arrayAtMethod
 
   let arrayAtPutMethod = createCoreMethod("at:put:")
-  arrayAtPutMethod.nativeImpl = cast[pointer](arrayAtPutImpl)
+  arrayAtPutMethod.setNativeImpl(arrayAtPutImpl)
   arrayCls.methods["at:put:"] = arrayAtPutMethod
   arrayCls.allMethods["at:put:"] = arrayAtPutMethod
 
   let arrayIncludesMethod = createCoreMethod("includes:")
-  arrayIncludesMethod.nativeImpl = cast[pointer](arrayIncludesImpl)
+  arrayIncludesMethod.setNativeImpl(arrayIncludesImpl)
   arrayCls.methods["includes:"] = arrayIncludesMethod
   arrayCls.allMethods["includes:"] = arrayIncludesMethod
 
   let arrayReverseMethod = createCoreMethod("reverse")
-  arrayReverseMethod.nativeImpl = cast[pointer](arrayReverseImpl)
+  arrayReverseMethod.setNativeImpl(arrayReverseImpl)
   arrayCls.methods["reverse"] = arrayReverseMethod
   arrayCls.allMethods["reverse"] = arrayReverseMethod
 
   let arrayJoinMethod = createCoreMethod("join:")
-  arrayJoinMethod.nativeImpl = cast[pointer](arrayJoinImpl)
+  arrayJoinMethod.setNativeImpl(arrayJoinImpl)
   arrayCls.methods["join:"] = arrayJoinMethod
   arrayCls.allMethods["join:"] = arrayJoinMethod
 
   let arrayDoMethod = createCoreMethod("do:")
-  arrayDoMethod.nativeImpl = cast[pointer](arrayDoImpl)
+  arrayDoMethod.setNativeImpl(arrayDoImpl)
   arrayDoMethod.hasInterpreterParam = true
   arrayCls.methods["do:"] = arrayDoMethod
   arrayCls.allMethods["do:"] = arrayDoMethod
@@ -2098,17 +2106,17 @@ proc initGlobals*(interp: var Interpreter) =
 
   # Register Table primitive methods
   let tableAtMethod = createCoreMethod("at:")
-  tableAtMethod.nativeImpl = cast[pointer](tableAtImpl)
+  tableAtMethod.setNativeImpl(tableAtImpl)
   tableCls.methods["at:"] = tableAtMethod
   tableCls.allMethods["at:"] = tableAtMethod
 
   let tableAtPutMethod = createCoreMethod("at:put:")
-  tableAtPutMethod.nativeImpl = cast[pointer](tableAtPutImpl)
+  tableAtPutMethod.setNativeImpl(tableAtPutImpl)
   tableCls.methods["at:put:"] = tableAtPutMethod
   tableCls.allMethods["at:put:"] = tableAtPutMethod
 
   let tableKeysMethod = createCoreMethod("primitiveKeys")
-  tableKeysMethod.nativeImpl = cast[pointer](tableKeysImpl)
+  tableKeysMethod.setNativeImpl(tableKeysImpl)
   tableCls.methods["primitiveKeys"] = tableKeysMethod
   tableCls.allMethods["primitiveKeys"] = tableKeysMethod
 
@@ -2120,7 +2128,7 @@ proc initGlobals*(interp: var Interpreter) =
     return newTableInstance(targetClass, initTable[NodeValue, NodeValue]()).toValue()
 
   let tableNewMethod = createCoreMethod("new")
-  tableNewMethod.nativeImpl = cast[pointer](tableClassNewImpl)
+  tableNewMethod.setNativeImpl(tableClassNewImpl)
   tableNewMethod.hasInterpreterParam = true
   tableCls.classMethods["new"] = tableNewMethod
   tableCls.allClassMethods["new"] = tableNewMethod
@@ -2132,13 +2140,13 @@ proc initGlobals*(interp: var Interpreter) =
 
   # Register Boolean methods
   let ifTrueMethod = createCoreMethod("ifTrue:")
-  ifTrueMethod.nativeImpl = cast[pointer](ifTrueImpl)
+  ifTrueMethod.setNativeImpl(ifTrueImpl)
   ifTrueMethod.hasInterpreterParam = true
   booleanCls.methods["ifTrue:"] = ifTrueMethod
   booleanCls.allMethods["ifTrue:"] = ifTrueMethod
 
   let ifFalseMethod = createCoreMethod("ifFalse:")
-  ifFalseMethod.nativeImpl = cast[pointer](ifFalseImpl)
+  ifFalseMethod.setNativeImpl(ifFalseImpl)
   ifFalseMethod.hasInterpreterParam = true
   booleanCls.methods["ifFalse:"] = ifFalseMethod
   booleanCls.allMethods["ifFalse:"] = ifFalseMethod
@@ -2160,45 +2168,45 @@ proc initGlobals*(interp: var Interpreter) =
 
   # Register Block loop methods
   let whileTrueMethod = createCoreMethod("whileTrue:")
-  whileTrueMethod.nativeImpl = cast[pointer](whileTrueImpl)
+  whileTrueMethod.setNativeImpl(whileTrueImpl)
   whileTrueMethod.hasInterpreterParam = true
   blockCls.methods["whileTrue:"] = whileTrueMethod
   blockCls.allMethods["whileTrue:"] = whileTrueMethod
 
   let whileFalseMethod = createCoreMethod("whileFalse:")
-  whileFalseMethod.nativeImpl = cast[pointer](whileFalseImpl)
+  whileFalseMethod.setNativeImpl(whileFalseImpl)
   whileFalseMethod.hasInterpreterParam = true
   blockCls.methods["whileFalse:"] = whileFalseMethod
   blockCls.allMethods["whileFalse:"] = whileFalseMethod
 
   # Register Block value methods
   let primitiveValueMethod = createCoreMethod("primitiveValue")
-  primitiveValueMethod.nativeImpl = cast[pointer](primitiveValueImpl)
+  primitiveValueMethod.setNativeImpl(primitiveValueImpl)
   primitiveValueMethod.hasInterpreterParam = true
   blockCls.methods["primitiveValue"] = primitiveValueMethod
   blockCls.allMethods["primitiveValue"] = primitiveValueMethod
 
   let primitiveValueWithArgMethod = createCoreMethod("primitiveValue:")
-  primitiveValueWithArgMethod.nativeImpl = cast[pointer](primitiveValueWithArgImpl)
+  primitiveValueWithArgMethod.setNativeImpl(primitiveValueWithArgImpl)
   primitiveValueWithArgMethod.hasInterpreterParam = true
   blockCls.methods["primitiveValue:"] = primitiveValueWithArgMethod
   blockCls.allMethods["primitiveValue:"] = primitiveValueWithArgMethod
 
   let primitiveValueWithTwoArgsMethod = createCoreMethod("primitiveValue:value:")
-  primitiveValueWithTwoArgsMethod.nativeImpl = cast[pointer](primitiveValueWithTwoArgsImpl)
+  primitiveValueWithTwoArgsMethod.setNativeImpl(primitiveValueWithTwoArgsImpl)
   primitiveValueWithTwoArgsMethod.hasInterpreterParam = true
   blockCls.methods["primitiveValue:value:"] = primitiveValueWithTwoArgsMethod
   blockCls.allMethods["primitiveValue:value:"] = primitiveValueWithTwoArgsMethod
 
   let primitiveValueWithThreeArgsMethod = createCoreMethod("primitiveValue:value:value:")
-  primitiveValueWithThreeArgsMethod.nativeImpl = cast[pointer](primitiveValueWithThreeArgsImpl)
+  primitiveValueWithThreeArgsMethod.setNativeImpl(primitiveValueWithThreeArgsImpl)
   primitiveValueWithThreeArgsMethod.hasInterpreterParam = true
   blockCls.methods["primitiveValue:value:value:"] = primitiveValueWithThreeArgsMethod
   blockCls.allMethods["primitiveValue:value:value:"] = primitiveValueWithThreeArgsMethod
 
   # Register Block exception handling method (primitiveOnDo: for on:do: support)
   let primitiveOnDoMethod = createCoreMethod("primitiveOnDo:")
-  primitiveOnDoMethod.nativeImpl = cast[pointer](primitiveOnDoImpl)
+  primitiveOnDoMethod.setNativeImpl(primitiveOnDoImpl)
   primitiveOnDoMethod.hasInterpreterParam = true
   blockCls.methods["primitiveOnDo:"] = primitiveOnDoMethod
   blockCls.allMethods["primitiveOnDo:"] = primitiveOnDoMethod
@@ -2207,7 +2215,7 @@ proc initGlobals*(interp: var Interpreter) =
   # The Set class itself was created in initCoreClasses (objects.nim)
   if types.setClass != nil:
     let setDoMethod = createCoreMethod("primitiveSetDo:")
-    setDoMethod.nativeImpl = cast[pointer](primitiveSetDoImpl)
+    setDoMethod.setNativeImpl(primitiveSetDoImpl)
     setDoMethod.hasInterpreterParam = true
     types.setClass.methods["primitiveSetDo:"] = setDoMethod
     types.setClass.allMethods["primitiveSetDo:"] = setDoMethod
@@ -2289,21 +2297,26 @@ proc loadStdlib*(interp: var Interpreter, bootstrapFile: string = "") =
     discard
 
   # Use lib/core/Bootstrap.hrd as default if no bootstrapFile provided
-  let actualBootstrapFile = if bootstrapFile.len > 0 and fileExists(bootstrapFile):
-                             bootstrapFile
-                           else:
-                             interp.hardingHome / "lib" / "core" / "Bootstrap.hrd"
-
-  if fileExists(actualBootstrapFile):
-    debug("Loading bootstrap file: ", actualBootstrapFile)
-    let source = readFile(actualBootstrapFile)
-    let (_, err) = interp.evalStatements(source)
-    if err.len > 0:
-      warn("Failed to load bootstrap file ", actualBootstrapFile, ": ", err)
-    else:
-      debug("Successfully loaded bootstrap: ", actualBootstrapFile)
+  when defined(js):
+    # JS builds use embedded library files loaded via jslib module
+    # Skip file-based bootstrap loading
+    discard
   else:
-    warn("Bootstrap file not found: ", actualBootstrapFile)
+    let actualBootstrapFile = if bootstrapFile.len > 0 and fileExists(bootstrapFile):
+                               bootstrapFile
+                             else:
+                               interp.hardingHome / "lib" / "core" / "Bootstrap.hrd"
+
+    if fileExists(actualBootstrapFile):
+      debug("Loading bootstrap file: ", actualBootstrapFile)
+      let source = readFile(actualBootstrapFile)
+      let (_, err) = interp.evalStatements(source)
+      if err.len > 0:
+        warn("Failed to load bootstrap file ", actualBootstrapFile, ": ", err)
+      else:
+        debug("Successfully loaded bootstrap: ", actualBootstrapFile)
+    else:
+      warn("Bootstrap file not found: ", actualBootstrapFile)
 
   # Set up class caches for primitive types
   if "Number" in interp.globals[]:
@@ -2379,12 +2392,12 @@ proc loadStdlib*(interp: var Interpreter, bootstrapFile: string = "") =
     else:
       # Native builds: Use native implementations
       let fsWriteMethod = createCoreMethod("write:")
-      fsWriteMethod.nativeImpl = cast[pointer](writeImpl)
+      fsWriteMethod.setNativeImpl(writeImpl)
       fileStreamCls.methods["write:"] = fsWriteMethod
       fileStreamCls.allMethods["write:"] = fsWriteMethod
 
       let fsWritelineMethod = createCoreMethod("writeline:")
-      fsWritelineMethod.nativeImpl = cast[pointer](writelineImpl)
+      fsWritelineMethod.setNativeImpl(writelineImpl)
       fileStreamCls.methods["writeline:"] = fsWritelineMethod
       fileStreamCls.allMethods["writeline:"] = fsWritelineMethod
       debug("Registered native FileStream methods")
@@ -2405,14 +2418,14 @@ proc loadStdlib*(interp: var Interpreter, bootstrapFile: string = "") =
       # Register primitiveGraniteCompile: primitive (class method)
       # This is called when Granite class>>compile: sourceString <primitive primitiveGraniteCompile: sourceString>
       let primCompileMethod = createCoreMethod("primitiveGraniteCompile:")
-      primCompileMethod.nativeImpl = cast[pointer](graniteCompileImpl)
+      primCompileMethod.setNativeImpl(graniteCompileImpl)
       graniteCls.methods["primitiveGraniteCompile:"] = primCompileMethod
       graniteCls.allMethods["primitiveGraniteCompile:"] = primCompileMethod
 
       # Register primitiveGraniteBuild: primitive (class method)
       # This is called when Granite class>>build: anApplication <primitive primitiveGraniteBuild: anApplication>
       let primBuildMethod = createCoreMethod("primitiveGraniteBuild:")
-      primBuildMethod.nativeImpl = cast[pointer](graniteBuildImpl)
+      primBuildMethod.setNativeImpl(graniteBuildImpl)
       graniteCls.methods["primitiveGraniteBuild:"] = primBuildMethod
       graniteCls.allMethods["primitiveGraniteBuild:"] = primBuildMethod
 
@@ -2598,29 +2611,34 @@ proc globalTableLoadImpl(interp: var Interpreter, self: Instance, args: seq[Node
   if filePath.len == 0:
     return nilValue()
 
-  # Resolve path relative to hardingHome if not absolute
-  let resolvedPath = if filePath.isAbsolute:
-                       filePath
-                     else:
-                       interp.hardingHome / filePath
-
-  # Check if file exists
-  if not fileExists(resolvedPath):
-    writeStderr("Error: File not found: " & resolvedPath)
+  when defined(js):
+    # JS builds don't support file I/O
+    writeStderr("Error: File I/O not supported in JavaScript build")
     return nilValue()
+  else:
+    # Resolve path relative to hardingHome if not absolute
+    let resolvedPath = if filePath.isAbsolute:
+                         filePath
+                       else:
+                         interp.hardingHome / filePath
 
-  # Read and evaluate the file
-  try:
-    let source = readFile(resolvedPath)
-    let (_, err) = interp.evalStatements(source)
-    if err.len > 0:
-      writeStderr("Error loading " & resolvedPath & ": " & err)
+    # Check if file exists
+    if not fileExists(resolvedPath):
+      writeStderr("Error: File not found: " & resolvedPath)
       return nilValue()
-    debug("Successfully loaded: ", resolvedPath)
-    return toValue(true)
-  except Exception as e:
-    writeStderr("Error reading " & resolvedPath & ": " & e.msg)
-    return nilValue()
+
+    # Read and evaluate the file
+    try:
+      let source = readFile(resolvedPath)
+      let (_, err) = interp.evalStatements(source)
+      if err.len > 0:
+        writeStderr("Error loading " & resolvedPath & ": " & err)
+        return nilValue()
+      debug("Successfully loaded: ", resolvedPath)
+      return toValue(true)
+    except Exception as e:
+      writeStderr("Error reading " & resolvedPath & ": " & e.msg)
+      return nilValue()
 
 # ============================================================================
 # Library methods (need interpreter access)
@@ -2629,6 +2647,11 @@ proc globalTableLoadImpl(interp: var Interpreter, self: Instance, args: seq[Node
 proc libraryLoadImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Library load: - load and evaluate a file, capturing new globals into this Library's bindings
   if args.len < 1:
+    return nilValue()
+
+  when defined(js):
+    # JS builds don't support file I/O
+    writeStderr("Error: Library file I/O not supported in JavaScript build")
     return nilValue()
 
   let pathArg = args[0]
@@ -2709,7 +2732,7 @@ proc installLibraryMethods*() =
     return
 
   let loadMethod = createCoreMethod("load:")
-  loadMethod.nativeImpl = cast[pointer](libraryLoadImpl)
+  loadMethod.setNativeImpl(libraryLoadImpl)
   loadMethod.hasInterpreterParam = true
   addMethodToClass(libraryClass, "load:", loadMethod)
 
@@ -2721,37 +2744,37 @@ proc installGlobalTableMethods*(globalTableClass: Class) =
 
   # Override at: method
   let atMethod = createCoreMethod("at:")
-  atMethod.nativeImpl = cast[pointer](globalTableAtImpl)
+  atMethod.setNativeImpl(globalTableAtImpl)
   atMethod.hasInterpreterParam = true
   addMethodToClass(globalTableClass, "at:", atMethod)
 
   # Override at:put: method
   let atPutMethod = createCoreMethod("at:put:")
-  atPutMethod.nativeImpl = cast[pointer](globalTableAtPutImpl)
+  atPutMethod.setNativeImpl(globalTableAtPutImpl)
   atPutMethod.hasInterpreterParam = true
   addMethodToClass(globalTableClass, "at:put:", atPutMethod)
 
   # Override keys method
   let keysMethod = createCoreMethod("keys")
-  keysMethod.nativeImpl = cast[pointer](globalTableKeysImpl)
+  keysMethod.setNativeImpl(globalTableKeysImpl)
   keysMethod.hasInterpreterParam = true
   addMethodToClass(globalTableClass, "keys", keysMethod)
 
   # Override includesKey: method
   let includesKeyMethod = createCoreMethod("includesKey:")
-  includesKeyMethod.nativeImpl = cast[pointer](globalTableIncludesKeyImpl)
+  includesKeyMethod.setNativeImpl(globalTableIncludesKeyImpl)
   includesKeyMethod.hasInterpreterParam = true
   addMethodToClass(globalTableClass, "includesKey:", includesKeyMethod)
 
   # Add load: method for loading Harding files
   let loadMethod = createCoreMethod("load:")
-  loadMethod.nativeImpl = cast[pointer](globalTableLoadImpl)
+  loadMethod.setNativeImpl(globalTableLoadImpl)
   loadMethod.hasInterpreterParam = true
   addMethodToClass(globalTableClass, "load:", loadMethod)
 
   # Add import: method for importing Libraries into the interpreter
   let importMethod = createCoreMethod("import:")
-  importMethod.nativeImpl = cast[pointer](globalTableImportImpl)
+  importMethod.setNativeImpl(globalTableImportImpl)
   importMethod.hasInterpreterParam = true
   addMethodToClass(globalTableClass, "import:", importMethod)
 
