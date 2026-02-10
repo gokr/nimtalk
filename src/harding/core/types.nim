@@ -237,6 +237,8 @@ type
   LiteralNode* = ref object of Node
     value*: NodeValue
 
+  PICEntry* = tuple[cls: Class, meth: BlockNode]  # 'meth' to avoid 'method' keyword
+
   MessageNode* = ref object of Node
     receiver*: Node          # nil for implicit self
     selector*: string
@@ -246,6 +248,9 @@ type
     cachedClass*: Class      # Last receiver class seen at this call site
     cachedMethod*: BlockNode # Cached method for cachedClass
     callCount*: int          # Number of times this call site has been executed
+    # Polymorphic Inline Cache (PIC) fields
+    picEntries*: array[3, PICEntry]  # Additional cache entries (total 4 with MIC)
+    picCount*: int                   # Number of valid PIC entries (0-3)
 
   CascadeNode* = ref object of Node
     receiver*: Node

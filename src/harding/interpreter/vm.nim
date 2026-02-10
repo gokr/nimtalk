@@ -3541,25 +3541,36 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       raise newException(ValueError, "Cannot send message to nil receiver for message: " & frame.selector)
 
     # ============================================================================
-    # MONOMORPHIC INLINE CACHE (MIC) CHECK
-    # Fast path: check if receiver class matches cached class
+    # POLYMORPHIC INLINE CACHE (PIC) CHECK
+    # Fast path: check MIC first, then PIC entries
     # ============================================================================
     var currentMethod: BlockNode = nil
     var definingClass: Class = nil
     var cacheHit = false
 
-    if frame.msgNode != nil and frame.msgNode.cachedClass != nil:
-      # Check cache
-      if receiver.class == frame.msgNode.cachedClass:
-        # Cache hit! Use cached method
+    if frame.msgNode != nil:
+      # Check Monomorphic Inline Cache (MIC) first
+      if frame.msgNode.cachedClass != nil and receiver.class == frame.msgNode.cachedClass:
+        # MIC hit! Use cached method
         currentMethod = frame.msgNode.cachedMethod
         definingClass = frame.msgNode.cachedClass
         cacheHit = true
         debug("VM: MIC cache hit for '", frame.selector, "' on ", receiver.class.name)
       else:
-        # Cache miss - will update cache after lookup
-        debug("VM: MIC cache miss for '", frame.selector, "' expected ",
-              frame.msgNode.cachedClass.name, " got ", receiver.class.name)
+        # MIC miss - check Polymorphic Inline Cache (PIC)
+        for i in 0..<frame.msgNode.picCount:
+          if receiver.class == frame.msgNode.picEntries[i].cls:
+            # PIC hit!
+            currentMethod = frame.msgNode.picEntries[i].meth
+            definingClass = frame.msgNode.picEntries[i].cls
+            cacheHit = true
+            debug("VM: PIC cache hit for '", frame.selector, "' on ", receiver.class.name, " at index ", $i)
+            break
+
+        if not cacheHit and frame.msgNode.cachedClass != nil:
+          # Cache miss - will update cache after lookup
+          debug("VM: PIC cache miss for '", frame.selector, "' expected ",
+                frame.msgNode.cachedClass.name, " got ", receiver.class.name)
 
     if not cacheHit:
       # ============================================================================
@@ -3584,6 +3595,22 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
 
       # Update inline cache for future calls
       if frame.msgNode != nil:
+        # If MIC already has a different class, move it to PIC (polymorphic cache)
+        if frame.msgNode.cachedClass != nil and frame.msgNode.cachedClass != receiver.class:
+          if frame.msgNode.picCount < frame.msgNode.picEntries.len:
+            # Add old MIC entry to PIC
+            frame.msgNode.picEntries[frame.msgNode.picCount] = (
+              cls: frame.msgNode.cachedClass,
+              meth: frame.msgNode.cachedMethod
+            )
+            frame.msgNode.picCount += 1
+            debug("VM: Added to PIC for '", frame.selector, "' ", frame.msgNode.cachedClass.name,
+                  " (PIC count: ", $frame.msgNode.picCount, ")")
+          else:
+            # PIC is full - this becomes megamorphic, just keep MIC
+            debug("VM: PIC full for '", frame.selector, "', keeping MIC only")
+
+        # Update MIC with new class/method
         frame.msgNode.cachedClass = receiver.class
         frame.msgNode.cachedMethod = currentMethod
         debug("VM: Updated MIC cache for '", frame.selector, "' with ", receiver.class.name)
