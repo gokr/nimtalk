@@ -2,6 +2,18 @@ import std/[tables, logging, hashes, strutils]
 import ./tagged  # Tagged value support for VM performance
 
 # ============================================================================
+# Debug Logging Template
+# Completely eliminated in release builds (-d:release)
+# ============================================================================
+
+template debug*(args: varargs[untyped]) =
+  ## Debug logging that compiles to nothing in release mode
+  ## Use: debug("Message: ", value)
+  when not defined(release):
+    let msg = "DEBUG: " & concat(args)
+    debugEcho(msg)
+
+# ============================================================================
 # Core Types for Harding
 # ============================================================================
 

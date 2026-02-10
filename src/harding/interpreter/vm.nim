@@ -4120,6 +4120,7 @@ proc runASTInterpreter*(interp: var Interpreter): VMResult =
   ## - Processor yields (vmYielded)
   ## - Error occurs (vmError)
 
+  {.computedGoto.}  # Optimize case statement dispatch
   while interp.hasWorkFrames():
     # Check for yield
     if interp.shouldYield:
