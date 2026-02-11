@@ -3,7 +3,6 @@
 # Ported from SOM benchmark suite (https://github.com/smarr/SOM)
 # Expected result: true (successful move of 13 disks)
 
-# TowersDisk class - represents a single disk
 TowersDisk := Object deriveWithAccessors: #(diskSize nextDisk).
 
 TowersDisk>>initialize: aSize [
@@ -12,27 +11,22 @@ TowersDisk>>initialize: aSize [
 ]
 
 TowersDisk>>size [ ^ self diskSize ]
-TowersDisk>>next [ ^ self nextDisk ]
-TowersDisk>>next: n [ self nextDisk: n ]
 
 # Tower class manages a peg with a stack of disks
 Tower := Object deriveWithAccessors: #(towerIndex heldDisk).
 
 Tower>>initialize: anIndex [
-  # Initialize a tower with given index
   self towerIndex: anIndex.
   self heldDisk: nil
 ]
 
 Tower>>initialize: anIndex withDisks: numDisks [
-  # Initialize tower with index and create stack of disks
   self towerIndex: anIndex.
   self heldDisk: nil.
   self addDisks: numDisks
 ]
 
 Tower>>addDisks: numDisks [
-  # Add disks to this tower (largest at bottom)
   | i disk |
   i := numDisks.
   [ i >= 1 ] whileTrue: [
@@ -44,25 +38,23 @@ Tower>>addDisks: numDisks [
 ]
 
 Tower>>addDisk: disk [
-  # Add a disk to the top of this tower
   disk notNil ifTrue: [
-    disk next: self heldDisk.
+    disk nextDisk: self heldDisk.
     self heldDisk: disk
   ]
 ]
 
 Tower>>removeDisk [
-  # Remove and return the top disk from this tower
-  | disk |
+  | disk nextDiskRef |
   disk := self heldDisk.
-  self heldDisk notNil ifTrue: [
-    self heldDisk: (disk next)
+  disk notNil ifTrue: [
+    nextDiskRef := disk nextDisk.
+    self heldDisk: nextDiskRef
   ].
   ^ disk
 ]
 
 Tower>>moveDiskTo: destination [
-  # Move top disk from this tower to destination
   | disk |
   disk := self removeDisk.
   disk notNil ifTrue: [
@@ -71,22 +63,16 @@ Tower>>moveDiskTo: destination [
 ]
 
 Tower>>moveTo: destination using: helper disks: numDisks [
-  # Recursive solution: move numDisks from this tower to destination
   numDisks = 1 ifTrue: [
     self moveDiskTo: destination
   ] ifFalse: [
-    # Move n-1 disks to helper
     self moveTo: helper using: destination disks: (numDisks - 1).
-    # Move largest disk to destination
     self moveDiskTo: destination.
-    # Move n-1 disks from helper to destination
     helper moveTo: destination using: self disks: (numDisks - 1)
   ]
 ]
 
 Tower>>verify: expectedDisks [
-  # Verify this tower has exactly expectedDisks disks
-  # with sizes 1, 2, ..., expectedDisks (top to bottom)
   | current count expectedSize dsize |
   current := self heldDisk.
   count := 0.
@@ -99,7 +85,7 @@ Tower>>verify: expectedDisks [
     ].
     count := count + 1.
     expectedSize := expectedSize + 1.
-    current := current next
+    current := current nextDisk
   ].
   
   ^ count = expectedDisks
@@ -109,7 +95,6 @@ Tower>>verify: expectedDisks [
 Towers := Object derive.
 
 Towers>>benchmark [
-  # Run the towers benchmark
   | tower0 tower1 tower2 |
   tower0 := Tower new.
   tower0 initialize: 0 withDisks: 13.
@@ -120,10 +105,8 @@ Towers>>benchmark [
   tower2 := Tower new.
   tower2 initialize: 2.
   
-  # Move all disks from tower 0 to tower 2 using tower 1 as helper
   tower0 moveTo: tower2 using: tower1 disks: 13.
   
-  # Verify by checking that tower 2 now has all 13 disks
   ^ tower2 verify: 13
 ]
 
@@ -131,5 +114,4 @@ Towers>>benchmark [
 towers := Towers new.
 result := towers benchmark.
 
-# Expected: true (all disks successfully moved)
 result
