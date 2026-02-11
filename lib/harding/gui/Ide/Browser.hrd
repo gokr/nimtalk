@@ -144,28 +144,17 @@ SystemBrowser>>selectLibrary: aLibrary [
 
 SystemBrowser>>populateClassesFor: aLibrary [
     # Get classes for the selected library
-    | classes classNames keys count |
+    | classes classNames keys allClasses |
 
     # Use Harding global to find classes
     keys := Harding keys.
     Transcript showCr: ("Harding has " , (keys size printString) , " keys").
 
-    classNames := Array new.
-    count := 0.
-    keys do: [:key |
-        | val isClass |
-        val := Harding at: key.
-        isClass := val isKindOf: Class.
-        isClass ifTrue: [
-            classNames addLast: key.
-            count := count + 1.
-        ].
-    ].
-
-    Transcript showCr: ("Found " , (count printString) , " classes total").
+    # Hardcoded list of known classes (since we can't easily detect class values)
+    allClasses := #("Root" "Object" "Number" "Integer" "Float" "String" "Array" "Table" "Set" "Boolean" "True" "False" "Block" "UndefinedObject" "Library" "Class" "Process" "Scheduler" "Processor" "Monitor" "Semaphore" "SharedQueue" "Granite" "Application" "GlobalTable" "GtkWidget" "GtkWindow" "GtkButton" "GtkBox" "GtkLabel" "GtkScrolledWindow" "GtkTextView" "GtkSourceView" "GtkTextBuffer" "GtkEventController" "Launcher" "Workspace" "Transcript" "BrowserPane" "SystemBrowser" "Inspector").
 
     # Filter by library (simple heuristic for now)
-    classes := classNames select: [:name |
+    classes := allClasses select: [:name |
         self classInLibrary: name library: aLibrary
     ].
 

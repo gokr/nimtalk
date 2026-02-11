@@ -80,4 +80,17 @@ tests/test_primitives
 # Temporary test files
 test_debug
 test_debug.nim
+test_*_debug
+test_*_debug.nim
+test_*_simple
+test_*_simple.nim
+test_sorted
+test_sorted.nim
+test_string_equals
+test_string_equals.nim
+test_sync_debug
+test_sync_debug.nim
+test_website_simple.nim
+hardingf
+harding_release
 bona
