@@ -88,6 +88,14 @@ proc gtkWindowClose*(window: GtkWindow) {.cdecl, importc: "gtk_window_close".}
 proc gtkWindowSetIconName*(window: GtkWindow, name: cstring) {.cdecl, importc: "gtk_window_set_icon_name".}
 proc gtkWindowSetDefaultIconName*(name: cstring) {.cdecl, importc: "gtk_window_set_default_icon_name".}
 
+# GTK3 window class functions (for WM_CLASS setting on X11)
+when defined(gtk3):
+  proc gtkWindowSetWmClass*(window: GtkWindow, wmClassName: cstring, wmClassClass: cstring) {.cdecl, importc: "gtk_window_set_wmclass".}
+  proc gtkWidgetSetName*(widget: GtkWidget, name: cstring) {.cdecl, importc: "gtk_widget_set_name".}
+else:
+  # GTK4 - widget name affects CSS class
+  proc gtkWidgetSetName*(widget: GtkWidget, name: cstring) {.cdecl, importc: "gtk_widget_set_name".}
+
 # GTK Button
 proc gtkButtonNew*(): GtkButton {.cdecl, importc: "gtk_button_new".}
 proc gtkButtonNewWithLabel*(label: cstring): GtkButton {.cdecl, importc: "gtk_button_new_with_label".}
