@@ -8,6 +8,26 @@ import harding/interpreter/vm
 import ./ffi
 import ./widget
 
+## Forward declaration for getGtkApplication (defined in bridge.nim)
+## Using proc type and cast to avoid circular imports
+proc getGtkApplicationImpl(): GtkApplication {.nimcall.} =
+  ## Forward declaration - implementation is in bridge.nim
+  ## This function is called via the global function pointer below
+  nil
+
+## Global function pointer set during bridge initialization
+var getGtkApplicationPtr {.global.}: proc(): GtkApplication {.nimcall.} = nil
+
+proc setGtkApplicationGetter*(getter: proc(): GtkApplication {.nimcall.}) =
+  ## Called by bridge.nim to register the getter function
+  getGtkApplicationPtr = getter
+
+proc getGtkApplication*(): GtkApplication =
+  ## Get the global GTK application (nil if not initialized or GTK3)
+  if getGtkApplicationPtr != nil:
+    return getGtkApplicationPtr()
+  return nil
+
 ## GtkWindowProxy extends GtkWidgetProxy
 type
   GtkWindowProxyObj* = object of GtkWidgetProxyObj
@@ -29,7 +49,15 @@ proc newGtkWindowProxy*(window: GtkWindow, interp: ptr Interpreter): GtkWindowPr
 proc createGtkWindow*(interp: var Interpreter): NodeValue =
   ## Create a new GTK window and return a proxy object
   when not defined(gtk3):
-    let window = gtkWindowNew()
+    # GTK4: Use GtkApplicationWindow if we have an application (proper dock/Alt-Tab integration)
+    let app = getGtkApplication()
+    var window: GtkWindow
+    if app != nil:
+      window = gtkApplicationWindowNew(app)
+      debug("Created GtkApplicationWindow with application")
+    else:
+      window = gtkWindowNew()
+      debug("Created plain GtkWindow (no application)")
   else:
     let window = gtkWindowNew(GTKWINDOWTOPLEVEL)
   discard newGtkWindowProxy(window, addr(interp))
@@ -232,3 +260,25 @@ proc windowSetIconFromFileImpl*(interp: var Interpreter, self: Instance, args: s
         return toValue(true)
 
   toValue(false)
+
+## Native method: setWmClass:
+proc windowSetWmClassImpl*(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+  ## Set the WM_CLASS property for the window (X11/GTK3)
+  ## This helps window managers identify the application for dock/Alt-Tab icons
+  if args.len < 1 or args[0].kind != vkString:
+    return nilValue()
+
+  if self.isNimProxy:
+    var window = getInstanceWidget(self)
+    if window == nil and self.nimValue != nil:
+      window = cast[GtkWindow](self.nimValue)
+    if window != nil:
+      let wmClass = args[0].strVal
+      when defined(gtk3):
+        # GTK3: Use gtk_window_set_wmclass for proper X11 WM_CLASS
+        gtkWindowSetWmClass(window, wmClass.cstring, wmClass.cstring)
+      else:
+        # GTK4: Use widget name as fallback (affects CSS class, limited WM support)
+        gtkWidgetSetName(cast[GtkWidget](window), wmClass.cstring)
+
+  nilValue()
