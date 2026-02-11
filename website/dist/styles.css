@@ -101,6 +101,7 @@ a:hover {
 }
 
 .container {
+    width: 100%;
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 24px;
@@ -342,6 +343,12 @@ blockquote {
     grid-template-columns: 1fr 1fr;
     gap: 60px;
     align-items: center;
+    overflow: hidden;
+}
+
+.hero-content,
+.hero-code {
+    min-width: 0;
 }
 
 .hero-badge {
