@@ -292,6 +292,84 @@ Performance comparison (per 100k ops):
 
 Slot-based access is **149x faster** than property bag access.
 
+### The Class Object
+
+In Harding, **Class** is a regular class just like any other. It exists as a global binding and provides class-related functionality, but unlike Smalltalk-80, there are no metaclasses.
+
+#### What is Class?
+
+**Class** is the class that describes class objects themselves:
+
+```smalltalk
+Object class           # Returns: Object (a class)
+Object class class     # Returns: Object (still Object, not a metaclass)
+
+# Class is accessible as a global
+Class                    # Returns: the Class class
+Harding at: "Class"      # Also returns: the Class class
+```
+
+#### How Classes Work
+
+Unlike Smalltalk-80 where every class is an instance of a unique metaclass, in Harding:
+
+1. **Classes are objects** - They can receive messages and have methods
+2. **No metaclasses** - Classes are not instances of Class; they are their own class
+3. **Class methods** are stored directly on the class object itself
+
+```smalltalk
+# In Smalltalk-80:
+#   Object is an instance of Object class (a metaclass)
+#   Object class is an instance of Metaclass
+#
+# In Harding:
+#   Object is a class object
+#   Object's class is Object itself (not a separate metaclass)
+#   Class methods are stored on Object directly
+```
+
+#### Class vs Instance Methods
+
+Class methods (factory methods) are defined using `class>>` syntax but are simply methods on the class object:
+
+```smalltalk
+# Instance method - sent to instances
+Person>>greet [ ^ "Hello, " , name ]
+
+# Class method - sent to the class itself
+Person class>>newNamed: aName [
+    | person |
+    person := self new.    # self is the Person class here
+    person name: aName.
+    ^ person
+]
+```
+
+#### Why No Metaclasses?
+
+Harding simplifies the object model by eliminating metaclasses:
+
+1. **Simpler mental model** - Classes are objects with methods, period
+2. **No metaclass explosion** - Creating a class doesn't create a parallel metaclass hierarchy
+3. **Easier implementation** - No need to manage metaclass lifecycles
+
+The trade-off is that you cannot override class behavior per-class (like you could with metaclasses in Smalltalk), but this is rarely needed in practice.
+
+#### Class Introspection
+
+While `isKindOf: Class` doesn't work as you might expect from Smalltalk (since classes aren't instances of Class), you can check if something is a class using:
+
+```smalltalk
+# Check if a value is a class by checking if it's in the global namespace
+# and behaves like a class (can create instances, has methods, etc.)
+
+# Get class name
+Object className      # Returns: "Object"
+
+# Check class relationship
+obj isKindOf: Object  # Returns: true if obj inherits from Object
+```
+
 ---
 
 ## Multiple Inheritance
@@ -982,7 +1060,7 @@ y := 2
 
 **Smalltalk:** Every class is an instance of a metaclass.
 
-**Harding:** Classes are objects, but there are no metaclasses. Class methods are stored directly on the class object.
+**Harding:** Classes are objects, but there are no metaclasses. Class methods are stored directly on the class object. The global `Class` exists for introspection but classes are not instances of it.
 
 ```smalltalk
 # Instance method
@@ -991,6 +1069,8 @@ Person>>greet [ ^ "Hello" ]
 # Class method (no metaclass needed)
 Person class>>newPerson [ ^ self new ]
 ```
+
+See [The Class Object](#the-class-object) section for detailed explanation.
 
 #### Multiple Inheritance
 
