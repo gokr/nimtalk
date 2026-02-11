@@ -177,6 +177,7 @@ type
     temporaries*: seq[string]             # local variables
     body*: seq[Node]                      # AST statements
     isMethod*: bool                       # true if method definition
+    selector*: string                     # method selector (name) - set when method is registered
     when defined(js):
       nativeImpl*: int                      # Dummy field for JS (native code not supported)
     else:

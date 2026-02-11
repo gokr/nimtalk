@@ -194,6 +194,235 @@ when defined(js):
         return nilValue()
       return nilValue()
 
+    # Arithmetic operations for integers and floats
+    # Import the actual implementations from objects module
+    of "+":
+      return plusImpl(receiver, args)
+    of "-":
+      return minusImpl(receiver, args)
+    of "*":
+      return starImpl(receiver, args)
+    of "/":
+      return slashImpl(receiver, args)
+    of "//":
+      return intDivImpl(receiver, args)
+    of "<":
+      return ltImpl(receiver, args)
+    of ">":
+      return gtImpl(receiver, args)
+    of "=", "==":
+      return eqImpl(receiver, args)
+    of "<=":
+      return leImpl(receiver, args)
+    of ">=":
+      return geImpl(receiver, args)
+    of "~=", "!=":
+      return neImpl(receiver, args)
+        let argVal = args[0]
+        if argVal.kind == vkInt:
+          return toValue(receiver.intVal + argVal.intVal)
+        elif argVal.kind == vkFloat:
+          return toValue(float(receiver.intVal) + argVal.floatVal)
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          return toValue(receiver.intVal + argVal.instVal.intVal)
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          return toValue(float(receiver.intVal) + argVal.instVal.floatVal)
+      elif receiver.kind == ikFloat:
+        let argVal = args[0]
+        if argVal.kind == vkInt:
+          return toValue(receiver.floatVal + float(argVal.intVal))
+        elif argVal.kind == vkFloat:
+          return toValue(receiver.floatVal + argVal.floatVal)
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          return toValue(receiver.floatVal + float(argVal.instVal.intVal))
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          return toValue(receiver.floatVal + argVal.instVal.floatVal)
+      return nilValue()
+
+    of "-":
+      if args.len == 0:
+        return nilValue()
+      if receiver.kind == ikInt:
+        let argVal = args[0]
+        if argVal.kind == vkInt:
+          return toValue(receiver.intVal - argVal.intVal)
+        elif argVal.kind == vkFloat:
+          return toValue(float(receiver.intVal) - argVal.floatVal)
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          return toValue(receiver.intVal - argVal.instVal.intVal)
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          return toValue(float(receiver.intVal) - argVal.instVal.floatVal)
+      elif receiver.kind == ikFloat:
+        let argVal = args[0]
+        if argVal.kind == vkInt:
+          return toValue(receiver.floatVal - float(argVal.intVal))
+        elif argVal.kind == vkFloat:
+          return toValue(receiver.floatVal - argVal.floatVal)
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          return toValue(receiver.floatVal - float(argVal.instVal.intVal))
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          return toValue(receiver.floatVal - argVal.instVal.floatVal)
+      return nilValue()
+
+    of "*":
+      if args.len == 0:
+        return nilValue()
+      if receiver.kind == ikInt:
+        let argVal = args[0]
+        if argVal.kind == vkInt:
+          return toValue(receiver.intVal * argVal.intVal)
+        elif argVal.kind == vkFloat:
+          return toValue(float(receiver.intVal) * argVal.floatVal)
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          return toValue(receiver.intVal * argVal.instVal.intVal)
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          return toValue(float(receiver.intVal) * argVal.instVal.floatVal)
+      elif receiver.kind == ikFloat:
+        let argVal = args[0]
+        if argVal.kind == vkInt:
+          return toValue(receiver.floatVal * float(argVal.intVal))
+        elif argVal.kind == vkFloat:
+          return toValue(receiver.floatVal * argVal.floatVal)
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          return toValue(receiver.floatVal * float(argVal.instVal.intVal))
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          return toValue(receiver.floatVal * argVal.instVal.floatVal)
+      return nilValue()
+
+    of "/":
+      if args.len == 0:
+        return nilValue()
+      if receiver.kind == ikInt:
+        let argVal = args[0]
+        var divisor = 0
+        if argVal.kind == vkInt:
+          divisor = argVal.intVal
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          divisor = argVal.instVal.intVal
+        if divisor != 0:
+          return toValue(receiver.intVal div divisor)
+      elif receiver.kind == ikFloat:
+        let argVal = args[0]
+        var divisor = 0.0
+        if argVal.kind == vkInt:
+          divisor = float(argVal.intVal)
+        elif argVal.kind == vkFloat:
+          divisor = argVal.floatVal
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          divisor = float(argVal.instVal.intVal)
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          divisor = argVal.instVal.floatVal
+        if divisor != 0.0:
+          return toValue(receiver.floatVal / divisor)
+      return nilValue()
+
+    of "//":
+      # Float division
+      if args.len == 0:
+        return nilValue()
+      if receiver.kind == ikInt:
+        let argVal = args[0]
+        var divisor = 0.0
+        if argVal.kind == vkInt:
+          divisor = float(argVal.intVal)
+        elif argVal.kind == vkFloat:
+          divisor = argVal.floatVal
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          divisor = float(argVal.instVal.intVal)
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          divisor = argVal.instVal.floatVal
+        if divisor != 0.0:
+          return toValue(float(receiver.intVal) / divisor)
+      elif receiver.kind == ikFloat:
+        let argVal = args[0]
+        var divisor = 0.0
+        if argVal.kind == vkInt:
+          divisor = float(argVal.intVal)
+        elif argVal.kind == vkFloat:
+          divisor = argVal.floatVal
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          divisor = float(argVal.instVal.intVal)
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          divisor = argVal.instVal.floatVal
+        if divisor != 0.0:
+          return toValue(receiver.floatVal / divisor)
+      return nilValue()
+
+    of "<":
+      if args.len == 0:
+        return falseValue
+      if receiver.kind == ikInt:
+        let argVal = args[0]
+        if argVal.kind == vkInt:
+          return if receiver.intVal < argVal.intVal: trueValue else: falseValue
+        elif argVal.kind == vkFloat:
+          return if float(receiver.intVal) < argVal.floatVal: trueValue else: falseValue
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          return if receiver.intVal < argVal.instVal.intVal: trueValue else: falseValue
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          return if float(receiver.intVal) < argVal.instVal.floatVal: trueValue else: falseValue
+      elif receiver.kind == ikFloat:
+        let argVal = args[0]
+        if argVal.kind == vkInt:
+          return if receiver.floatVal < float(argVal.intVal): trueValue else: falseValue
+        elif argVal.kind == vkFloat:
+          return if receiver.floatVal < argVal.floatVal: trueValue else: falseValue
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          return if receiver.floatVal < float(argVal.instVal.intVal): trueValue else: falseValue
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          return if receiver.floatVal < argVal.instVal.floatVal: trueValue else: falseValue
+      return falseValue
+
+    of ">":
+      if args.len == 0:
+        return falseValue
+      if receiver.kind == ikInt:
+        let argVal = args[0]
+        if argVal.kind == vkInt:
+          return if receiver.intVal > argVal.intVal: trueValue else: falseValue
+        elif argVal.kind == vkFloat:
+          return if float(receiver.intVal) > argVal.floatVal: trueValue else: falseValue
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          return if receiver.intVal > argVal.instVal.intVal: trueValue else: falseValue
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          return if float(receiver.intVal) > argVal.instVal.floatVal: trueValue else: falseValue
+      elif receiver.kind == ikFloat:
+        let argVal = args[0]
+        if argVal.kind == vkInt:
+          return if receiver.floatVal > float(argVal.intVal): trueValue else: falseValue
+        elif argVal.kind == vkFloat:
+          return if receiver.floatVal > argVal.floatVal: trueValue else: falseValue
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          return if receiver.floatVal > float(argVal.instVal.intVal): trueValue else: falseValue
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          return if receiver.floatVal > argVal.instVal.floatVal: trueValue else: falseValue
+      return falseValue
+
+    of "=", "==":
+      if args.len == 0:
+        return falseValue
+      if receiver.kind == ikInt:
+        let argVal = args[0]
+        if argVal.kind == vkInt:
+          return if receiver.intVal == argVal.intVal: trueValue else: falseValue
+        elif argVal.kind == vkFloat:
+          return if float(receiver.intVal) == argVal.floatVal: trueValue else: falseValue
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          return if receiver.intVal == argVal.instVal.intVal: trueValue else: falseValue
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          return if float(receiver.intVal) == argVal.instVal.floatVal: trueValue else: falseValue
+      elif receiver.kind == ikFloat:
+        let argVal = args[0]
+        if argVal.kind == vkInt:
+          return if receiver.floatVal == float(argVal.intVal): trueValue else: falseValue
+        elif argVal.kind == vkFloat:
+          return if receiver.floatVal == argVal.floatVal: trueValue else: falseValue
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikInt:
+          return if receiver.floatVal == float(argVal.instVal.intVal): trueValue else: falseValue
+        elif argVal.kind == vkInstance and argVal.instVal.kind == ikFloat:
+          return if receiver.floatVal == argVal.instVal.floatVal: trueValue else: falseValue
+      return falseValue
+
     of "primitiveValue:":
       # Execute a block with one argument
       if receiver.class == blockClassCache and receiver.kind == ikObject:
@@ -938,40 +1167,21 @@ proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
 
   # Check for native implementation first
   when defined(js):
-    # JS builds: try primitive dispatch first, then nativeImpl if set
-    # Note: We don't have the selector here, so we try dispatching with a lookup
-    debug("JS: Checking for primitive dispatch")
-    var jsSavedReceiver = interp.currentReceiver
+    # JS builds: use selector-based dispatch for all native methods
+    debug("JS: Checking for dispatch: ", currentMethod.selector)
+    let jsSavedReceiver = interp.currentReceiver
     try:
-      # Try to find the selector by looking up the method in the class
-      var selector = ""
-      if definingClass != nil:
-        for sel, meth in definingClass.allMethods:
-          if meth == currentMethod:
-            selector = sel
-            break
-      if selector.startsWith("primitive"):
-        debug("JS: Calling primitive via dispatcher: ", selector)
-        let primResult = dispatchPrimitive(interp, receiver, selector, arguments)
-        if primResult.kind != vkNil or selector == "primitiveClone":
-          return primResult
+      let primResult = dispatchPrimitive(interp, receiver, currentMethod.selector, arguments)
+      if primResult.kind != vkNil:
+        return primResult
+      # Special case: some primitives return nil legitimately, check if it's a primitive
+      if currentMethod.selector.startsWith("primitive"):
+        return primResult  # Return nil for primitives that returned nil
     except:
-      debug("JS: Primitive dispatcher failed, falling through")
-    jsSavedReceiver = interp.currentReceiver
-    if nativeImplIsSet(currentMethod):
-      debug("Calling native implementation")
-      let savedReceiver = interp.currentReceiver
-      try:
-        if currentMethod.hasInterpreterParam:
-          type NativeProcWithInterp = proc(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.}
-          let nativeProc = cast[NativeProcWithInterp](currentMethod.nativeImpl)
-          return nativeProc(interp, receiver, arguments)
-        else:
-          type NativeProc = proc(self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.}
-          let nativeProc = cast[NativeProc](currentMethod.nativeImpl)
-          return nativeProc(receiver, arguments)
-      finally:
-        interp.currentReceiver = savedReceiver
+      debug("JS: Dispatcher failed, falling through to interpreted")
+    finally:
+      interp.currentReceiver = jsSavedReceiver
+    # Note: nativeImplIsSet always false in JS builds, so fall through to interpreted
   else:
     # Native builds: use nativeImpl pointer
     if nativeImplIsSet(currentMethod):
