@@ -1,0 +1,52 @@
+#!/usr/bin/env harding
+# Test 4-queens with ONLY row checking (no diagonals)
+# This should fail for N>1 but let's verify the basic logic
+
+| solver result |
+
+Queens := Object deriveWithAccessors: #(freeRows queenRows).
+
+Queens>>initialize [
+  | i |
+  self freeRows: (Array new: 4).
+  self queenRows: (Array new: 4).
+  
+  i := 1.
+  [ i <= 4 ] whileTrue: [
+    self freeRows at: i put: 1.
+    self queenRows at: i put: 0.
+    i := i + 1
+  ]
+]
+
+Queens>>placeQueen: column [
+  | row subResult rowFree |
+  row := 1.
+  [ row <= 4 ] whileTrue: [
+    rowFree := self freeRows at: row.
+    
+    rowFree = 1 ifTrue: [
+      self freeRows at: row put: 0.
+      self queenRows at: column put: row.
+      
+      column = 4 ifTrue: [
+        ^ 1
+      ] ifFalse: [
+        subResult := self placeQueen: (column + 1).
+        subResult = 1 ifTrue: [
+          ^ 1
+        ]
+      ].
+      
+      self freeRows at: row put: 1.
+      self queenRows at: column put: 0
+    ].
+    row := row + 1
+  ].
+  ^ 0
+]
+
+solver := Queens new.
+solver initialize.
+result := solver placeQueen: 1.
+result

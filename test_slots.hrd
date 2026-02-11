@@ -1,0 +1,18 @@
+#!/usr/bin/env harding
+# Test slot access
+
+Node := Object derive.
+
+Node>>initialize: v [
+  value := v
+]
+
+Node>>getValue [ ^ value ]
+
+node1 := Node new.
+node1 initialize: 5.
+
+# Try different ways to access
+result1 := node1 getValue.
+
+result1

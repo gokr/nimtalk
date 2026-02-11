@@ -1,0 +1,53 @@
+#!/usr/bin/env harding
+# Debug queens - try to place 2 queens recursively
+
+Queens := Object deriveWithAccessors: #(freeRows queenRows).
+
+Queens>>initialize [
+  | i |
+  self freeRows: (Array new: 8).
+  self queenRows: (Array new: 8).
+  
+  i := 1.
+  [ i <= 8 ] whileTrue: [
+    self freeRows at: i put: 1.
+    self queenRows at: i put: 0.
+    i := i + 1
+  ]
+]
+
+Queens>>placeQueen: column [
+  | row subResult |
+  row := 1.
+  [ row <= 8 ] whileTrue: [
+    # Check if row is free
+    (self freeRows at: row) = 1 ifTrue: [
+      # Place queen
+      self freeRows at: row put: 0.
+      self queenRows at: column put: row.
+      
+      column = 2 ifTrue: [
+        # Success - placed 2 queens
+        ^ 1
+      ] ifFalse: [
+        # Try to place next queen
+        subResult := self placeQueen: (column + 1).
+        subResult = 1 ifTrue: [
+          ^ 1
+        ]
+      ].
+      
+      # Remove queen (backtrack)
+      self freeRows at: row put: 1.
+      self queenRows at: column put: 0
+    ].
+    row := row + 1
+  ].
+  ^ 0
+]
+
+# Main
+solver := Queens new.
+solver initialize.
+result := solver placeQueen: 1.
+result

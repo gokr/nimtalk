@@ -1,0 +1,19 @@
+#!/usr/bin/env harding
+# Test slot access with deriveWithAccessors
+
+Node := Object deriveWithAccessors: #(value).
+
+Node>>initialize: v [
+  self value: v
+]
+
+Node>>getValue [ ^ self value ]
+
+node1 := Node new.
+node1 initialize: 5.
+
+# Try different ways to access
+result1 := node1 getValue.
+result2 := node1 value.
+
+result1 + result2

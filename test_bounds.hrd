@@ -1,0 +1,33 @@
+#!/usr/bin/env harding
+# Test array bounds for queen indices
+
+| minIdx maxIdx i j |
+
+i := 1.
+[ i <= 8 ] whileTrue: [
+  j := 1.
+  [ j <= 8 ] whileTrue: [
+    minIdx := i - j + 8.
+    maxIdx := i + j.
+    
+    # Check bounds
+    minIdx < 1 ifTrue: [
+      ^ -1
+    ].
+    minIdx > 16 ifTrue: [
+      ^ -2
+    ].
+    maxIdx < 1 ifTrue: [
+      ^ -3
+    ].
+    maxIdx > 16 ifTrue: [
+      ^ -4
+    ].
+    
+    j := j + 1
+  ].
+  i := i + 1
+].
+
+# If we get here, all bounds are valid
+1

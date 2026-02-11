@@ -1,0 +1,72 @@
+#!/usr/bin/env harding
+# Test 4-queens (should be solvable)
+
+| solver result |
+
+Queens := Object deriveWithAccessors: #(freeRows freeMaxs freeMins queenRows).
+
+Queens>>initialize [
+  | i |
+  self freeRows: (Array new: 4).
+  self freeMaxs: (Array new: 8).
+  self freeMins: (Array new: 8).
+  self queenRows: (Array new: 4).
+  
+  i := 1.
+  [ i <= 4 ] whileTrue: [
+    self freeRows at: i put: 1.
+    self queenRows at: i put: 0.
+    i := i + 1
+  ].
+  
+  i := 1.
+  [ i <= 8 ] whileTrue: [
+    self freeMaxs at: i put: 1.
+    self freeMins at: i put: 1.
+    i := i + 1
+  ]
+]
+
+Queens>>placeQueen: column [
+  | row subResult rowFree maxIdx minIdx maxFree minFree |
+  row := 1.
+  [ row <= 4 ] whileTrue: [
+    rowFree := self freeRows at: row.
+    maxIdx := row + column.
+    maxFree := self freeMaxs at: maxIdx.
+    minIdx := row - column + 4.
+    minFree := self freeMins at: minIdx.
+    
+    rowFree = 1 ifTrue: [
+      maxFree = 1 ifTrue: [
+        minFree = 1 ifTrue: [
+          self freeRows at: row put: 0.
+          self freeMaxs at: maxIdx put: 0.
+          self freeMins at: minIdx put: 0.
+          self queenRows at: column put: row.
+          
+          column = 4 ifTrue: [
+            ^ 1
+          ] ifFalse: [
+            subResult := self placeQueen: (column + 1).
+            subResult = 1 ifTrue: [
+              ^ 1
+            ]
+          ].
+          
+          self freeRows at: row put: 1.
+          self freeMaxs at: maxIdx put: 1.
+          self freeMins at: minIdx put: 1.
+          self queenRows at: column put: 0
+        ]
+      ]
+    ].
+    row := row + 1
+  ].
+  ^ 0
+]
+
+solver := Queens new.
+solver initialize.
+result := solver placeQueen: 1.
+result
