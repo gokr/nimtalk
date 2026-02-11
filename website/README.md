@@ -89,10 +89,21 @@ To deploy:
 
 ## Design
 
-- Modern dark theme with purple/cyan accents
+- Modern dark theme with gold/copper accents
 - Inter font for text, JetBrains Mono for code
 - Fully responsive
 - Smooth animations and transitions
+
+### Mobile Overflow Notes
+
+The CSS uses several techniques to prevent horizontal overflow on mobile:
+
+- **`overflow-x: hidden`** on `html` and `body` - but this alone is unreliable on mobile browsers
+- **`width: 100%`** on `.container` - prevents the container from expanding beyond its parent when grid content pushes wider
+- **`overflow: hidden`** on `.hero .container` - clips content that exceeds the container
+- **`min-width: 0`** on `.hero-content` and `.hero-code` - overrides the CSS Grid default `min-width: auto`, which otherwise lets grid items expand based on content size (e.g. `pre` blocks with `white-space: pre`)
+
+When adding new sections with code blocks or grids, ensure grid children have `min-width: 0` or `overflow: hidden` to prevent content from pushing the layout wider than the viewport on mobile.
 
 ## License
 
