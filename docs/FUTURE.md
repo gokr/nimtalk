@@ -71,32 +71,31 @@ The GTK bridge provides basic widget support. GUI tools can be written in Hardin
 - IDE Launcher with Transcript, Workspace
 - Print It functionality (inserts results in editor)
 - Window icon support (`iconName:`, `setWmClass:`)
+- Desktop integration (dock/Alt-Tab icons via icon themes)
+- Inspector tool (basic slot/property viewing)
 
 **In Progress:**
 - System Browser (class/method browsing)
 - TreeView for hierarchical data
 - HeaderBar
 - Menu system
-- Desktop integration (dock/Alt-Tab icons)
 
 ### Planned IDE Tools
 
-#### Minimal Viable IDE (MVP)
+#### Minimal Viable IDE (MVP) ✅ Completed
 
 1. **Transcript** - Output console
 2. **Workspace** - Code editor with Do It/Print It/Inspect It
-3. **Basic navigation** - Between tools
+3. **Inspector** - Object inspector with slot viewing
+4. **Launcher** - Main IDE window with navigation
+5. **Desktop integration** - Proper dock/Alt-Tab icons
 
-**Estimated:** 7-9 weeks
-
-#### Full IDE
+#### Full IDE (In Progress)
 
 After MVP, add:
-1. **Inspector** - Object inspector with slot tree, drill-down
-2. **System Browser** - Class/method browsing, editing, saving
+1. **System Browser** - Class/method browsing, editing, saving
+2. **Enhanced Inspector** - Slot tree, drill-down navigation
 3. **Debugger** - Stack frame display, step over/into/out/continue
-
-**Estimated:** 10-15 additional weeks
 
 ### Key Design Principle
 
@@ -211,18 +210,18 @@ pid send: #compute with: 42.
 
 - ✅ Complete green threads (Monitor, SharedQueue, Semaphore)
 - ✅ Fill high-priority Smalltalk gaps (Interval, SortedCollection)
+- ✅ Complete GTK IDE tools (Workspace, Transcript, Launcher)
+- ✅ Desktop integration with proper icons
 - Start test framework implementation
-- Complete GTK IDE tools (Workspace, Transcript, Launcher)
 
 ### Medium Term (3-6 months)
 
-- MVP IDE (Transcript + Workspace)
+- Full IDE (System Browser, enhanced Inspector, Debugger)
 - Channels and goroutines
 - Initial actor model
 
 ### Long Term (6-12 months)
 
-- Full IDE (Inspector, Browser, Debugger)
 - Continuations (research phase)
 - Native thread compilation
 

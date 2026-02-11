@@ -104,19 +104,25 @@ window present
 
 ### Window Icon and Desktop Integration
 
-For proper dock and Alt-Tab switcher icons in GTK4:
+GTK4 uses icon themes rather than file paths for window icons. For proper dock and Alt-Tab switcher icons:
 
 ```harding
 # In your main window setup (e.g., Launcher>>openInstance)
 window := GtkWindow new.
 
-# Set window icon (from icon theme)
+# Set window icon from icon theme (e.g., "harding" icon)
 window iconName: "harding".
+```
 
-# Set WM_CLASS for window manager identification (dock/Alt-Tab)
-# GTK3: Sets WM_CLASS property for X11
-# GTK4: Sets widget name (limited effect, use GtkApplication instead)
-window setWmClass: "bona".
+**Icon Theme Installation**
+
+Icons must be installed in the user's icon theme directory:
+- `~/.local/share/icons/hicolor/48x48/apps/` - Small icons
+- `~/.local/share/icons/hicolor/256x256/apps/` - Large icons
+
+After installing icons, refresh the theme cache:
+```bash
+gtk-update-icon-cache ~/.local/share/icons/hicolor
 ```
 
 **For full desktop integration with Bona IDE:**
@@ -134,12 +140,22 @@ nimble install_bona
 This installs:
 - `~/.local/share/applications/bona.desktop` - Desktop entry
 - `~/.local/share/icons/hicolor/256x256/apps/harding.png` - Application icon
+- Updates icon theme cache automatically
 
-**Manual window class setup (GTK3):**
+After installation:
+- Launch Bona from the applications menu
+- Icon appears correctly in dock and Alt-Tab switcher
+- Window is identified as "Bonadventure IDE"
+
+**GTK3 Compatibility (File-based Icons)**
+
+For GTK3, window icons can be set directly from file paths:
 ```harding
-# For GTK3/X11, set WM_CLASS directly
-window setWmClass: "myapp".
+# GTK3 only - set icon from file path
+window iconFromFile: "/path/to/icon.png".
 ```
+
+Note: GTK4 does not support `gtk_window_set_icon_from_file`. Use icon themes instead.
 
 ### Signal Handling
 

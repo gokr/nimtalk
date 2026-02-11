@@ -112,7 +112,7 @@ This document tracks current work items and future directions for Harding develo
 
 - Memory management for circular references
 - Error handling improvements needed
-- Compiler implementation (granite is stub)
+- `SortedCollection>>last` has test failures in stdlib
 
 ## Documentation Needs
 
@@ -533,5 +533,18 @@ EOF
 - Fixed runToCompletion to handle blocked processes properly
 - Added comprehensive multi-process tests (test_sync_primitives.nim)
 - Removed "Block body corruption" from known issues (fixed)
+
+### Variable Resolution Fix (2026-02-11)
+- Fixed critical bug in `lookupVariable` where parent activation locals were checked before slots
+- Methods can no longer see calling method's locals (proper Smalltalk scoping)
+- Slot access now takes precedence over globals (consistent Smalltalk semantics)
+- Fixed `Exception>>message` to use direct slot access instead of `getSlot:`
+- Added test cases to verify correct variable resolution order
+
+### IDE Improvements (2026-02-11)
+- Added Inspector tool for object introspection (`Object>>inspect`)
+- Workspace now has "Inspect It" button and Ctrl+I keyboard shortcut
+- Fixed Transcript integration - output now goes to correct window
+- Added window icon support via icon themes for GTK4
 
 *Last Updated: 2026-02-11*

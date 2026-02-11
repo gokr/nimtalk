@@ -174,8 +174,17 @@ bona --loglevel DEBUG
 ### IDE Features
 
 - **Launcher** - Main IDE window with menu bar
-- **Workspace** - Code editor with do-it/print-it functionality
+- **Workspace** - Code editor with do-it/print-it/inspect-it functionality
 - **Transcript** - Output console for logging and results
+- **Inspector** - Object introspection tool (Ctrl+I in Workspace)
+
+### IDE Keyboard Shortcuts
+
+| Shortcut | Action | Description |
+|----------|--------|-------------|
+| Ctrl+D | Do It | Evaluate selection/line, print result to Transcript |
+| Ctrl+P | Print It | Evaluate selection/line, insert result after selection |
+| Ctrl+I | Inspect It | Evaluate selection/line, open Inspector on result |
 
 ### Building the IDE
 

@@ -744,10 +744,12 @@ Value := UtilityClass doSomething.
 
 When resolving a variable name, Harding searches in this order:
 
-1. **Local scope** (temporaries, captured variables)
-2. **Activation chain** (method locals)
+1. **Local scope** (temporaries, captured variables, method locals)
+2. **Instance variables** (slots on `self`)
 3. **Imported Libraries** (most recent first)
 4. **Global table** (fallback)
+
+**Important**: Each method activation has its own isolated local scope. Methods cannot see the local variables of their calling method (unlike some dynamic languages). This prevents accidental coupling and ensures proper encapsulation.
 
 Most recently imported libraries take precedence for conflict resolution:
 

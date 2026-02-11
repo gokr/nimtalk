@@ -544,6 +544,16 @@ intersect := set1 intersection: set2
 diff := set1 difference: set2
 ```
 
+### Object Inspection
+
+```smalltalk
+# Open Inspector on any object
+obj inspect
+
+# In Workspace: select code and press Ctrl+I (Inspect It)
+# Shows slots, properties, and class hierarchy
+```
+
 ### Standard Library
 
 The Standard Library provides additional collection and utility classes, auto-imported at startup:
@@ -602,10 +612,12 @@ Instance := MyClass new
 
 ### Variable Lookup Order
 
-1. Local scope (temporaries)
-2. Activation chain
+1. Local scope (temporaries, parameters, block params)
+2. Instance variables (slots on `self`)
 3. Imported libraries (most recent first)
 4. Global table (fallback)
+
+Note: Methods cannot see calling method's locals (proper Smalltalk scoping).
 
 ### Most Recent Import Wins
 

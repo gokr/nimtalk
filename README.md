@@ -146,7 +146,7 @@ Harding distinguishes globals from locals by capitalization and enforces this in
 - Automatic accessor generation: `deriveWithAccessors:`, `derive:getters:setters:`
 - Library/namespace system for modular code organization
 - String concatenation with auto-conversion using `,`
-- GTK-based IDE (`bona`) with Workspace, Transcript, and System Browser
+- GTK-based IDE (`bona`) with Workspace, Transcript, System Browser, and Inspector
 - Smalltalk-style Print It - insert results in editor with selection
 - Exception handling via `on:do:`
 - Compiler infrastructure (`granite`) with Application class and build support

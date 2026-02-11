@@ -487,6 +487,55 @@ When a method accesses a variable:
 
 ---
 
+## Variable Resolution
+
+### Lookup Order
+
+Harding follows Smalltalk-style variable resolution with the following priority:
+
+1. **Local variables** (temporaries, parameters, block parameters)
+2. **Instance variables** (slots on `self`)
+3. **Globals** (class names, global variables)
+
+This ordering ensures that:
+- Method temporaries shadow slots (allowing local computation with same names)
+- Slots shadow globals (consistent Smalltalk semantics)
+- Globals are accessible as fallback
+
+### No Parent Activation Access
+
+Unlike some interpreted languages, Harding does **not** allow methods to access the local variables of their calling method. Each method activation has its own isolated local scope:
+
+```smalltalk
+# This is INVALID - methods cannot see caller's locals
+foo [
+  | localVar |
+  localVar := 42.
+  self bar.  # bar cannot see 'localVar'
+]
+
+bar [
+  localVar.  # ERROR: 'localVar' not found
+]
+```
+
+This design:
+- Prevents accidental coupling between methods
+- Enables proper encapsulation
+- Allows methods to use slot names without conflicting with caller's locals
+
+### Implementation Details
+
+The variable lookup in `vm.nim` checks in this order:
+
+1. Current activation locals (`activation.locals[name]`)
+2. Slots on current receiver if it's an object (`getSlotIndex(receiver.class, name)`)
+3. Globals (`globals[name]`)
+
+Previously, the VM incorrectly checked parent activation locals before slots, which could cause a caller's local variable to shadow the receiver's slot. This has been fixed to follow proper Smalltalk semantics.
+
+---
+
 ## Directory Structure
 
 ```
