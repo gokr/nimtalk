@@ -106,6 +106,18 @@ when defined(js):
         return toValue(receiver.class.name)
       return toValue("Object")
 
+    of "print":
+      # Print without newline
+      let s = receiver.toValue().toString()
+      {.emit: ["if (typeof process !== 'undefined' && process.stdout) { process.stdout.write(", s.cstring, "); } else { console.log(", s.cstring, "); }"].}
+      return receiver.toValue()
+
+    of "println":
+      # Print with newline
+      let s = receiver.toValue().toString()
+      {.emit: ["console.log(", s.cstring, ");"].}
+      return receiver.toValue()
+
     of "primitiveIsKindOf:":
       # Check if receiver is kind of given class
       if args.len == 0 or args[0].kind != vkClass:
@@ -218,6 +230,15 @@ when defined(js):
       return geImpl(receiver, args)
     of "~=", "!=":
       return neImpl(receiver, args)
+    of ",":
+      # String concatenation - manual implementation for JS
+      if receiver.kind == ikString:
+        if args.len > 0:
+          let otherStr = args[0].toString()
+          return newStringInstance(receiver.class, receiver.strVal & otherStr).toValue()
+        else:
+          return newStringInstance(receiver.class, receiver.strVal).toValue()
+      return nilValue()
 
     of "primitiveValue:":
       # Execute a block with one argument
@@ -296,31 +317,32 @@ proc findSelectorForMethod(classObj: Class, methodBlk: BlockNode, isClassMethod:
 
 proc printStackTrace*(interp: var Interpreter) =
   ## Print the current activation stack for debugging
-  writeStderr("\n=== Stack Trace ===")
-  if interp.activationStack.len == 0:
-    writeStderr("  (empty activation stack)")
-  else:
-    for i in countdown(interp.activationStack.len - 1, 0):
-      let activation = interp.activationStack[i]
-      let className = if activation.definingObject != nil:
-                        activation.definingObject.name
-                      elif activation.receiver != nil and activation.receiver.class != nil:
-                        activation.receiver.class.name
-                      else:
-                        "(unknown)"
-      let receiverClass = if activation.receiver != nil and activation.receiver.class != nil:
-                            activation.receiver.class.name
-                          else:
-                            "(nil)"
-      let isMethod = activation.currentMethod != nil and activation.currentMethod.isMethod
-      let methodType = if isMethod: "" else: "(block) "
-      let selector = if isMethod:
-                       findSelectorForMethod(activation.definingObject, activation.currentMethod, activation.isClassMethod)
-                     else:
-                       ""
-      let methodDisplay = if selector.len > 0: selector else: methodType
-      writeStderr(fmt("  {interp.activationStack.len - 1 - i}: {className}>>{methodDisplay}(self={receiverClass})"))
-  writeStderr("===================\n")
+  when not defined(js):
+    writeStderr("\n=== Stack Trace ===")
+    if interp.activationStack.len == 0:
+      writeStderr("  (empty activation stack)")
+    else:
+      for i in countdown(interp.activationStack.len - 1, 0):
+        let activation = interp.activationStack[i]
+        let className = if activation.definingObject != nil:
+                          activation.definingObject.name
+                        elif activation.receiver != nil and activation.receiver.class != nil:
+                          activation.receiver.class.name
+                        else:
+                          "(unknown)"
+        let receiverClass = if activation.receiver != nil and activation.receiver.class != nil:
+                              activation.receiver.class.name
+                            else:
+                              "(nil)"
+        let isMethod = activation.currentMethod != nil and activation.currentMethod.isMethod
+        let methodType = if isMethod: "" else: "(block) "
+        let selector = if isMethod:
+                         findSelectorForMethod(activation.definingObject, activation.currentMethod, activation.isClassMethod)
+                       else:
+                         ""
+        let methodDisplay = if selector.len > 0: selector else: methodType
+        writeStderr(fmt("  {interp.activationStack.len - 1 - i}: {className}>>{methodDisplay}(self={receiverClass})"))
+    writeStderr("===================\n")
 
 # ============================================================================
 # AST Rewriter for Slot Access
@@ -3815,6 +3837,23 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       finally:
         interp.currentReceiver = savedReceiver
       return true
+
+    # JS builds: try selector-based dispatch for primitives
+    when defined(js):
+      let jsSavedReceiver = interp.currentReceiver
+      try:
+        let primResult = dispatchPrimitive(interp, receiver, frame.selector, args)
+        if primResult.kind != vkNil:
+          interp.pushValue(primResult)
+          return true
+        # Special case: some primitives return nil legitimately
+        if frame.selector.startsWith("primitive"):
+          interp.pushValue(primResult)
+          return true
+      except:
+        debug("JS: Dispatcher failed in wfSendMessage for ", frame.selector)
+      finally:
+        interp.currentReceiver = jsSavedReceiver
 
     # Interpreted method - create activation and execute body
     debug("VM: Executing interpreted method '", frame.selector, "' with ", args.len, " args, body has ", currentMethod.body.len, " statements")
