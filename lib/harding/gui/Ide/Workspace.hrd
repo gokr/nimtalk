@@ -57,6 +57,11 @@ Workspace>>openWindowFor: anOwner [
     printItButton clicked: [ self printItSelection ].
     buttonBox append: printItButton.
 
+    # Create Inspect It button
+    inspectItButton := GtkButton newLabel: "Inspect It (Ctrl+I)".
+    inspectItButton clicked: [ self inspectItSelection ].
+    buttonBox append: inspectItButton.
+
     # Set owner
     owner := anOwner.
 
@@ -82,7 +87,7 @@ Workspace>>openWindowFor: anOwner [
 ].
 
 Workspace>>installKeyboardShortcuts [
-    # Install Ctrl+D for Do It and Ctrl+P for Print It
+    # Install Ctrl+D for Do It, Ctrl+P for Print It, Ctrl+I for Inspect It
     # Enable keyboard handling on source view
     sourceView enableKeyboardShortcuts.
 
@@ -91,6 +96,9 @@ Workspace>>installKeyboardShortcuts [
 
     # Ctrl+P - Print It
     sourceView onControlKey: "p" do: [ self printItSelection ].
+
+    # Ctrl+I - Inspect It
+    sourceView onControlKey: "i" do: [ self inspectItSelection ].
 ].
 
 Workspace>>showContextMenu [
@@ -134,6 +142,21 @@ Workspace>>printItSelection [
 
         ^result
     ]
+    ^nil
+]
+
+Workspace>>inspectItSelection [
+    # Inspect It - evaluate and open inspector on result
+    | code result |
+    code := sourceView selectedText.
+    code isEmpty not ifTrue: [
+        result := self doIt: code.
+        result notNil ifTrue: [
+            result inspect.
+            Transcript showCr: ("Inspecting: " , (result printString)).
+        ].
+        ^result
+    ].
     ^nil
 ]
 
