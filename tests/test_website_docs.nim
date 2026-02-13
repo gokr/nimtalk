@@ -8,13 +8,16 @@ import std/[unittest, strutils]
 import ../src/harding/core/types
 import ../src/harding/interpreter/vm
 
+var sharedInterp: Interpreter
+sharedInterp = newInterpreter()
+initGlobals(sharedInterp)
+loadStdlib(sharedInterp)
+
 suite "Website Examples - docs.md Example Code":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Hello World (docs.md)":
     let (result, err) = interp.doit("\"Hello, World!\" println")
@@ -37,12 +40,10 @@ suite "Website Examples - docs.md Example Code":
     check(result.intVal == 42)
 
 suite "Website Examples - docs.md Factorial":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Factorial (docs.md)":
     let results = interp.evalStatements("""
@@ -58,12 +59,10 @@ suite "Website Examples - docs.md Factorial":
     check(results[0][^1].intVal == 120)
 
 suite "Website Examples - docs.md Counter Class":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Counter class (docs.md)":
     let results = interp.evalStatements("""
@@ -83,12 +82,10 @@ suite "Website Examples - docs.md Counter Class":
     check(results[0][^1].intVal == 1)
 
 suite "Website Examples - docs.md Table":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Table literal with entries (docs.md)":
     let results = interp.evalStatements("""
@@ -99,12 +96,10 @@ suite "Website Examples - docs.md Table":
     check(results[0][^1].intVal == 95)
 
 suite "Website Examples - index.md Quick Start":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Quick Start: 3 + 4":
     let (result, err) = interp.doit("3 + 4")
@@ -118,12 +113,10 @@ suite "Website Examples - index.md Quick Start":
     check(result.instVal.elements.len == 3)
 
 suite "Website Examples - index.md deriveWithAccessors":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "deriveWithAccessors creates getters and setters":
     let results = interp.evalStatements("""
@@ -152,12 +145,10 @@ suite "Website Examples - index.md deriveWithAccessors":
     check(results[0][^1].intVal == 15)
 
 suite "Website Examples - differences from Smalltalk":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Hash comments":
     let source = """

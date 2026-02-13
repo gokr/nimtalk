@@ -1708,7 +1708,7 @@ proc primitivePropertiesImpl(interp: var Interpreter, self: Instance, args: seq[
   return newArrayInstance(arrayClass, slotNames).toValue()
 
 proc primitiveRespondsToImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  ## Check if the class responds to a message
+  ## Check if the receiver responds to a message (both instance and class methods)
   if args.len < 1:
     return falseValue
   let selector = if args[0].kind == vkString: args[0].strVal
@@ -1716,8 +1716,16 @@ proc primitiveRespondsToImpl(interp: var Interpreter, self: Instance, args: seq[
                   else: ""
   if selector.len == 0:
     return falseValue
+  # Check instance methods
   let lookup = lookupMethod(interp, self, selector)
-  toValue(lookup.found)
+  if lookup.found:
+    return trueValue
+  # Check class methods (for class objects)
+  if self.class != nil:
+    let classLookup = lookupClassMethod(self.class, selector)
+    if classLookup.found:
+      return trueValue
+  return falseValue
 
 proc primitiveMethodsImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Return the class's method selector names as an array
@@ -2699,6 +2707,9 @@ proc initGlobals*(interp: var Interpreter) =
   tableNewMethod.hasInterpreterParam = true
   tableCls.classMethods["new"] = tableNewMethod
   tableCls.allClassMethods["new"] = tableNewMethod
+  # Also register primitiveTableNew for <primitive> syntax
+  tableCls.classMethods["primitiveTableNew"] = tableNewMethod
+  tableCls.allClassMethods["primitiveTableNew"] = tableNewMethod
 
   # ============================================================================
   # Register Library primitive selectors (used by lib/core/Library.hrd)
@@ -2744,6 +2755,12 @@ proc initGlobals*(interp: var Interpreter) =
   libraryNameSetMethod.setNativeImpl(libraryNameSetImpl)
   libraryCls.methods["primitiveLibraryName:"] = libraryNameSetMethod
   libraryCls.allMethods["primitiveLibraryName:"] = libraryNameSetMethod
+
+  # Register primitiveLibraryBindings for bindings slot access
+  let libraryBindingsMethod = createCoreMethod("primitiveLibraryBindings")
+  libraryBindingsMethod.setNativeImpl(libraryBindingsImpl)
+  libraryCls.methods["primitiveLibraryBindings"] = libraryBindingsMethod
+  libraryCls.allMethods["primitiveLibraryBindings"] = libraryBindingsMethod
 
   # Register Library class new method (as class method primitive)
   let libraryNewPrimMethod = createCoreMethod("primitiveLibraryNew")
@@ -3535,7 +3552,18 @@ proc handleEvalNode(interp: var Interpreter, frame: WorkFrame): bool =
       elif interp.currentActivation != nil and interp.currentActivation.isClassMethod:
         interp.pushValue(interp.currentReceiver.class.toValue())
       else:
-        interp.pushValue(interp.currentReceiver.toValue().unwrap())
+        # Check if currentReceiver is a class wrapper (instance representing a class)
+        # Class wrappers have kind=ikObject, empty slots, and nimValue=nil
+        # When asSelfDo: sets self to a class, we need to return vkClass so method dispatch works
+        if interp.currentReceiver.kind == ikObject and interp.currentReceiver.class != nil:
+          # Class wrappers have empty slots and no nimValue
+          if interp.currentReceiver.slots.len == 0 and not nimValueIsSet(interp.currentReceiver.nimValue):
+            # This is a class wrapper - return the class as vkClass
+            interp.pushValue(interp.currentReceiver.class.toValue())
+          else:
+            interp.pushValue(interp.currentReceiver.toValue().unwrap())
+        else:
+          interp.pushValue(interp.currentReceiver.toValue().unwrap())
     of "nil":
       interp.pushValue(nilValue())
     of "true":
@@ -4108,14 +4136,11 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
           var classMethodDefiningClass: Class = nil
 
           let classMethodLookup = lookupClassMethod(cls, frame.selector)
-          debug("DEBUG: class method lookup on ", cls.name, " for ", frame.selector, ": ", $(classMethodLookup.found))
           if classMethodLookup.found:
             classMethodToRun = classMethodLookup.currentMethod
             classMethodDefiningClass = classMethodLookup.definingClass
           elif objectClass != nil:
-            debug("DEBUG: trying Object class methods, objectClass is nil: ", $(objectClass == nil))
             let objectClassMethodLookup = lookupClassMethod(objectClass, frame.selector)
-            debug("DEBUG: class method lookup on Object for ", frame.selector, ": ", $(objectClassMethodLookup.found))
             if objectClassMethodLookup.found:
               classMethodToRun = objectClassMethodLookup.currentMethod
               classMethodDefiningClass = objectClassMethodLookup.definingClass

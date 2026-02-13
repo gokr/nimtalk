@@ -8,13 +8,16 @@ import std/[unittest, strutils]
 import ../src/harding/core/types
 import ../src/harding/interpreter/vm
 
+var sharedInterp: Interpreter
+sharedInterp = newInterpreter()
+initGlobals(sharedInterp)
+loadStdlib(sharedInterp)
+
 suite "Website Examples - features.md Message Passing":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Binary message (3 + 4)":
     let (result, err) = interp.doit("3 + 4")
@@ -37,12 +40,10 @@ suite "Website Examples - features.md Message Passing":
     check(results[0][^1].intVal == 42)
 
 suite "Website Examples - features.md Modern Syntax":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Optional periods (no period)":
     let results = interp.evalStatements("""
@@ -60,12 +61,10 @@ suite "Website Examples - features.md Modern Syntax":
     check(result.strVal == "Double quotes")
 
 suite "Website Examples - features.md Class Creation":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Class creation with derive":
     let results = interp.evalStatements("Point := Object derive: #(x y)")
@@ -93,12 +92,10 @@ suite "Website Examples - features.md Class Creation":
     check(results[0][^1].kind == vkClass)
 
 suite "Website Examples - features.md Collections":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Array literal":
     let (result, err) = interp.doit("#(1 2 3 4 5)")
@@ -122,12 +119,10 @@ suite "Website Examples - features.md Collections":
     check(results[0][^1].intVal == 20)
 
 suite "Website Examples - features.md Point Class":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Point class with extend: for multiple methods":
     let results = interp.evalStatements("""
@@ -154,12 +149,10 @@ suite "Website Examples - features.md Point Class":
     check(results[0][^1].kind == vkFloat)
 
 suite "Website Examples - features.md Collection Methods":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "collect: transformation":
     let results = interp.evalStatements("""
@@ -208,12 +201,10 @@ suite "Website Examples - features.md Collection Methods":
     check(results[0][^1].intVal == 3)
 
 suite "Website Examples - features.md Class-Side Methods":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "class>> defines class-side method":
     let results = interp.evalStatements("""
@@ -234,12 +225,10 @@ suite "Website Examples - features.md Class-Side Methods":
     check(results[0][^1].intVal == 30)
 
 suite "Website Examples - features.md Dynamic Dispatch":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "perform: without arguments":
     let results = interp.evalStatements("""

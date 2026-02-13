@@ -8,13 +8,16 @@ import std/[unittest, strutils]
 import ../src/harding/core/types
 import ../src/harding/interpreter/vm
 
+var sharedInterp: Interpreter
+sharedInterp = newInterpreter()
+initGlobals(sharedInterp)
+loadStdlib(sharedInterp)
+
 suite "Website Examples - Control Flow":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "true ifTrue: executes block":
     let (result, err) = interp.doit("true ifTrue: [42]")
@@ -32,12 +35,10 @@ suite "Website Examples - Control Flow":
     check(result.intVal == 10)
 
 suite "Website Examples - Boolean Operations":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Boolean equality":
     let (result, err) = interp.doit("true = true")
@@ -48,12 +49,10 @@ suite "Website Examples - Boolean Operations":
     check(err.len == 0)
 
 suite "Website Examples - Arithmetic":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Addition":
     let (result, err) = interp.doit("3 + 4")
@@ -86,12 +85,10 @@ suite "Website Examples - Arithmetic":
     check(result.intVal == 1)
 
 suite "Website Examples - Comparison":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Less than":
     let (result, err) = interp.doit("3 < 5")
@@ -114,12 +111,10 @@ suite "Website Examples - Comparison":
     check(err.len == 0)
 
 suite "Website Examples - String Operations":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "String literal":
     let (result, err) = interp.doit("\"Hello\"")
@@ -138,12 +133,10 @@ suite "Website Examples - String Operations":
     check(result.strVal == "B")
 
 suite "Website Examples - REPL Examples":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "REPL sequence 1 - Basic arithmetic":
     let results = interp.evalStatements("3 + 4")
@@ -168,12 +161,10 @@ suite "Website Examples - REPL Examples":
     check(results[0][^1].strVal == "value")
 
 suite "Website Examples - Nil Object":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "nil isNil returns true":
     let (result, err) = interp.doit("nil isNil")
@@ -186,12 +177,10 @@ suite "Website Examples - Nil Object":
     check(result.strVal == "UndefinedObject")
 
 suite "Website Examples - Math Operations":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "sqrt of number":
     let results = interp.evalStatements("""
@@ -212,12 +201,10 @@ suite "Website Examples - Math Operations":
     check(results[0][^1].floatVal > 4.9)
 
 suite "Website Examples - Block Return":
-  var interp: Interpreter
+  var interp {.used.}: Interpreter
 
   setup:
-    interp = newInterpreter()
-    initGlobals(interp)
-    loadStdlib(interp)
+    interp = sharedInterp
 
   test "Non-local return from block":
     let results = interp.evalStatements("""
