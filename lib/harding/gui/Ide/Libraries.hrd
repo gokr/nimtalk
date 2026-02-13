@@ -44,15 +44,13 @@ Library class>>allNames [
 
 # Instance method to get classes in a library
 Library>>classes [
-    ^ bindings values select: [:obj |
-        # Check if it's a class by seeing if it has class-side methods
-        # Classes can derive subclasses, so they respond to derive:
-        # We use respondsTo: to check this
-        (obj respondsTo: #derive:) or: (obj respondsTo: #new)
-    ]
+    # Return all values that are actual Class objects
+    ^ self bindings values select: [:obj | obj isClass ]
 ].
 
+# Instance method to get class names in a library
 Library>>classNames [
+    # Return names of all classes in this library
     ^ self classes collect: [:cls | cls name ]
 ].
 
