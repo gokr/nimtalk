@@ -1,5 +1,5 @@
 # ============================================================================
-# Libraries - Library organization for Harding IDE
+# Libraries - Library organization for Bonadventure IDE
 # ============================================================================
 
 # Global registry of all libraries
@@ -28,25 +28,30 @@ Library class>>allLibraries [
 ].
 
 Library class>>named: aName [
-    Libraries do: [:lib |
-        (lib name = aName) ifTrue: [ ^ lib ].
+    | index size |
+    index := 1.
+    size := Libraries size.
+    [ index <= size ] whileTrue: [
+        (Libraries at: index) name = aName ifTrue: [ ^ Libraries at: index ].
+        index := index + 1
     ].
     ^ nil
 ].
 
 Library class>>allNames [
-    ^ Libraries collect: [:lib | lib name ].
+    ^ Libraries collect: [:lib | lib name ]
 ].
 
 # Instance method to get classes in a library
 Library>>classes [
-    # Return array of class names in this library
-    ^ self keys select: [:key |
-        | val |
-        val := self at: key.
+    ^ bindings values select: [:obj |
         # Check if it's a class by seeing if it responds to class methods
-        val respondsTo: #className
-    ].
+        obj respondsTo: #className
+    ]
+].
+
+Library>>classNames [
+    ^ self classes collect: [:cls | cls name ]
 ].
 
 # Register core classes with CoreLib

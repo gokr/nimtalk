@@ -15,7 +15,7 @@ Launcher>>openInstance [
   windows := #().
 
   # Set up the window
-  self title: "Harding IDE".
+  self title: "Bonadventure IDE".
   self setDefaultSize: 800 height: 600.
   self connectDestroy.
 
@@ -37,7 +37,7 @@ Launcher>>openInstance [
   self setChild: mainBox.
   self present.
 
-  Transcript showCr: "Harding IDE opened"
+  Transcript showCr: "Bonadventure IDE opened"
 ].
 
 Launcher>>createHeaderBar [
@@ -128,7 +128,7 @@ Launcher>>openBrowser [
 ].
 
 Launcher>>quit [
-  Transcript showCr: "Quitting Harding IDE...".
+  Transcript showCr: "Quitting Bonadventure IDE...".
   self close.
   ^ self
 ].

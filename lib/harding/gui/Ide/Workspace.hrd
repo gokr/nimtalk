@@ -23,7 +23,7 @@ Workspace>>openWindowFor: anOwner [
 
     # Create main window
     window := GtkWindow new.
-    window title: "Harding Workspace".
+    window title: "Workspace".
     window iconName: "harding".
     window setDefaultSize: 800 height: 600.
 
@@ -82,7 +82,7 @@ Workspace>>openWindowFor: anOwner [
 
     window present.
 
-    Transcript showCr: "Harding Workspace opened (with syntax highlighting)".
+    Transcript showCr: "Workspace opened (with syntax highlighting)".
     ^self
 ].
 

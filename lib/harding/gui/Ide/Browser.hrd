@@ -128,9 +128,9 @@ SystemBrowser>>populateLibraries [
     libraryPane items: libraryNames.
 ]
 
-SystemBrowser>>selectLibrary: aLibrary [
-    currentLibrary := aLibrary.
-    Transcript showCr: ("Selected library: " , aLibrary).
+SystemBrowser>>selectLibrary: aLibraryName [
+    currentLibrary := aLibraryName.
+    Transcript showCr: ("Selected library: " , aLibraryName).
 
     # Clear downstream panes
     classPane clear.
@@ -138,26 +138,28 @@ SystemBrowser>>selectLibrary: aLibrary [
     methodPane clear.
 
     # Populate classes based on selected library
-    self populateClassesFor: aLibrary.
+    self populateClassesFor: aLibraryName.
 ]
 
-SystemBrowser>>populateClassesFor: aLibrary [
+SystemBrowser>>populateClassesFor: aLibraryName [
     # Get classes for the selected library
-    | lib classes |
+    | libb classNames |
+    Transcript showCr: ("Populating classes for library: " , aLibraryName).
 
     # Find the library by name
-    lib := Library named: aLibrary.
-    lib isNil ifTrue: [
-        Transcript showCr: ("Library not found: " , aLibrary).
+    # Smething is wrong here, this does not seem to run Library class>>named:
+    libb := Library named: aLibraryName.
+    libb isNil ifTrue: [
+        Transcript showCr: ("Library not found: " , aLibraryName).
         classPane items: #().
         ^ self
     ].
 
     # Get class names from the library
-    classes := lib keys.
-    Transcript showCr: ("Library " , aLibrary , " has " , (classes size printString) , " classes").
+    classNames := libb classNames.
+    Transcript showCr: ("Library " , aLibraryName , " has " , (classNames size printString) , " classes").
 
-    classPane items: classes.
+    classPane items: classNames.
 ]
 
 SystemBrowser>>selectClass: aClassName [
