@@ -4081,6 +4081,9 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
           if classMethodToRun != nil:
             debug("VM: Found class method '", frame.selector, "' for class ", cls.name)
 
+            # Create class receiver wrapper
+            let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: (when defined(js): 0 else: nil))
+
             # Handle native implementations
             if nativeImplIsSet(classMethodToRun):
               let savedReceiver = interp.currentReceiver
