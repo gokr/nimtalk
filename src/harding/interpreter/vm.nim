@@ -2170,17 +2170,20 @@ proc initGlobals*(interp: var Interpreter) =
 
   # Add isClass method to Object - returns true if self is a Class object
   proc primitiveIsClassImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-    # Check if self is a Class object (like String, Number, Object, etc.)
-    # In this system, class objects are instances of their metaclass.
-    # A class object's metaclass has the same name as the class itself.
-    # e.g., Object's class is the "Object" metaclass (different from Object itself)
-    # We identify classes by checking known metaclass names
+    # Check if self is a Class object (like Object, String, Number, etc.)
+    # In this system, classes are special objects that can create instances.
+    # The key difference: classes have class methods like 'derive:' which are
+    # used to create subclasses. Regular instances don't have these.
+    #
+    # We check for 'derive:' which is only defined on classes as a class method.
+    # Instances inherit from Object which has 'derive:' as an instance method? No...
+    # Let me check Object.hrd - derive: is a class method (Object class>>derive:)
+    # So only classes (metaclasses) should have derive: in their class methods.
     if self.class != nil:
-      let className = self.class.name
-      # Known class/metaclass names - these are all the classes defined in initGlobals
-      if className in ["Root", "Object", "Class", "Number", "Integer", "Float",
-                       "String", "Array", "Table", "Set", "Boolean", "True", "False",
-                       "Block", "UndefinedObject", "Library", "Mixin"]:
+      # Check if derive: exists in the class methods of self's class
+      # This would mean self is a class object (metaclass instance)
+      let lookupDerive = lookupClassMethod(self.class, "derive:")
+      if lookupDerive.found:
         return trueValue
     return falseValue
 
