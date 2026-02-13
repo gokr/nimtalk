@@ -47,7 +47,18 @@ proc keyPressedCallback(controller: GtkEventControllerKey, keyval: cuint, keycod
           arguments: @[],
           isCascade: false
         )
+        # Save and reset activation context for clean block execution
+        let savedActivationStack = proxy.interp[].activationStack
+        let savedCurrentActivation = proxy.interp[].currentActivation
+        let savedCurrentReceiver = proxy.interp[].currentReceiver
+        proxy.interp[].activationStack = @[]
+        proxy.interp[].currentActivation = nil
+        proxy.interp[].currentReceiver = nil
         discard evalWithVM(proxy.interp[], msgNode)
+        # Restore activation context
+        proxy.interp[].activationStack = savedActivationStack
+        proxy.interp[].currentActivation = savedCurrentActivation
+        proxy.interp[].currentReceiver = savedCurrentReceiver
         GC_unref(handler.blockNode)
         # Stop propagation to prevent GTK from inserting the character
         return 1  # Handled, stop propagation
