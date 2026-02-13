@@ -166,10 +166,13 @@ Harding distinguishes globals from locals by capitalization and enforces this in
 - GTK-based IDE (`bona`) with Workspace (code editor with Do It/Print It/Inspect It), Transcript (output console), System Browser (class/method browser), and Inspector (object viewer)
 - Smalltalk-style Print It - insert results in editor with selection
 - Exception handling via `on:do:`
-- Compiler infrastructure (`granite`) with Application class and build support
+- Compiler infrastructure (`granite`) with inline control flow compilation
+- Granite compiles standalone `.hrd` scripts to native binaries via Nim
+- Inline compilation of `ifTrue:`, `ifFalse:`, `ifTrue:ifFalse:`, `whileTrue:`, `whileFalse:`, `timesRepeat:`
+- Compiled code runs 30-200x faster than interpreted (benchmark: sieve of Eratosthenes)
 
 **In progress:**
-- Compiler to Nim (granite works for basic applications)
+- Compiler to Nim: first-class blocks with captures, non-local returns
 - FFI to Nim
 - Standard library expansion
 
@@ -180,6 +183,8 @@ Harding distinguishes globals from locals by capitalization and enforces this in
 - [Implementation](docs/IMPLEMENTATION.md) - VM internals
 - [Tools & Debugging](docs/TOOLS_AND_DEBUGGING.md) - Tool usage
 - [Future Plans](docs/FUTURE.md) - Roadmap
+- [Compilation Pipeline](docs/design/COMPILATION_PIPELINE.md) - Granite compiler architecture
+- [JavaScript Backend](docs/JAVASCRIPT.md) - Browser REPL (experimental)
 - [GTK Integration](docs/GTK.md) - GUI development
 - [VSCode Extension](docs/VSCODE.md) - VSCode editor support
 - [GtkSourceView](docs/GTKSOURCEVIEW.md) - Gedit/GNOME Text Editor syntax highlighting

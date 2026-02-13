@@ -48,10 +48,20 @@ ch send: 42.
 value := ch receive.
 ```
 
+**Granite Compiler** (Partially Implemented):
+- ✅ Standalone `.hrd` script compilation to native binaries
+- ✅ Inline control flow: `ifTrue:`, `ifFalse:`, `whileTrue:`, `whileFalse:`, `timesRepeat:`
+- ✅ Block registry and procedure generation infrastructure
+- First-class block compilation with captures
+- Non-local return from blocks via exceptions
+- Class/method compilation from in-VM code
+
 **Performance Optimizations** (Partially Implemented):
 - ✅ Monomorphic Inline Cache (MIC) - caches single method lookup per call site
+- ✅ Compiled code 30-200x faster than interpreted (sieve benchmark)
 - Polymorphic Inline Cache (PIC) - cache multiple types for same call site
 - Type specialization for compiled methods
+- Unboxed arithmetic in compiled code
 - Escape analysis for stack allocation
 
 ---
@@ -213,11 +223,15 @@ pid send: #compute with: 42.
 - ✅ Fill high-priority Smalltalk gaps (Interval, SortedCollection)
 - ✅ Complete GTK IDE tools (Workspace, Transcript, Launcher)
 - ✅ Desktop integration with proper icons
+- ✅ Granite compiler: standalone script compilation with inline control flow
+- First-class block compilation with captures and non-local returns
 - Start test framework implementation
 
 ### Medium Term (3-6 months)
 
 - Full IDE (System Browser, enhanced Inspector, Debugger)
+- Granite: class/method compilation from in-VM code
+- Granite: unboxed arithmetic optimization
 - Channels and goroutines
 - Initial actor model
 

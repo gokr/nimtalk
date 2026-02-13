@@ -46,7 +46,9 @@ This document tracks current work items and future directions for Harding develo
 - **Scripts execute with self = nil (Smalltalk workspace convention)** ✅
 - **DEBUG echo statements converted to proper debug() logging** ✅
 
-**Still Needed**: Full method body compilation (blocks, control flow), FFI to Nim, standard library expansion.
+**Granite Compiler**: Standalone `.hrd` script compilation to native binaries works with inline control flow (ifTrue:, whileTrue:, timesRepeat:, etc.). Compiled code runs 30-200x faster than interpreted.
+
+**Still Needed**: First-class block compilation with captures, non-local returns, class/method compilation from in-VM code, FFI to Nim, standard library expansion.
 
 ## High Priority
 
@@ -59,7 +61,14 @@ This document tracks current work items and future directions for Harding develo
 - [x] Nim type definitions for Harding classes
 - [x] Basic runtime helpers (println, arithmetic operators)
 - [x] Monomorphic Inline Cache (MIC) for message sends
-- [ ] Full method body compilation (blocks, control flow)
+- [x] Standalone `.hrd` script compilation via CLI granite
+- [x] Inline control flow (ifTrue:, ifFalse:, whileTrue:, whileFalse:, timesRepeat:)
+- [x] Block registry and procedure generation infrastructure
+- [x] Statement and expression context for inline control flow
+- [ ] First-class block compilation with captures
+- [ ] Non-local return from blocks via exceptions
+- [ ] Class/method compilation from in-VM code
+- [ ] Unboxed arithmetic optimization
 - [ ] Symbol export for compiled methods
 - [ ] Dead code elimination
 - [ ] PIC (Polymorphic Inline Cache) - multi-type caching
@@ -547,4 +556,19 @@ EOF
 - Fixed Transcript integration - output now goes to correct window
 - Added window icon support via icon themes for GTK4
 
-*Last Updated: 2026-02-11*
+### Granite Standalone Script Compilation (2026-02-13)
+- CLI granite (`granite compile/build/run`) now compiles standalone `.hrd` scripts
+- Inline control flow compilation: ifTrue:, ifFalse:, ifTrue:ifFalse:, whileTrue:, whileFalse:, timesRepeat:
+- Both statement context (no value needed) and expression context (value required) handled
+- Block registry infrastructure for non-inline blocks (procedure generation, capture analysis stubs)
+- `indentBlock` helper for correct nested code indentation
+- Runtime helpers: `isTruthy`, `toInt`, arithmetic operators (`nt_plus`, `nt_minus`, etc.)
+- Verified with sieve of Eratosthenes benchmark (correct results, 30-200x faster than interpreted)
+- Benchmark results (primes up to 5000): interpreter debug ~23s, interpreter release ~2.3s, compiled release ~0.01s
+
+### Stdlib Refactoring (2026-02-12)
+- Moved core method definitions from Nim native code to `.hrd` stdlib files
+- Updated IDE Browser, Libraries, and Workspace components
+- Simplified blocked process handling in scheduler
+
+*Last Updated: 2026-02-13*

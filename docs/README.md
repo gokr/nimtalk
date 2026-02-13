@@ -14,6 +14,7 @@ These are the primary documents for learning and using Harding:
 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | VM internals and architecture | Contributors |
 | [TOOLS_AND_DEBUGGING.md](TOOLS_AND_DEBUGGING.md) | Tool usage (`harding`, `granite`) and debugging | All users |
 | [FUTURE.md](FUTURE.md) | Future plans and roadmap | Contributors |
+| [JAVASCRIPT.md](JAVASCRIPT.md) | JavaScript/browser compilation (experimental) | Contributors |
 | [VSCODE.md](VSCODE.md) | VSCode syntax highlighting extension | VSCode users |
 
 ## Getting Started
@@ -31,6 +32,14 @@ New to Harding? Start with these documents in order:
 | GUI Development | [GTK.md](GTK.md) |
 | Contributing | [IMPLEMENTATION.md](IMPLEMENTATION.md) |
 | Future Roadmap | [FUTURE.md](FUTURE.md) |
+
+## Design Documents
+
+The [`design/`](design/) directory contains architecture documents for major subsystems:
+
+| Document | Description |
+|----------|-------------|
+| [COMPILATION_PIPELINE.md](design/COMPILATION_PIPELINE.md) | Granite compiler architecture and pipeline |
 
 ## Historical and Research Documents
 

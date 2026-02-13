@@ -112,25 +112,34 @@ Inside the REPL, these commands are available:
 
 ## The Compiler: granite
 
-The `granite` command compiles Harding source to Nim code.
+The `granite` command compiles Harding source to Nim code and optionally builds native binaries.
 
 ### Usage
 
 ```bash
-# Compile to Nim source
-granite compile input.harding -o output.nim
+# Compile .hrd to Nim source (output in build/ directory)
+granite compile script.hrd
 
-# Compile and build executable
-granite build input.harding -d build/
+# Compile with custom output
+granite compile script.hrd -o output.nim
+
+# Compile and build native executable
+granite build script.hrd
 
 # Compile, build, and run
-granite run input.harding --release
+granite run script.hrd
+
+# Build with optimizations (release mode)
+granite run script.hrd --release
+
+# Build with maximum optimizations (danger mode)
+granite build script.hrd --danger
 
 # Show AST before compiling
-granite compile input.harding --ast
+granite compile script.hrd --ast
 
 # Compile with debug logging
-granite compile input.harding --loglevel DEBUG
+granite compile script.hrd --loglevel DEBUG
 ```
 
 ### Commands
@@ -145,11 +154,21 @@ granite compile input.harding --loglevel DEBUG
 
 **-o, --output <file>**: Output Nim file path (compile only)
 **-d, --dir <dir>**: Output directory (default: ./build)
-**-r, --release**: Build with optimization flags
+**-r, --release**: Build with `-d:release` optimization flags
+**--danger**: Build with `-d:danger` (no runtime checks, maximum speed)
 **--ast**: Dump AST before compiling
 **--loglevel <level>**: Set logging verbosity
 **-h, --help**: Show help
 **-v, --version**: Show version
+
+### What Gets Compiled
+
+Granite compiles standalone `.hrd` scripts with inline control flow:
+- `ifTrue:`, `ifFalse:`, `ifTrue:ifFalse:` → Nim `if/else`
+- `whileTrue:`, `whileFalse:` → Nim `while`
+- `timesRepeat:` → Nim `for`
+- Arithmetic and comparisons → helper function calls
+- Variables → direct Nim `var` declarations
 
 ## The IDE: bona
 
@@ -346,11 +365,16 @@ If interpreter and compiler behave differently:
 
 ```bash
 # Test with interpreter
-harding --loglevel DEBUG script.harding
+harding --loglevel DEBUG script.hrd
 
 # Test AST (same for both)
-harding --ast script.harding
-granite compile script.harding --ast
+harding --ast script.hrd
+granite compile script.hrd --ast
+
+# Compare output
+harding script.hrd > interp_output.txt
+granite run script.hrd > compiled_output.txt
+diff interp_output.txt compiled_output.txt
 ```
 
 ## Best Practices

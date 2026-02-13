@@ -11,11 +11,13 @@ Granite is the Harding-to-Nim compiler. There are two entry points:
 
 ## Current State
 
-### CLI Granite (standalone)
+### CLI Granite (standalone) - Working
 - Entry: `src/harding/compiler/granite.nim`
-- Parses source → generates Nim code directly
+- Compiles standalone `.hrd` scripts to native binaries via Nim
+- Supports `compile`, `build`, and `run` commands
+- Inline control flow compilation (ifTrue:, whileTrue:, timesRepeat:, etc.)
 - Does NOT initialize Harding VM or load stdlib
-- Fast compilation for standalone files
+- Produces binaries 30-200x faster than interpreted code
 
 ### Harding Granite (in-VM)
 - Entry: `lib/core/Granite.hrd` with primitives
@@ -23,9 +25,11 @@ Granite is the Harding-to-Nim compiler. There are two entry points:
 - Has full access to loaded classes, methods, and object graph
 - Located in: `src/harding/compiler/compiler_primitives.nim`
 
-### Block Compilation (newly implemented)
+### Block Compilation (implemented)
 - Block registry: `src/harding/codegen/blocks.nim`
-- Inline control flow: `src/harding/codegen/expression.nim`
+- Inline control flow: `src/harding/codegen/expression.nim` (statement and expression context)
+- Block procedure generation infrastructure in place
+- Capture analysis stub ready for implementation
 - Works at AST level - applicable to both paths
 
 ## Design Principles
@@ -102,22 +106,32 @@ Binary
 
 ## Block Compilation Implementation
 
-The block compilation work currently being implemented:
+### Inline Control Flow (Completed)
+
+Literal blocks in control flow messages are compiled directly to Nim constructs:
+
+| Harding Pattern | Generated Nim |
+|----------------|--------------|
+| `cond ifTrue: [body]` | `if isTruthy(cond): body` |
+| `cond ifTrue: [a] ifFalse: [b]` | `if isTruthy(cond): a else: b` |
+| `[cond] whileTrue: [body]` | `while isTruthy(cond): body` |
+| `[cond] whileFalse: [body]` | `while not isTruthy(cond): body` |
+| `n timesRepeat: [body]` | `for i in 0..<toInt(n): body` |
+
+Both statement context (no value needed) and expression context (value required) are handled.
+
+### Block Registry Infrastructure (In Place)
 
 1. **Block Registry** (`codegen/blocks.nim`):
-   - Collects all blocks from AST before generation
+   - Collects all non-inline blocks from AST before generation
    - Assigns unique Nim procedure names
-   - Tracks captures for closures
+   - Tracks captures for closures (stub ready for implementation)
 
-2. **Inline Control Flow** (`codegen/expression.nim`):
-   - Detects literal blocks in control flow messages
-   - Generates inline Nim `if/else`, `while`, `for`
-   - Falls back to runtime dispatch for non-literal blocks
-
-3. **Generated Output**:
+2. **Generated Output**:
    - Block procedure definitions at module level
    - Environment structs for captured variables
    - `createBlock()` calls with procedure references
+   - Runtime helpers (`sendMessage`, `isTruthy`, `toInt`, operator functions)
 
 ## IDE Integration Considerations
 
@@ -133,11 +147,15 @@ Recommendation: IDE should primarily use Harding-side Granite for consistency.
 ## Action Items
 
 1. **Document current divergence** (this file) ✓
-2. **Refactor CLI granite** to use shared `compileSource()` function
-3. **Add optional VM initialization** to CLI for advanced analysis
-4. **Create unified compiler API** in `compiler/compiler.nim`
-5. **Update primitives** to use same unified API
-6. **Add tests** ensuring both paths produce identical output
+2. **Standalone script compilation with inline control flow** ✓
+3. **Block registry and procedure generation infrastructure** ✓
+4. **First-class block compilation** with captures and `value:` dispatch
+5. **Non-local return** from blocks via Nim exceptions
+6. **Refactor CLI granite** to use shared `compileSource()` function
+7. **Add optional VM initialization** to CLI for advanced analysis
+8. **Create unified compiler API** in `compiler/compiler.nim`
+9. **Update primitives** to use same unified API
+10. **Add tests** ensuring both paths produce identical output
 
 ## Nim Metaprogramming Opportunities
 

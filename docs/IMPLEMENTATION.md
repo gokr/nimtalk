@@ -30,7 +30,8 @@ Harding consists of several subsystems:
 | Scheduler | `src/harding/core/scheduler.nim` | Green thread scheduling |
 | Process | `src/harding/core/process.nim` | Process type definitions |
 | REPL | `src/harding/repl/` | Interactive interface |
-| Compiler | `src/harding/compiler/` | Harding to Nim code generation |
+| Code Generation | `src/harding/codegen/` | Shared Nim code generation pipeline |
+| Compiler | `src/harding/compiler/` | Granite compiler entry points |
 | GTK Bridge | `src/harding/gui/gtk/` | GTK widget integration |
 
 ### Data Flow
@@ -559,11 +560,85 @@ src/harding/
 ├── repl/                # Interactive interface
 │   ├── doit.nim         # REPL context and script execution
 │   └── interact.nim     # Line editing
-├── compiler/            # Harding to Nim compilation
-│   └── ...
+├── codegen/             # Shared Nim code generation
+│   ├── module.nim       # Top-level module generation (genModule)
+│   ├── expression.nim   # Expression and statement generation with inline control flow
+│   ├── methods.nim      # Method body generation
+│   └── blocks.nim       # Block registry, captures, runtime helpers
+├── compiler/            # Granite compiler entry points
+│   ├── granite.nim      # CLI entry point (compile/build/run)
+│   ├── analyzer.nim     # Class/method analysis
+│   ├── context.nim      # Compiler context
+│   └── compiler_primitives.nim  # In-VM compiler primitives
 └── gui/                 # GTK bridge
     └── gtk/             # GTK4 wrappers and bridge
 ```
+
+---
+
+## Granite Compiler (Harding → Nim)
+
+### Overview
+
+Granite compiles Harding source code to Nim, producing native binaries. The compilation pipeline lives in `src/harding/codegen/` and is shared between the CLI tool and the in-VM compiler.
+
+### Pipeline
+
+```
+.hrd source → Lexer → Parser → AST → Code Generator → .nim source → Nim compiler → binary
+```
+
+### Code Generation Modules
+
+| Module | Purpose |
+|--------|---------|
+| `codegen/module.nim` | Top-level generation: imports, runtime helpers, block procedures, main proc |
+| `codegen/expression.nim` | Expression and statement generation, inline control flow |
+| `codegen/methods.nim` | Method body compilation |
+| `codegen/blocks.nim` | Block registry, capture analysis, environment structs, runtime helpers |
+
+### Inline Control Flow
+
+Literal blocks in control flow messages are compiled to native Nim constructs:
+
+| Harding | Generated Nim |
+|---------|--------------|
+| `cond ifTrue: [body]` | `if isTruthy(cond): body` |
+| `cond ifTrue: [a] ifFalse: [b]` | `if isTruthy(cond): a else: b` |
+| `[cond] whileTrue: [body]` | `while isTruthy(cond): body` |
+| `[cond] whileFalse: [body]` | `while not isTruthy(cond): body` |
+| `n timesRepeat: [body]` | `for i in 0..<toInt(n): body` |
+
+This avoids block object creation and dispatch overhead for common patterns.
+
+### Runtime Value System
+
+Generated code uses the same `NodeValue` variant type as the interpreter:
+
+```nim
+type NodeValue = object
+  case kind: ValueKind
+  of vkInt: intVal: int64
+  of vkFloat: floatVal: float64
+  of vkBool: boolVal: bool
+  of vkString: strVal: string
+  # ... etc
+```
+
+Arithmetic and comparison operators are compiled to helper functions (`nt_plus`, `nt_minus`, etc.) that handle type dispatch at runtime.
+
+### Performance
+
+Compiled code runs significantly faster than interpreted:
+
+| Mode | Relative Speed |
+|------|---------------|
+| Interpreter (debug) | 1x baseline |
+| Interpreter (release) | ~10x |
+| Compiled (debug) | ~330x |
+| Compiled (release) | ~2300x |
+
+(Based on sieve of Eratosthenes benchmark, primes up to 5000)
 
 ---
 
