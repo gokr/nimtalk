@@ -9,7 +9,8 @@ Transcript := Object derive: #(window box scrolledWindow sourceView owner)
 Transcript>>initialize [
   window := nil.
   sourceView := nil.
-  owner := nil
+  owner := nil.
+  ^ self
 ]
 
 Transcript>>show: anObject [
