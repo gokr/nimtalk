@@ -9,6 +9,7 @@ import ./slots
 import ./methods
 import ./control
 import ./expression
+import ./blocks
 
 # ============================================================================
 # Module Generation
@@ -122,7 +123,8 @@ proc extractClassAndMethodDefs(nodes: seq[Node]): tuple[defs: seq[Node], topLeve
 
   return (defs, topLevel)
 
-proc genMainProc*(ctx: var CompilerContext, topLevel: seq[Node], moduleName: string): string =
+proc genMainProc*(ctx: var CompilerContext, topLevel: seq[Node], moduleName: string,
+                  blockReg: BlockRegistry = nil): string =
   ## Generate the main() procedure for top-level statement execution
   var output = ""
 
@@ -137,8 +139,10 @@ proc genMainProc*(ctx: var CompilerContext, topLevel: seq[Node], moduleName: str
   # Initialize runtime
   output.add("  initRuntime()\n\n")
 
-  # Create generation context for top-level code
+  # Create generation context for top-level code, sharing block registry if provided
   var genCtx = newGenContext(nil)
+  if blockReg != nil:
+    genCtx.blockRegistry = blockReg
 
   # Generate code for each top-level statement
   for node in topLevel:
@@ -163,6 +167,8 @@ proc genModule*(ctx: var CompilerContext, nodes: seq[Node],
   output.add(genModuleHeader(ctx, moduleName))
   output.add(genRuntimeHelperMethods())
   output.add("\n")
+  output.add(genBlockRuntimeHelpers())
+  output.add("\n")
 
   # Separate class/method definitions from top-level statements
   let (classDefs, topLevel) = extractClassAndMethodDefs(nodes)
@@ -178,6 +184,39 @@ proc genModule*(ctx: var CompilerContext, nodes: seq[Node],
     output.add(genClassConstants(cls))
     output.add(genSlotAccessors(cls))
     output.add(genClassInit(cls))
+
+  # Generate block procedure definitions
+  output.add("\n")
+  output.add("# Block Procedures\n")
+  output.add("##################\n\n")
+
+  # Create a block registry and collect blocks
+  # Note: top-level variables are NOT passed as knownGlobals because they are
+  # locals of main() and need to be captured by block procs at module level.
+  # Only true globals (class names) would be excluded from captures.
+  var blockReg = newBlockRegistry()
+  for node in topLevel:
+    collectBlocks(blockReg, node)
+
+  # Generate environment structs for blocks with captures
+  for blockInfo in blockReg.getAllBlocks():
+    let structDef = generateEnvStructDef(blockInfo)
+    if structDef.len > 0:
+      output.add(structDef)
+      output.add("\n\n")
+
+  # Generate block procedure signatures and bodies using real code generation
+  var blockGenCtx = newGenContext(nil)
+  for blockInfo in blockReg.getAllBlocks():
+    output.add(generateBlockProcSignature(blockInfo))
+    output.add(" =\n")
+    let body = genBlockBody(blockGenCtx, blockInfo.blockNode, blockInfo.captures,
+                            blockInfo.hasNonLocalReturn)
+    if body.len > 0:
+      output.add(body)
+    else:
+      output.add("  return NodeValue(kind: vkNil)\n")
+    output.add("\n\n")
 
   # Generate control flow methods
   output.add("\n")
@@ -214,8 +253,8 @@ proc genModule*(ctx: var CompilerContext, nodes: seq[Node],
   output.add(genBinaryOpMethod("\\"))
   output.add(genBinaryOpMethod("%"))
 
-  # Generate main proc for top-level statements
-  output.add(genMainProc(ctx, topLevel, moduleName))
+  # Generate main proc for top-level statements, sharing block registry
+  output.add(genMainProc(ctx, topLevel, moduleName, blockReg))
 
   # Module initialization
   output.add("\n")
