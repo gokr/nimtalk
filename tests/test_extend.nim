@@ -1,14 +1,10 @@
 #
 # test_extend.nim - Tests for method batching (extend:, extendClass:)
 #
-# NOTE: extend: and extendClass: have a known limitation - they rely on
-# asSelfDo: primitive which has issues with method lookup when changing
-# the receiver context. See GitHub issue for details.
-#
 
 import std/[unittest, strutils]
 import ../src/harding/core/types
-import ../src/harding/interpreter/[vm, objects]
+import ../src/harding/interpreter/vm
 
 var sharedInterp: Interpreter
 sharedInterp = newInterpreter()
@@ -21,9 +17,7 @@ suite "Method Batching (extend:":
   setup:
     interp = sharedInterp
 
-  test "extend: adds multiple methods to a class (KNOWN LIMITATION)":
-    # extend: has a known issue with asSelfDo: primitive
-    # The primitive changes receiver context but selector:put: lookup fails
+  test "extend: adds multiple methods to a class":
     let result = interp.evalStatements("""
       MyClass := Object derive.
       MyClass extend: [
@@ -34,11 +28,13 @@ suite "Method Batching (extend:":
       Result1 := obj method1.
       Result2 := obj method2
     """)
-    # Currently fails due to asSelfDo: issue
-    if result[1].len > 0:
-      check("asSelfDo:" in result[1] or "selector:put:" in result[1])
+    check(result[1].len == 0)
+    check(result[0][^2].kind == vkInt)
+    check(result[0][^2].intVal == 1)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 2)
 
-  test "extendClass: adds class methods (KNOWN LIMITATION)":
+  test "extendClass: adds class methods":
     let result = interp.evalStatements("""
       MyClass := Object derive.
       MyClass extendClass: [
@@ -46,10 +42,11 @@ suite "Method Batching (extend:":
       ].
       Result := MyClass classMethod1
     """)
-    if result[1].len > 0:
-      check("asSelfDo:" in result[1] or "selector:put:" in result[1])
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "class")
 
-  test "extend: methods are immediately available (KNOWN LIMITATION)":
+  test "extend: methods are immediately available":
     let result = interp.evalStatements("""
       MyClass := Object derive.
       MyClass extend: [
@@ -58,10 +55,11 @@ suite "Method Batching (extend:":
       obj := MyClass new.
       Result := obj greet
     """)
-    if result[1].len > 0:
-      check("asSelfDo:" in result[1] or "selector:put:" in result[1])
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "hello")
 
-  test "multiple extend: calls work (KNOWN LIMITATION)":
+  test "multiple extend: calls work":
     let result = interp.evalStatements("""
       MyClass := Object derive.
       MyClass extend: [
@@ -74,10 +72,11 @@ suite "Method Batching (extend:":
       Result1 := obj methodA.
       Result2 := obj methodB
     """)
-    if result[1].len > 0:
-      check("asSelfDo:" in result[1] or "selector:put:" in result[1])
+    check(result[1].len == 0)
+    check(result[0][^2].strVal == "A")
+    check(result[0][^1].strVal == "B")
 
-  test "extend: can reference self (KNOWN LIMITATION)":
+  test "extend: can reference self":
     let result = interp.evalStatements("""
       MyClass := Object derive.
       MyClass extend: [
@@ -86,10 +85,11 @@ suite "Method Batching (extend:":
       obj := MyClass new.
       Result := obj whoami
     """)
-    if result[1].len > 0:
-      check("asSelfDo:" in result[1] or "selector:put:" in result[1])
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "MyClass")
 
-  test "extend: works with accessors (KNOWN LIMITATION)":
+  test "extend: works with accessors":
     let result = interp.evalStatements("""
       MyClass := Object deriveWithAccessors: #(value).
       MyClass extend: [
@@ -99,5 +99,6 @@ suite "Method Batching (extend:":
       obj value: 21.
       Result := obj doubled
     """)
-    if result[1].len > 0:
-      check("asSelfDo:" in result[1] or "selector:put:" in result[1])
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 42)
