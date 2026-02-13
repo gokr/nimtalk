@@ -57,7 +57,3 @@ FileStream>>openAppend: filename [
   # Open file for appending
   ^ FileStream new open: filename mode: "a"
 ]
-
-FileStream>>gg [
-  Stdout writeline: ("Harding IDE Launcher opened and 3 + 4 = " , (3 + 4) printString)
-]

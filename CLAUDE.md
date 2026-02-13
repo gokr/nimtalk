@@ -19,7 +19,7 @@ nimble local             # Build and copy binaries to root directory (PREFERRED)
 nimble build             # Build the REPL and compiler (binaries in subdirectories only)
 nimble test              # Run all tests (automatic discovery via testament)
 nimble clean             # Clean build artifacts and binaries
-nimble install           # Install harding binary to ~/.local/bin/
+nimble install_harding   # Install harding binary to ~/.local/bin/
 ```
 
 **IMPORTANT**: Always use `nimble local` when developing. This is the only command that updates the `./harding` and `./granite` binaries in the root directory. Using `nimble build` alone will NOT update the root directory binaries.
@@ -30,7 +30,8 @@ The following nimble tasks provide convenient shortcuts for common development t
 
 - **`nimble local`**: Builds the project using `nimble build` and copies the `harding` and `granite` binaries to the root directory for easy access. **Always use this when developing.**
 - **`nimble clean`**: Removes build artifacts including nimcache, build directories, and binaries from all locations
-- **`nimble install`**: Copies the `harding` binary to `~/.local/bin` (Unix/Linux/macOS) or appropriate Windows location
+- **`nimble install_harding`**: Copies the `harding` binary to `~/.local/bin` (Unix/Linux/macOS) or appropriate Windows location
+- **`nimble harding_bitbarrel`**: Build REPL with BitBarrel database support (requires BitBarrel server)
 
 These tasks match the functionality previously only available through `nim e build.nims <task>`.
 
@@ -793,20 +794,124 @@ condition ifTrue: [...] ifFalse: [...]
 - `class` - Get the class of an object
 - `derive:` - Create a new class with slots
 
-## Future Directions
+## BitBarrel Integration
 
-### BitBarrel Integration
-Consider integrating BitBarrel (the high-performance Bitcask-style key-value storage engine from ../bitbarrel) as a core part of Harding. This would provide:
-- First-class barrel objects in Harding
-- Built-in persistence model similar to Gemstone and original OODBs
-- High-performance storage with O(1) reads via in-memory hash index
-- Crash recovery with hint files for fast startup
-- Background compaction
+BitBarrel is a high-performance Bitcask-style key-value storage engine that has been integrated into Harding to provide first-class persistent collections.
 
-Potential integration approaches:
-1. Expose BitBarrel API as Harding objects and methods
-2. Implement barrel literals in the language syntax
-3. Provide transparent persistence for Harding objects
-4. Use FFI to call BitBarrel C API or directly link the Nim library
+### Building with BitBarrel Support
 
-This would give Harding a powerful persistence layer built into the language.
+To enable BitBarrel support, build with the `-d:bitbarrel` flag:
+
+```bash
+nimble harding_bitbarrel          # Build REPL with BitBarrel
+nimble harding_bitbarrel_release  # Build release version
+```
+
+Or manually:
+```bash
+nim c -d:bitbarrel -o:harding src/harding/repl/harding.nim
+```
+
+This requires the `whisky` WebSocket library which will be automatically installed.
+
+### Available Classes
+
+**Barrel** - Connection to BitBarrel server:
+```harding
+# Connect to default localhost:9876
+barrel := Barrel new.
+
+# Connect to specific host
+barrel := Barrel open: "192.168.1.100:9876".
+
+# Create and use barrels
+barrel create: "mydata" mode: 'hash'.
+barrel use: "mydata".
+barrel close.
+```
+
+**BarrelTable** - Hash-based persistent key-value storage:
+```harding
+# Create new hash-based table
+users := BarrelTable create: "users".
+
+# Or open existing
+users := BarrelTable open: "users".
+
+# Basic operations
+users at: 'user:1' put: 'Alice'.
+name := users at: 'user:1'.
+users includesKey: 'user:1'.  # true
+users removeKey: 'user:1'.
+
+# Collection protocol
+users do: [:key :value | Transcript showCr: key + " => " + value].
+users keys.     # Array of all keys
+users size.     # Number of entries
+users isEmpty.  # Check if empty
+
+# Higher-order methods (return in-memory Tables)
+adults := users select: [:key :user | (user at: 'age') >= 18].
+names := users collect: [:key :user | user at: 'name'].
+```
+
+**BarrelSortedTable** - Ordered persistent storage with range queries:
+```harding
+# Create new ordered table (uses critbit index)
+logs := BarrelSortedTable create: "logs".
+
+# Same basic operations as BarrelTable
+logs at: '2024-01-01:001' put: 'System started'.
+
+# Range queries (returns in-memory Table)
+janLogs := logs rangeFrom: '2024-01-01' to: '2024-02-01'.
+day1Logs := logs prefix: '2024-01-01:'.
+
+# Ordered access
+logs first.   # First entry {key. value}
+logs last.    # Last entry
+logs keys.    # Keys in sorted order
+```
+
+### Loading BitBarrel in Harding
+
+In the REPL or scripts:
+```harding
+# Load all BitBarrel classes
+load: "lib/harding/bitbarrel/Bootstrap.hrd".
+
+# Or individual files
+load: "lib/harding/bitbarrel/Barrel.hrd".
+load: "lib/harding/bitbarrel/BarrelTable.hrd".
+load: "lib/harding/bitbarrel/BarrelSortedTable.hrd".
+```
+
+### Architecture
+
+The BitBarrel integration follows the same pattern as GTK integration:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              Harding Level (Smalltalk)                   │
+│         Barrel, BarrelTable, BarrelSortedTable          │
+├─────────────────────────────────────────────────────────┤
+│              Nim Bridge Layer (FFI)                    │
+│    barrel.nim, barrel_table.nim, barrel_sorted_table.nim │
+├─────────────────────────────────────────────────────────┤
+│         BitBarrel Client Library (Nim)                 │
+│              WebSocket protocol via whisky             │
+├─────────────────────────────────────────────────────────┤
+│               BitBarrel Server                         │
+│         Bitcask-style key-value storage                │
+└─────────────────────────────────────────────────────────┘
+```
+
+The native methods are conditionally compiled with `when defined(bitbarrel):` so Harding builds without BitBarrel support will still work (just without the BitBarrel classes).
+
+### Future Directions
+
+Potential enhancements:
+1. Implement barrel literals in the language syntax
+2. Provide transparent persistence for Harding objects
+3. Add transaction support
+4. Implement distributed/barrel sharding features
