@@ -2171,20 +2171,16 @@ proc initGlobals*(interp: var Interpreter) =
   # Add isClass method to Object - returns true if self is a Class object
   proc primitiveIsClassImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
     # Check if self is a Class object (like Object, String, Number, etc.)
-    # In this system, classes are special objects that can create instances.
-    # The key difference: classes have class methods like 'derive:' which are
-    # used to create subclasses. Regular instances don't have these.
+    # Class objects are ikObject instances with 0 slots (they don't have instance variables)
+    # Regular instances have slots defined by their class.
     #
-    # We check for 'derive:' which is only defined on classes as a class method.
-    # Instances inherit from Object which has 'derive:' as an instance method? No...
-    # Let me check Object.hrd - derive: is a class method (Object class>>derive:)
-    # So only classes (metaclasses) should have derive: in their class methods.
-    if self.class != nil:
-      # Check if derive: exists in the class methods of self's class
-      # This would mean self is a class object (metaclass instance)
-      let lookupDerive = lookupClassMethod(self.class, "derive:")
-      if lookupDerive.found:
-        return trueValue
+    # When a Class (vkClass) is wrapped as an Instance, it becomes an ikObject
+    # with 0 slots because classes don't have instance slots in this system.
+    # When a regular instance is created, it has slots as defined by its class.
+    #
+    # So the check is: ikObject with 0 slots = likely a class object
+    if self.kind == ikObject and self.slots.len == 0:
+      return trueValue
     return falseValue
 
   let isClassMethod = createCoreMethod("isClass")
