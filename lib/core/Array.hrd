@@ -1,0 +1,142 @@
+#!/usr/bin/env harding
+#
+# Array.hrd - Array class methods
+# Uses primitive selectors registered in vm.nim initGlobals()
+#
+
+#====================================================================
+# Array primitives
+#====================================================================
+
+Array>>size <primitive primitiveArraySize>
+
+Array>>at: index <primitive primitiveArrayAt: index>
+
+Array>>at: index put: value <primitive primitiveArrayAt: index put: value>
+
+Array>>add: element <primitive primitiveArrayAdd: element>
+
+Array>>removeAt: index <primitive primitiveArrayRemoveAt: index>
+
+Array>>includes: element <primitive primitiveArrayIncludes: element>
+
+Array>>reverse <primitive primitiveArrayReverse>
+
+#====================================================================
+# Array class methods
+#====================================================================
+
+Array class>>new <primitive primitiveArrayNew>
+
+Array class>>new: size <primitive primitiveArrayNew: size>
+
+#====================================================================
+# Array iteration
+#====================================================================
+
+Array>>do: block <primitive primitiveDo: block>
+
+#====================================================================
+# Array higher-order methods (defined in Harding code)
+#====================================================================
+
+Array>>collect: block [
+    # Transform each element using block, return new Array
+    | result |
+    result := Array new.
+    self do: [:elem |
+        result add: (block value: elem)
+    ].
+    ^ result
+]
+
+Array>>select: block [
+    # Return new Array with elements where block returns true
+    | result |
+    result := Array new.
+    self do: [:elem |
+        (block value: elem) ifTrue: [
+            result add: elem
+        ]
+    ].
+    ^ result
+]
+
+Array>>reject: block [
+    # Return new Array with elements where block returns false
+    | result |
+    result := Array new.
+    self do: [:elem |
+        (block value: elem) ifFalse: [
+            result add: elem
+        ]
+    ].
+    ^ result
+]
+
+Array>>detect: block [
+    # Return first element where block returns true, or nil
+    self do: [:elem |
+        (block value: elem) ifTrue: [ ^ elem ]
+    ].
+    ^ nil
+]
+
+Array>>detect: block ifNone: noneBlock [
+    # Return first element where block returns true, or evaluate noneBlock
+    self do: [:elem |
+        (block value: elem) ifTrue: [ ^ elem ]
+    ].
+    ^ noneBlock value
+]
+
+Array>>inject: initial into: block [
+    # Fold/reduce: accumulate value starting with initial
+    | result |
+    result := initial.
+    self do: [:elem |
+        result := block value: result value: elem
+    ].
+    ^ result
+]
+
+Array>>join: separator [
+    # Join elements as strings with separator
+    | result first |
+    result := "".
+    first := true.
+    self do: [:elem |
+        first ifFalse: [ result := result , separator ].
+        result := result , elem printString.
+        first := false
+    ].
+    ^ result
+]
+
+#====================================================================
+# Array testing
+#====================================================================
+
+Array>>isEmpty [
+    ^ self size = 0
+]
+
+Array>>notEmpty [
+    ^ self size > 0
+]
+
+Array>>anySatisfy: block [
+    # Return true if any element satisfies block
+    self do: [:elem |
+        (block value: elem) ifTrue: [ ^ true ]
+    ].
+    ^ false
+]
+
+Array>>allSatisfy: block [
+    # Return true if all elements satisfy block
+    self do: [:elem |
+        (block value: elem) ifFalse: [ ^ false ]
+    ].
+    ^ true
+]

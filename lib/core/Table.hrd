@@ -1,0 +1,129 @@
+#!/usr/bin/env harding
+#
+# Table.hrd - Table (Dictionary) class methods
+# Uses primitive selectors registered in vm.nim initGlobals()
+#
+
+#====================================================================
+# Table primitives
+#====================================================================
+
+Table>>at: key <primitive primitiveAt: key>
+
+Table>>at: key put: value <primitive primitiveAt: key put: value>
+
+Table>>keys <primitive primitiveKeys>
+
+Table>>includesKey: key <primitive primitiveIncludesKey: key>
+
+Table>>removeKey: key <primitive primitiveRemoveKey: key>
+
+#====================================================================
+# Table class methods
+#====================================================================
+
+Table class>>new <primitive primitiveTableNew>
+
+#====================================================================
+# Table iteration
+#====================================================================
+
+Table>>do: block [
+    # Iterate over values in the table
+    self keys do: [:key |
+        block value: (self at: key)
+    ]
+]
+
+Table>>keysAndValuesDo: block [
+    # Iterate over key-value pairs
+    self keys do: [:key |
+        block value: key value: (self at: key)
+    ]
+]
+
+#====================================================================
+# Table testing
+#====================================================================
+
+Table>>isEmpty [
+    ^ self size = 0
+]
+
+Table>>notEmpty [
+    ^ self size > 0
+]
+
+Table>>includes: value [
+    # Check if value exists in table (searches values, not keys)
+    self keys do: [:key |
+        (self at: key) = value ifTrue: [ ^ true ]
+    ].
+    ^ false
+]
+
+Table>>size [
+    # Return number of entries
+    ^ self keys size
+]
+
+#====================================================================
+# Table accessing
+#====================================================================
+
+Table>>at: key ifAbsent: block [
+    # Get value at key, or evaluate block if absent
+    (self includesKey: key) ifTrue: [
+        ^ self at: key
+    ] ifFalse: [
+        ^ block value
+    ]
+]
+
+Table>>at: key ifAbsentPut: block [
+    # Get value at key, or put and return result of block
+    (self includesKey: key) ifTrue: [
+        ^ self at: key
+    ] ifFalse: [
+        | value |
+        value := block value.
+        self at: key put: value.
+        ^ value
+    ]
+]
+
+Table>>removeKey: key ifAbsent: block [
+    # Remove key if present, otherwise evaluate block
+    (self includesKey: key) ifTrue: [
+        ^ self removeKey: key
+    ] ifFalse: [
+        ^ block value
+    ]
+]
+
+#====================================================================
+# Table conversion
+#====================================================================
+
+Table>>values [
+    # Return Array of all values
+    | result |
+    result := Array new.
+    self keys do: [:key |
+        result add: (self at: key)
+    ].
+    ^ result
+]
+
+Table>>associations [
+    # Return Array of #(key value) pairs
+    | result pair |
+    result := Array new.
+    self keys do: [:key |
+        pair := Array new: 2.
+        pair at: 1 put: key.
+        pair at: 2 put: (self at: key).
+        result add: pair
+    ].
+    ^ result
+]

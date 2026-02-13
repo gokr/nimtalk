@@ -10,8 +10,12 @@ Standard := Library new.
 Harding load: "lib/core/Object.hrd"
 Harding load: "lib/core/Boolean.hrd"
 Harding load: "lib/core/Block.hrd"
-Harding load: "lib/core/Number.hrd"
+Harding load: "lib/core/Integer.hrd"
+Harding load: "lib/core/Float.hrd"
 Harding load: "lib/core/String.hrd"
+Harding load: "lib/core/Array.hrd"
+Harding load: "lib/core/Table.hrd"
+Harding load: "lib/core/Number.hrd"
 
 # Load new classes into Standard Library
 Standard load: "lib/core/Collections.hrd"

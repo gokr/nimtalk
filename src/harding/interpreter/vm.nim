@@ -2209,163 +2209,21 @@ proc initGlobals*(interp: var Interpreter) =
   objectCls.allClassMethods["primitiveEval:"] = evalMethod
 
   # Create Number class (derives from Object)
+  # Number is an abstract class; methods are defined in .hrd files
   let numberCls = newClass(superclasses = @[objectCls], name = "Number")
   numberCls.tags = @["Number"]
 
   # Create Integer class (derives from Number)
+  # Methods are defined in lib/core/Integer.hrd using <primitive> syntax
   let intCls = newClass(superclasses = @[numberCls], name = "Integer")
   intCls.tags = @["Integer", "Number"]
   integerClass = intCls
 
-  # Register Integer arithmetic methods
-  let plusMethod = createCoreMethod("+")
-  plusMethod.setNativeImpl(plusImpl)
-  intCls.methods["+"] = plusMethod
-  intCls.allMethods["+"] = plusMethod
-
-  let minusMethod = createCoreMethod("-")
-  minusMethod.setNativeImpl(minusImpl)
-  intCls.methods["-"] = minusMethod
-  intCls.allMethods["-"] = minusMethod
-
-  let starMethod = createCoreMethod("*")
-  starMethod.setNativeImpl(starImpl)
-  intCls.methods["*"] = starMethod
-  intCls.allMethods["*"] = starMethod
-
-  let slashMethod = createCoreMethod("/")
-  slashMethod.setNativeImpl(slashImpl)
-  intCls.methods["/"] = slashMethod
-  intCls.allMethods["/"] = slashMethod
-
-  # Register Integer comparison methods
-  let ltMethod = createCoreMethod("<")
-  ltMethod.setNativeImpl(ltImpl)
-  intCls.methods["<"] = ltMethod
-  intCls.allMethods["<"] = ltMethod
-
-  let gtMethod = createCoreMethod(">")
-  gtMethod.setNativeImpl(gtImpl)
-  intCls.methods[">"] = gtMethod
-  intCls.allMethods[">"] = gtMethod
-
-  let eqMethod = createCoreMethod("=")
-  eqMethod.setNativeImpl(eqImpl)
-  intCls.methods["="] = eqMethod
-  intCls.allMethods["="] = eqMethod
-
-  let leMethod = createCoreMethod("<=")
-  leMethod.setNativeImpl(leImpl)
-  intCls.methods["<="] = leMethod
-  intCls.allMethods["<="] = leMethod
-
-  let geMethod = createCoreMethod(">=")
-  geMethod.setNativeImpl(geImpl)
-  intCls.methods[">="] = geMethod
-  intCls.allMethods[">="] = geMethod
-
-  let neMethod = createCoreMethod("<>")
-  neMethod.setNativeImpl(neImpl)
-  intCls.methods["<>"] = neMethod
-  intCls.allMethods["<>"] = neMethod
-
-  # Register printString on Integer
-  let intPrintStringMethod = createCoreMethod("printString")
-  intPrintStringMethod.setNativeImpl(printStringImpl)
-  intCls.methods["printString"] = intPrintStringMethod
-  intCls.allMethods["printString"] = intPrintStringMethod
-
-  # Register additional Integer methods
-  let intDivMethod = createCoreMethod("//")
-  intDivMethod.setNativeImpl(intDivImpl)
-  intCls.methods["//"] = intDivMethod
-  intCls.allMethods["//"] = intDivMethod
-
-  let backslashModuloMethod = createCoreMethod("\\")
-  backslashModuloMethod.setNativeImpl(backslashModuloImpl)
-  intCls.methods["\\"] = backslashModuloMethod
-  intCls.allMethods["\\"] = backslashModuloMethod
-
-  let moduloMethod = createCoreMethod("%")
-  moduloMethod.setNativeImpl(moduloImpl)
-  intCls.methods["%"] = moduloMethod
-  intCls.allMethods["%"] = moduloMethod
-
-  let intSqrtMethod = createCoreMethod("sqrt")
-  intSqrtMethod.setNativeImpl(sqrtImpl)
-  intCls.methods["sqrt"] = intSqrtMethod
-  intCls.allMethods["sqrt"] = intSqrtMethod
-
   # Create Float class (derives from Number)
-  # Note: Float may have been created in initCoreClasses, but with wrong superclasses
-  # We recreate it here with the proper inheritance chain
+  # Methods are defined in lib/core/Float.hrd using <primitive> syntax
   let floatCls = newClass(superclasses = @[numberCls], name = "Float")
   floatCls.tags = @["Float", "Number"]
   floatClass = floatCls
-
-  # Register Float arithmetic methods (same implementations as Integer)
-  let floatPlusMethod = createCoreMethod("+")
-  floatPlusMethod.setNativeImpl(plusImpl)
-  floatCls.methods["+"] = floatPlusMethod
-  floatCls.allMethods["+"] = floatPlusMethod
-
-  let floatMinusMethod = createCoreMethod("-")
-  floatMinusMethod.setNativeImpl(minusImpl)
-  floatCls.methods["-"] = floatMinusMethod
-  floatCls.allMethods["-"] = floatMinusMethod
-
-  let floatStarMethod = createCoreMethod("*")
-  floatStarMethod.setNativeImpl(starImpl)
-  floatCls.methods["*"] = floatStarMethod
-  floatCls.allMethods["*"] = floatStarMethod
-
-  let floatSlashMethod = createCoreMethod("/")
-  floatSlashMethod.setNativeImpl(slashImpl)
-  floatCls.methods["/"] = floatSlashMethod
-  floatCls.allMethods["/"] = floatSlashMethod
-
-  # Register Float comparison methods
-  let floatLtMethod = createCoreMethod("<")
-  floatLtMethod.setNativeImpl(ltImpl)
-  floatCls.methods["<"] = floatLtMethod
-  floatCls.allMethods["<"] = floatLtMethod
-
-  let floatGtMethod = createCoreMethod(">")
-  floatGtMethod.setNativeImpl(gtImpl)
-  floatCls.methods[">"] = floatGtMethod
-  floatCls.allMethods[">"] = floatGtMethod
-
-  let floatEqMethod = createCoreMethod("=")
-  floatEqMethod.setNativeImpl(eqImpl)
-  floatCls.methods["="] = floatEqMethod
-  floatCls.allMethods["="] = floatEqMethod
-
-  let floatLeMethod = createCoreMethod("<=")
-  floatLeMethod.setNativeImpl(leImpl)
-  floatCls.methods["<="] = floatLeMethod
-  floatCls.allMethods["<="] = floatLeMethod
-
-  let floatGeMethod = createCoreMethod(">=")
-  floatGeMethod.setNativeImpl(geImpl)
-  floatCls.methods[">="] = floatGeMethod
-  floatCls.allMethods[">="] = floatGeMethod
-
-  let floatNeMethod = createCoreMethod("<>")
-  floatNeMethod.setNativeImpl(neImpl)
-  floatCls.methods["<>"] = floatNeMethod
-  floatCls.allMethods["<>"] = floatNeMethod
-
-  # Register printString on Float (to ensure it has direct access to the primitive)
-  let floatPrintStringMethod = createCoreMethod("printString")
-  floatPrintStringMethod.setNativeImpl(printStringImpl)
-  floatCls.methods["printString"] = floatPrintStringMethod
-  floatCls.allMethods["printString"] = floatPrintStringMethod
-
-  # Add Float-specific methods
-  let sqrtMethod = createCoreMethod("sqrt")
-  sqrtMethod.setNativeImpl(sqrtImpl)
-  floatCls.methods["sqrt"] = sqrtMethod
-  floatCls.allMethods["sqrt"] = sqrtMethod
 
   # Create String class (derives from Object)
   let stringCls = newClass(superclasses = @[objectCls], name = "String")
@@ -2444,6 +2302,241 @@ proc initGlobals*(interp: var Interpreter) =
   stringCls.methods["primitiveRepeat:"] = stringRepeatMethod
   stringCls.allMethods["primitiveRepeat:"] = stringRepeatMethod
 
+  # ============================================================================
+  # Register Integer primitive selectors (used by lib/core/Integer.hrd)
+  # ============================================================================
+
+  # Register Integer arithmetic primitives
+  let intPlusMethod = createCoreMethod("primitivePlus:")
+  intPlusMethod.setNativeImpl(plusImpl)
+  intCls.methods["primitivePlus:"] = intPlusMethod
+  intCls.allMethods["primitivePlus:"] = intPlusMethod
+
+  let intMinusMethod = createCoreMethod("primitiveMinus:")
+  intMinusMethod.setNativeImpl(minusImpl)
+  intCls.methods["primitiveMinus:"] = intMinusMethod
+  intCls.allMethods["primitiveMinus:"] = intMinusMethod
+
+  let intTimesMethod = createCoreMethod("primitiveTimes:")
+  intTimesMethod.setNativeImpl(starImpl)
+  intCls.methods["primitiveTimes:"] = intTimesMethod
+  intCls.allMethods["primitiveTimes:"] = intTimesMethod
+
+  let intDivideMethod = createCoreMethod("primitiveDivide:")
+  intDivideMethod.setNativeImpl(slashImpl)
+  intCls.methods["primitiveDivide:"] = intDivideMethod
+  intCls.allMethods["primitiveDivide:"] = intDivideMethod
+
+  let intIntDivMethod = createCoreMethod("primitiveIntDiv:")
+  intIntDivMethod.setNativeImpl(intDivImpl)
+  intCls.methods["primitiveIntDiv:"] = intIntDivMethod
+  intCls.allMethods["primitiveIntDiv:"] = intIntDivMethod
+
+  # Register Integer comparison primitives
+  let intLessThanMethod = createCoreMethod("primitiveLessThan:")
+  intLessThanMethod.setNativeImpl(ltImpl)
+  intCls.methods["primitiveLessThan:"] = intLessThanMethod
+  intCls.allMethods["primitiveLessThan:"] = intLessThanMethod
+
+  let intGreaterThanMethod = createCoreMethod("primitiveGreaterThan:")
+  intGreaterThanMethod.setNativeImpl(gtImpl)
+  intCls.methods["primitiveGreaterThan:"] = intGreaterThanMethod
+  intCls.allMethods["primitiveGreaterThan:"] = intGreaterThanMethod
+
+  let intEqualsMethod = createCoreMethod("primitiveEquals:")
+  intEqualsMethod.setNativeImpl(eqImpl)
+  intCls.methods["primitiveEquals:"] = intEqualsMethod
+  intCls.allMethods["primitiveEquals:"] = intEqualsMethod
+
+  let intLessOrEqMethod = createCoreMethod("primitiveLessOrEq:")
+  intLessOrEqMethod.setNativeImpl(leImpl)
+  intCls.methods["primitiveLessOrEq:"] = intLessOrEqMethod
+  intCls.allMethods["primitiveLessOrEq:"] = intLessOrEqMethod
+
+  let intGreaterOrEqMethod = createCoreMethod("primitiveGreaterOrEq:")
+  intGreaterOrEqMethod.setNativeImpl(geImpl)
+  intCls.methods["primitiveGreaterOrEq:"] = intGreaterOrEqMethod
+  intCls.allMethods["primitiveGreaterOrEq:"] = intGreaterOrEqMethod
+
+  let intNotEqualsMethod = createCoreMethod("primitiveNotEquals:")
+  intNotEqualsMethod.setNativeImpl(neImpl)
+  intCls.methods["primitiveNotEquals:"] = intNotEqualsMethod
+  intCls.allMethods["primitiveNotEquals:"] = intNotEqualsMethod
+
+  # Register Integer other primitives
+  let intSqrtMethod = createCoreMethod("primitiveSqrt")
+  intSqrtMethod.setNativeImpl(sqrtImpl)
+  intCls.methods["primitiveSqrt"] = intSqrtMethod
+  intCls.allMethods["primitiveSqrt"] = intSqrtMethod
+
+  let intPrintStringMethod = createCoreMethod("primitivePrintString")
+  intPrintStringMethod.setNativeImpl(printStringImpl)
+  intCls.methods["primitivePrintString"] = intPrintStringMethod
+  intCls.allMethods["primitivePrintString"] = intPrintStringMethod
+
+  # ============================================================================
+  # Register Float primitive selectors (used by lib/core/Float.hrd)
+  # Float uses the same primitive implementations as Integer
+  # ============================================================================
+
+  # Register Float arithmetic primitives
+  let floatPlusMethod = createCoreMethod("primitivePlus:")
+  floatPlusMethod.setNativeImpl(plusImpl)
+  floatCls.methods["primitivePlus:"] = floatPlusMethod
+  floatCls.allMethods["primitivePlus:"] = floatPlusMethod
+
+  let floatMinusMethod = createCoreMethod("primitiveMinus:")
+  floatMinusMethod.setNativeImpl(minusImpl)
+  floatCls.methods["primitiveMinus:"] = floatMinusMethod
+  floatCls.allMethods["primitiveMinus:"] = floatMinusMethod
+
+  let floatTimesMethod = createCoreMethod("primitiveTimes:")
+  floatTimesMethod.setNativeImpl(starImpl)
+  floatCls.methods["primitiveTimes:"] = floatTimesMethod
+  floatCls.allMethods["primitiveTimes:"] = floatTimesMethod
+
+  let floatDivideMethod = createCoreMethod("primitiveDivide:")
+  floatDivideMethod.setNativeImpl(slashImpl)
+  floatCls.methods["primitiveDivide:"] = floatDivideMethod
+  floatCls.allMethods["primitiveDivide:"] = floatDivideMethod
+
+  # Register Float comparison primitives
+  let floatLessThanMethod = createCoreMethod("primitiveLessThan:")
+  floatLessThanMethod.setNativeImpl(ltImpl)
+  floatCls.methods["primitiveLessThan:"] = floatLessThanMethod
+  floatCls.allMethods["primitiveLessThan:"] = floatLessThanMethod
+
+  let floatGreaterThanMethod = createCoreMethod("primitiveGreaterThan:")
+  floatGreaterThanMethod.setNativeImpl(gtImpl)
+  floatCls.methods["primitiveGreaterThan:"] = floatGreaterThanMethod
+  floatCls.allMethods["primitiveGreaterThan:"] = floatGreaterThanMethod
+
+  let floatEqualsMethod = createCoreMethod("primitiveEquals:")
+  floatEqualsMethod.setNativeImpl(eqImpl)
+  floatCls.methods["primitiveEquals:"] = floatEqualsMethod
+  floatCls.allMethods["primitiveEquals:"] = floatEqualsMethod
+
+  let floatLessOrEqMethod = createCoreMethod("primitiveLessOrEq:")
+  floatLessOrEqMethod.setNativeImpl(leImpl)
+  floatCls.methods["primitiveLessOrEq:"] = floatLessOrEqMethod
+  floatCls.allMethods["primitiveLessOrEq:"] = floatLessOrEqMethod
+
+  let floatGreaterOrEqMethod = createCoreMethod("primitiveGreaterOrEq:")
+  floatGreaterOrEqMethod.setNativeImpl(geImpl)
+  floatCls.methods["primitiveGreaterOrEq:"] = floatGreaterOrEqMethod
+  floatCls.allMethods["primitiveGreaterOrEq:"] = floatGreaterOrEqMethod
+
+  let floatNotEqualsMethod = createCoreMethod("primitiveNotEquals:")
+  floatNotEqualsMethod.setNativeImpl(neImpl)
+  floatCls.methods["primitiveNotEquals:"] = floatNotEqualsMethod
+  floatCls.allMethods["primitiveNotEquals:"] = floatNotEqualsMethod
+
+  # Register Float other primitives
+  let floatSqrtMethod = createCoreMethod("primitiveSqrt")
+  floatSqrtMethod.setNativeImpl(sqrtImpl)
+  floatCls.methods["primitiveSqrt"] = floatSqrtMethod
+  floatCls.allMethods["primitiveSqrt"] = floatSqrtMethod
+
+  let floatPrintStringMethod = createCoreMethod("primitivePrintString")
+  floatPrintStringMethod.setNativeImpl(printStringImpl)
+  floatCls.methods["primitivePrintString"] = floatPrintStringMethod
+  floatCls.allMethods["primitivePrintString"] = floatPrintStringMethod
+
+  # Register backslash operator (modulo) - special character needs direct registration
+  let intBackslashMethod = createCoreMethod("\\")
+  intBackslashMethod.setNativeImpl(backslashModuloImpl)
+  intCls.methods["\\"] = intBackslashMethod
+  intCls.allMethods["\\"] = intBackslashMethod
+
+  let floatBackslashMethod = createCoreMethod("\\")
+  floatBackslashMethod.setNativeImpl(backslashModuloImpl)
+  floatCls.methods["\\"] = floatBackslashMethod
+  floatCls.allMethods["\\"] = floatBackslashMethod
+
+  # Register printString for Integer and Float (needed for tests and basic functionality)
+  let intPrintStringMethod2 = createCoreMethod("printString")
+  intPrintStringMethod2.setNativeImpl(printStringImpl)
+  intCls.methods["printString"] = intPrintStringMethod2
+  intCls.allMethods["printString"] = intPrintStringMethod2
+
+  let floatPrintStringMethod2 = createCoreMethod("printString")
+  floatPrintStringMethod2.setNativeImpl(printStringImpl)
+  floatCls.methods["printString"] = floatPrintStringMethod2
+  floatCls.allMethods["printString"] = floatPrintStringMethod2
+
+  # Register arithmetic methods directly on Integer and Float
+  # These are needed for tests that don't load the full stdlib
+  let intPlusMethod2 = createCoreMethod("+")
+  intPlusMethod2.setNativeImpl(plusImpl)
+  intCls.methods["+"] = intPlusMethod2
+  intCls.allMethods["+"] = intPlusMethod2
+
+  let intMinusMethod2 = createCoreMethod("-")
+  intMinusMethod2.setNativeImpl(minusImpl)
+  intCls.methods["-"] = intMinusMethod2
+  intCls.allMethods["-"] = intMinusMethod2
+
+  let intStarMethod2 = createCoreMethod("*")
+  intStarMethod2.setNativeImpl(starImpl)
+  intCls.methods["*"] = intStarMethod2
+  intCls.allMethods["*"] = intStarMethod2
+
+  let intSlashMethod2 = createCoreMethod("/")
+  intSlashMethod2.setNativeImpl(slashImpl)
+  intCls.methods["/"] = intSlashMethod2
+  intCls.allMethods["/"] = intSlashMethod2
+
+  let intEqMethod2 = createCoreMethod("=")
+  intEqMethod2.setNativeImpl(eqImpl)
+  intCls.methods["="] = intEqMethod2
+  intCls.allMethods["="] = intEqMethod2
+
+  let intLtMethod2 = createCoreMethod("<")
+  intLtMethod2.setNativeImpl(ltImpl)
+  intCls.methods["<"] = intLtMethod2
+  intCls.allMethods["<"] = intLtMethod2
+
+  let floatPlusMethod2 = createCoreMethod("+")
+  floatPlusMethod2.setNativeImpl(plusImpl)
+  floatCls.methods["+"] = floatPlusMethod2
+  floatCls.allMethods["+"] = floatPlusMethod2
+
+  let floatMinusMethod2 = createCoreMethod("-")
+  floatMinusMethod2.setNativeImpl(minusImpl)
+  floatCls.methods["-"] = floatMinusMethod2
+  floatCls.allMethods["-"] = floatMinusMethod2
+
+  let floatStarMethod2 = createCoreMethod("*")
+  floatStarMethod2.setNativeImpl(starImpl)
+  floatCls.methods["*"] = floatStarMethod2
+  floatCls.allMethods["*"] = floatStarMethod2
+
+  let floatSlashMethod2 = createCoreMethod("/")
+  floatSlashMethod2.setNativeImpl(slashImpl)
+  floatCls.methods["/"] = floatSlashMethod2
+  floatCls.allMethods["/"] = floatSlashMethod2
+
+  let floatEqMethod2 = createCoreMethod("=")
+  floatEqMethod2.setNativeImpl(eqImpl)
+  floatCls.methods["="] = floatEqMethod2
+  floatCls.allMethods["="] = floatEqMethod2
+
+  let floatLtMethod2 = createCoreMethod("<")
+  floatLtMethod2.setNativeImpl(ltImpl)
+  floatCls.methods["<"] = floatLtMethod2
+  floatCls.allMethods["<"] = floatLtMethod2
+
+  # Register // (integer division) for Integer and Float
+  let intIntDivMethod2 = createCoreMethod("//")
+  intIntDivMethod2.setNativeImpl(intDivImpl)
+  intCls.methods["//"] = intIntDivMethod2
+  intCls.allMethods["//"] = intIntDivMethod2
+
+  let floatIntDivMethod2 = createCoreMethod("//")
+  floatIntDivMethod2.setNativeImpl(intDivImpl)
+  floatCls.methods["//"] = floatIntDivMethod2
+  floatCls.allMethods["//"] = floatIntDivMethod2
+
   # Use existing Array class from initCoreClasses or create if needed
   var arrayCls: Class
   if arrayClass != nil:
@@ -2453,47 +2546,71 @@ proc initGlobals*(interp: var Interpreter) =
     arrayCls.tags = @["Array", "Collection"]
     arrayClass = arrayCls
 
-  # Register Array methods
-  let arraySizeMethod = createCoreMethod("size")
+  # Register Array primitive selectors (used by lib/core/Array.hrd)
+  let arraySizeMethod = createCoreMethod("primitiveArraySize")
   arraySizeMethod.setNativeImpl(arraySizeImpl)
-  arrayCls.methods["size"] = arraySizeMethod
-  arrayCls.allMethods["size"] = arraySizeMethod
+  arrayCls.methods["primitiveArraySize"] = arraySizeMethod
+  arrayCls.allMethods["primitiveArraySize"] = arraySizeMethod
 
-  let arrayAddMethod = createCoreMethod("add:")
-  arrayAddMethod.setNativeImpl(arrayAddImpl)
-  arrayCls.methods["add:"] = arrayAddMethod
-  arrayCls.allMethods["add:"] = arrayAddMethod
-
-  let arrayAtMethod = createCoreMethod("at:")
+  let arrayAtMethod = createCoreMethod("primitiveArrayAt:")
   arrayAtMethod.setNativeImpl(arrayAtImpl)
-  arrayCls.methods["at:"] = arrayAtMethod
-  arrayCls.allMethods["at:"] = arrayAtMethod
+  arrayCls.methods["primitiveArrayAt:"] = arrayAtMethod
+  arrayCls.allMethods["primitiveArrayAt:"] = arrayAtMethod
 
-  let arrayAtPutMethod = createCoreMethod("at:put:")
+  let arrayAtPutMethod = createCoreMethod("primitiveArrayAt:put:")
   arrayAtPutMethod.setNativeImpl(arrayAtPutImpl)
-  arrayCls.methods["at:put:"] = arrayAtPutMethod
-  arrayCls.allMethods["at:put:"] = arrayAtPutMethod
+  arrayCls.methods["primitiveArrayAt:put:"] = arrayAtPutMethod
+  arrayCls.allMethods["primitiveArrayAt:put:"] = arrayAtPutMethod
 
-  let arrayIncludesMethod = createCoreMethod("includes:")
+  let arrayAddMethod = createCoreMethod("primitiveArrayAdd:")
+  arrayAddMethod.setNativeImpl(arrayAddImpl)
+  arrayCls.methods["primitiveArrayAdd:"] = arrayAddMethod
+  arrayCls.allMethods["primitiveArrayAdd:"] = arrayAddMethod
+
+  let arrayRemoveAtMethod = createCoreMethod("primitiveArrayRemoveAt:")
+  arrayRemoveAtMethod.setNativeImpl(arrayRemoveAtImpl)
+  arrayCls.methods["primitiveArrayRemoveAt:"] = arrayRemoveAtMethod
+  arrayCls.allMethods["primitiveArrayRemoveAt:"] = arrayRemoveAtMethod
+
+  let arrayIncludesMethod = createCoreMethod("primitiveArrayIncludes:")
   arrayIncludesMethod.setNativeImpl(arrayIncludesImpl)
-  arrayCls.methods["includes:"] = arrayIncludesMethod
-  arrayCls.allMethods["includes:"] = arrayIncludesMethod
+  arrayCls.methods["primitiveArrayIncludes:"] = arrayIncludesMethod
+  arrayCls.allMethods["primitiveArrayIncludes:"] = arrayIncludesMethod
 
-  let arrayReverseMethod = createCoreMethod("reverse")
+  let arrayReverseMethod = createCoreMethod("primitiveArrayReverse")
   arrayReverseMethod.setNativeImpl(arrayReverseImpl)
-  arrayCls.methods["reverse"] = arrayReverseMethod
-  arrayCls.allMethods["reverse"] = arrayReverseMethod
+  arrayCls.methods["primitiveArrayReverse"] = arrayReverseMethod
+  arrayCls.allMethods["primitiveArrayReverse"] = arrayReverseMethod
 
-  let arrayJoinMethod = createCoreMethod("join:")
-  arrayJoinMethod.setNativeImpl(arrayJoinImpl)
-  arrayCls.methods["join:"] = arrayJoinMethod
-  arrayCls.allMethods["join:"] = arrayJoinMethod
-
-  let arrayDoMethod = createCoreMethod("do:")
+  let arrayDoMethod = createCoreMethod("primitiveDo:")
   arrayDoMethod.setNativeImpl(arrayDoImpl)
   arrayDoMethod.hasInterpreterParam = true
-  arrayCls.methods["do:"] = arrayDoMethod
-  arrayCls.allMethods["do:"] = arrayDoMethod
+  arrayCls.methods["primitiveDo:"] = arrayDoMethod
+  arrayCls.allMethods["primitiveDo:"] = arrayDoMethod
+
+  # Register Array class new method
+  proc arrayClassNewImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+    # Create an Array instance
+    var elements: seq[NodeValue] = @[]
+    if args.len > 0:
+      let (ok, size) = args[0].tryGetInt()
+      if ok:
+        for i in 0..<size:
+          elements.add(nilValue())
+    let inst = newArrayInstance(arrayClass, elements)
+    return NodeValue(kind: vkInstance, instVal: inst)
+
+  let arrayNewMethod = createCoreMethod("primitiveArrayNew")
+  arrayNewMethod.setNativeImpl(arrayClassNewImpl)
+  arrayNewMethod.hasInterpreterParam = true
+  arrayCls.classMethods["primitiveArrayNew"] = arrayNewMethod
+  arrayCls.allClassMethods["primitiveArrayNew"] = arrayNewMethod
+
+  let arrayNewSizeMethod = createCoreMethod("primitiveArrayNew:")
+  arrayNewSizeMethod.setNativeImpl(arrayClassNewImpl)
+  arrayNewSizeMethod.hasInterpreterParam = true
+  arrayCls.classMethods["primitiveArrayNew:"] = arrayNewSizeMethod
+  arrayCls.allClassMethods["primitiveArrayNew:"] = arrayNewSizeMethod
 
   # Use existing Table class from initCoreClasses or create if needed
   var tableCls: Class
@@ -2504,23 +2621,34 @@ proc initGlobals*(interp: var Interpreter) =
     tableCls.tags = @["Table", "Dictionary", "Collection"]
     tableClass = tableCls
 
-  # Register Table primitive methods
-  let tableAtMethod = createCoreMethod("at:")
+  # Register Table primitive selectors (used by lib/core/Table.hrd)
+  let tableAtMethod = createCoreMethod("primitiveTableAt:")
   tableAtMethod.setNativeImpl(tableAtImpl)
-  tableCls.methods["at:"] = tableAtMethod
-  tableCls.allMethods["at:"] = tableAtMethod
+  tableCls.methods["primitiveTableAt:"] = tableAtMethod
+  tableCls.allMethods["primitiveTableAt:"] = tableAtMethod
 
-  let tableAtPutMethod = createCoreMethod("at:put:")
+  let tableAtPutMethod = createCoreMethod("primitiveTableAt:put:")
   tableAtPutMethod.setNativeImpl(tableAtPutImpl)
-  tableCls.methods["at:put:"] = tableAtPutMethod
-  tableCls.allMethods["at:put:"] = tableAtPutMethod
+  tableCls.methods["primitiveTableAt:put:"] = tableAtPutMethod
+  tableCls.allMethods["primitiveTableAt:put:"] = tableAtPutMethod
 
   let tableKeysMethod = createCoreMethod("primitiveKeys")
   tableKeysMethod.setNativeImpl(tableKeysImpl)
   tableCls.methods["primitiveKeys"] = tableKeysMethod
   tableCls.allMethods["primitiveKeys"] = tableKeysMethod
 
+  let tableIncludesKeyMethod = createCoreMethod("primitiveIncludesKey:")
+  tableIncludesKeyMethod.setNativeImpl(tableIncludesKeyImpl)
+  tableCls.methods["primitiveIncludesKey:"] = tableIncludesKeyMethod
+  tableCls.allMethods["primitiveIncludesKey:"] = tableIncludesKeyMethod
+
+  let tableRemoveKeyMethod = createCoreMethod("primitiveRemoveKey:")
+  tableRemoveKeyMethod.setNativeImpl(tableRemoveKeyImpl)
+  tableCls.methods["primitiveRemoveKey:"] = tableRemoveKeyMethod
+  tableCls.allMethods["primitiveRemoveKey:"] = tableRemoveKeyMethod
+
   # Register Table class new method (creates ikTable instance)
+  # This is needed because Table new creates ikTable instances, not ikObject
   proc tableClassNewImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
     # Create a Table instance with ikTable kind (not ikObject)
     # self.class is the class receiving the message (e.g., Table or a subclass)
@@ -2534,22 +2662,23 @@ proc initGlobals*(interp: var Interpreter) =
   tableCls.allClassMethods["new"] = tableNewMethod
 
   # Create Boolean class (derives from Object)
+  # Methods are defined in lib/core/Boolean.hrd
   let booleanCls = newClass(superclasses = @[objectCls], name = "Boolean")
   booleanCls.tags = @["Boolean"]
   booleanClass = booleanCls
 
-  # Register Boolean methods
-  let ifTrueMethod = createCoreMethod("ifTrue:")
+  # Register Boolean primitive selectors
+  let ifTrueMethod = createCoreMethod("primitiveIfTrue:")
   ifTrueMethod.setNativeImpl(ifTrueImpl)
   ifTrueMethod.hasInterpreterParam = true
-  booleanCls.methods["ifTrue:"] = ifTrueMethod
-  booleanCls.allMethods["ifTrue:"] = ifTrueMethod
+  booleanCls.methods["primitiveIfTrue:"] = ifTrueMethod
+  booleanCls.allMethods["primitiveIfTrue:"] = ifTrueMethod
 
-  let ifFalseMethod = createCoreMethod("ifFalse:")
+  let ifFalseMethod = createCoreMethod("primitiveIfFalse:")
   ifFalseMethod.setNativeImpl(ifFalseImpl)
   ifFalseMethod.hasInterpreterParam = true
-  booleanCls.methods["ifFalse:"] = ifFalseMethod
-  booleanCls.allMethods["ifFalse:"] = ifFalseMethod
+  booleanCls.methods["primitiveIfFalse:"] = ifFalseMethod
+  booleanCls.allMethods["primitiveIfFalse:"] = ifFalseMethod
 
   # Create True class (singleton class for true value)
   let trueCls = newClass(superclasses = @[booleanCls], name = "True")
@@ -2562,24 +2691,24 @@ proc initGlobals*(interp: var Interpreter) =
   falseClassCache = falseCls
 
   # Create Block class (derives from Object)
+  # Methods are defined in lib/core/Block.hrd using <primitive> syntax
   let blockCls = newClass(superclasses = @[objectCls], name = "Block")
   blockCls.tags = @["Block", "Closure"]
   blockClass = blockCls
 
-  # Register Block loop methods
-  let whileTrueMethod = createCoreMethod("whileTrue:")
+  # Register Block primitive selectors (used by lib/core/Block.hrd)
+  let whileTrueMethod = createCoreMethod("primitiveWhileTrue:")
   whileTrueMethod.setNativeImpl(whileTrueImpl)
   whileTrueMethod.hasInterpreterParam = true
-  blockCls.methods["whileTrue:"] = whileTrueMethod
-  blockCls.allMethods["whileTrue:"] = whileTrueMethod
+  blockCls.methods["primitiveWhileTrue:"] = whileTrueMethod
+  blockCls.allMethods["primitiveWhileTrue:"] = whileTrueMethod
 
-  let whileFalseMethod = createCoreMethod("whileFalse:")
+  let whileFalseMethod = createCoreMethod("primitiveWhileFalse:")
   whileFalseMethod.setNativeImpl(whileFalseImpl)
   whileFalseMethod.hasInterpreterParam = true
-  blockCls.methods["whileFalse:"] = whileFalseMethod
-  blockCls.allMethods["whileFalse:"] = whileFalseMethod
+  blockCls.methods["primitiveWhileFalse:"] = whileFalseMethod
+  blockCls.allMethods["primitiveWhileFalse:"] = whileFalseMethod
 
-  # Register Block value methods
   let primitiveValueMethod = createCoreMethod("primitiveValue")
   primitiveValueMethod.setNativeImpl(primitiveValueImpl)
   primitiveValueMethod.hasInterpreterParam = true
@@ -2919,6 +3048,10 @@ proc initHardingGlobal*(interp: var Interpreter) =
 
   # Also add the GlobalTable class itself to globals for reflection
   interp.globals[]["GlobalTable"] = globalTableClass.toValue()
+
+  # Rebuild Object class descendants to ensure subclasses inherit class methods
+  # added in this function (initGlobals adds methods directly to objectClass)
+  rebuildAllDescendants(objectClass)
 
 # Special handling for GlobalTable - modify Table methods to access globals
 proc globalTableAtImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
@@ -3566,6 +3699,7 @@ proc handleEvalNode(interp: var Interpreter, frame: WorkFrame): bool =
     # Primitive call - dispatch via standard method lookup on currentReceiver
     let primCall = cast[PrimitiveCallNode](node)
     debug("VM: Primitive call #", primCall.selector, " with ", primCall.arguments.len, " args")
+    debug("VM: currentReceiver=", if interp.currentReceiver != nil: interp.currentReceiver.class.name else: "nil")
 
     # Push currentReceiver as the receiver
     if interp.currentReceiver != nil:

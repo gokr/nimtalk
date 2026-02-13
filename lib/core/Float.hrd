@@ -1,0 +1,41 @@
+#!/usr/bin/env harding
+#
+# Float.hrd - Float class methods
+# Uses primitive selectors registered in vm.nim initGlobals()
+#
+
+#====================================================================
+# Float arithmetic primitives
+#====================================================================
+
+Float>>+ other <primitive primitivePlus: other>
+
+Float>>- other <primitive primitiveMinus: other>
+
+Float>>* other <primitive primitiveTimes: other>
+
+Float>>/ other <primitive primitiveDivide: other>
+
+#====================================================================
+# Float comparison primitives
+#====================================================================
+
+Float>>< other <primitive primitiveLessThan: other>
+
+Float>>> other <primitive primitiveGreaterThan: other>
+
+Float>>= other <primitive primitiveEquals: other>
+
+Float>><= other <primitive primitiveLessOrEq: other>
+
+Float>>> other <primitive primitiveGreaterOrEq: other>
+
+Float>><> other <primitive primitiveNotEquals: other>
+
+#====================================================================
+# Float other primitives
+#====================================================================
+
+Float>>sqrt <primitive primitiveSqrt>
+
+Float>>printString <primitive primitivePrintString>

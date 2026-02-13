@@ -83,14 +83,6 @@ Array>>detect: block [
   ^ nil
 ]
 
-Array>>detect: block ifNone: noneBlock [
-  # Find first element where block returns true, or evaluate noneBlock.
-  self do: [ :each |
-    (block value: each) ifTrue: [ ^ each ]
-  ]
-  ^ noneBlock value
-]
-
 Array>>inject: initialValue into: block [
   # Accumulate a result by iterating with block.
   | result |

@@ -1,0 +1,43 @@
+#!/usr/bin/env harding
+#
+# Integer.hrd - Integer class methods
+# Uses primitive selectors registered in vm.nim initGlobals()
+#
+
+#====================================================================
+# Integer arithmetic primitives
+#====================================================================
+
+Integer>>+ other <primitive primitivePlus: other>
+
+Integer>>- other <primitive primitiveMinus: other>
+
+Integer>>* other <primitive primitiveTimes: other>
+
+Integer>>/ other <primitive primitiveDivide: other>
+
+Integer>>// other <primitive primitiveIntDiv: other>
+
+#====================================================================
+# Integer comparison primitives
+#====================================================================
+
+Integer>>< other <primitive primitiveLessThan: other>
+
+Integer>>> other <primitive primitiveGreaterThan: other>
+
+Integer>>= other <primitive primitiveEquals: other>
+
+Integer>><= other <primitive primitiveLessOrEq: other>
+
+Integer>>> other <primitive primitiveGreaterOrEq: other>
+
+Integer>><> other <primitive primitiveNotEquals: other>
+
+#====================================================================
+# Integer other primitives
+#====================================================================
+
+Integer>>sqrt <primitive primitiveSqrt>
+
+Integer>>printString <primitive primitivePrintString>

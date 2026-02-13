@@ -97,6 +97,8 @@ proc libraryAtImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc libraryAtPutImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc libraryKeysImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc libraryIncludesKeyImpl*(self: Instance, args: seq[NodeValue]): NodeValue
+proc libraryNameImpl*(self: Instance, args: seq[NodeValue]): NodeValue
+proc libraryNameSetImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 # String primitives (Instance-based)
 proc instStringConcatImpl*(self: Instance, args: seq[NodeValue]): NodeValue
 proc instStringSizeImpl*(self: Instance, args: seq[NodeValue]): NodeValue
@@ -374,6 +376,9 @@ proc initCoreClasses*(): Class =
   ##           ├── Table
   ##           └── Block
   ##
+  ## Methods are defined in .hrd files using <primitive selector> syntax.
+  ## This procedure only creates the classes for bootstrapping.
+  ##
   ## Returns objectClass for convenience.
 
   # Initialize symbol table and globals first
@@ -384,428 +389,104 @@ proc initCoreClasses*(): Class =
   discard initRootClass()
 
   # Create Object class (inherits from Root)
+  # Core bootstrap methods are registered here; other methods are in lib/core/Object.hrd
   if objectClass == nil:
     objectClass = initObjectClass()
 
-    # Install core methods on Object class
-    # These are the methods that all objects should have
-
-    # Clone method (instance method)
-    let cloneMethod = createCoreMethod("clone")
-    cloneMethod.setNativeImpl(instanceCloneImpl)
-    addMethodToClass(objectClass, "clone", cloneMethod)
-
-    # Class methods: derive and derive: (called on Class, not Instance)
-    let deriveMethod = createCoreMethod("derive")
-    deriveMethod.setNativeImpl(classDeriveImpl)
-    addMethodToClass(objectClass, "derive", deriveMethod, isClassMethod = true)
-
-    let deriveWithSlotsMethod = createCoreMethod("derive:")
-    deriveWithSlotsMethod.setNativeImpl(classDeriveImpl)
-    addMethodToClass(objectClass, "derive:", deriveWithSlotsMethod, isClassMethod = true)
-
-    # derive:parents:slots:methods: - create class from multiple parents with slots and methods
-    let deriveParentsSlotsMethod = createCoreMethod("derive:parents:slots:methods:")
-    deriveParentsSlotsMethod.setNativeImpl(classDeriveParentsSlotsMethodsImpl)
-    addMethodToClass(objectClass, "derive:parents:slots:methods:", deriveParentsSlotsMethod, isClassMethod = true)
-
-    # derive:parents:slots:getters:setters:methods: - comprehensive class creation
-    let deriveParentsSlotsGettersSettersMethodsMethod = createCoreMethod("derive:parents:slots:getters:setters:methods:")
-    deriveParentsSlotsGettersSettersMethodsMethod.setNativeImpl(classDeriveParentsSlotsGettersSettersMethodsImpl)
-    addMethodToClass(objectClass, "derive:parents:slots:getters:setters:methods:", deriveParentsSlotsGettersSettersMethodsMethod, isClassMethod = true)
-
-    # deriveWithAccessors: - create class with auto-generated getters and setters
-    let deriveWithAccessorsMethod = createCoreMethod("deriveWithAccessors:")
-    deriveWithAccessorsMethod.setNativeImpl(classDeriveWithAccessorsImpl)
-    addMethodToClass(objectClass, "deriveWithAccessors:", deriveWithAccessorsMethod, isClassMethod = true)
-
-    # derive:getters:setters: - create class with selective accessor generation
-    let deriveGettersSettersMethod = createCoreMethod("derive:getters:setters:")
-    deriveGettersSettersMethod.setNativeImpl(classDeriveGettersSettersImpl)
-    addMethodToClass(objectClass, "derive:getters:setters:", deriveGettersSettersMethod, isClassMethod = true)
-
-    # new method (class method)
-    let newMethod = createCoreMethod("new")
-    newMethod.setNativeImpl(classNewImpl)
-    addMethodToClass(objectClass, "new", newMethod, isClassMethod = true)
-
-    # selector:put: method (class method for adding instance methods)
+    # Bootstrap methods needed for .hrd files to define other methods
+    # selector:put: - for defining instance methods (used by >> syntax)
     let selectorPutMethod = createCoreMethod("selector:put:")
     selectorPutMethod.setNativeImpl(classAddMethodImpl)
     addMethodToClass(objectClass, "selector:put:", selectorPutMethod, isClassMethod = true)
 
-    # classSelector:put: method (class method for adding class methods)
+    # classSelector:put: - for defining class methods (used by class>> syntax)
     let classSelectorPutMethod = createCoreMethod("classSelector:put:")
     classSelectorPutMethod.setNativeImpl(classAddClassMethodImpl)
     addMethodToClass(objectClass, "classSelector:put:", classSelectorPutMethod, isClassMethod = true)
 
-    # Cascade-style construction methods (instance methods on Class instances)
-    let parentsMethod = createCoreMethod("parents:")
-    parentsMethod.setNativeImpl(classParentsImpl)
-    addMethodToClass(objectClass, "parents:", parentsMethod)
+    # derive: - create class with slots
+    let deriveWithSlotsMethod = createCoreMethod("derive:")
+    deriveWithSlotsMethod.setNativeImpl(classDeriveImpl)
+    addMethodToClass(objectClass, "derive:", deriveWithSlotsMethod, isClassMethod = true)
 
-    let slotsMethod = createCoreMethod("slots:")
-    slotsMethod.setNativeImpl(classSlotsImpl)
-    addMethodToClass(objectClass, "slots:", slotsMethod)
+    # derive - create class without slots
+    let deriveMethod = createCoreMethod("derive")
+    deriveMethod.setNativeImpl(classDeriveImpl)
+    addMethodToClass(objectClass, "derive", deriveMethod, isClassMethod = true)
 
-    let gettersMethod = createCoreMethod("getters:")
-    gettersMethod.setNativeImpl(classGettersImpl)
-    addMethodToClass(objectClass, "getters:", gettersMethod)
+    # new - create instances
+    let newMethod = createCoreMethod("new")
+    newMethod.setNativeImpl(classNewImpl)
+    addMethodToClass(objectClass, "new", newMethod, isClassMethod = true)
 
-    let settersMethod = createCoreMethod("setters:")
-    settersMethod.setNativeImpl(classSettersImpl)
-    addMethodToClass(objectClass, "setters:", settersMethod)
+    # Instance methods for slot access - needed by tests and core functionality
+    # These are also defined in Object.hrd with <primitive> syntax, but we
+    # register them directly here so they're always available
+    let cloneMethod = createCoreMethod("clone")
+    cloneMethod.setNativeImpl(instanceCloneImpl)
+    addMethodToClass(objectClass, "clone", cloneMethod)
 
-    let methodsMethod = createCoreMethod("methods:")
-    methodsMethod.setNativeImpl(classMethodsImpl)
-    addMethodToClass(objectClass, "methods:", methodsMethod)
+    let atMethod = createCoreMethod("at:")
+    atMethod.setNativeImpl(primitiveAtImpl)
+    addMethodToClass(objectClass, "at:", atMethod)
 
-    # Identity method
-    let identityMethod = createCoreMethod("==")
-    identityMethod.setNativeImpl(instIdentityImpl)
-    addMethodToClass(objectClass, "==", identityMethod)
+    let atPutMethod = createCoreMethod("at:put:")
+    atPutMethod.setNativeImpl(primitiveAtPutImpl)
+    addMethodToClass(objectClass, "at:put:", atPutMethod)
 
-    # printString method
-    let printStringMethod = createCoreMethod("printString")
-    printStringMethod.setNativeImpl(printStringImpl)
-    addMethodToClass(objectClass, "printString", printStringMethod)
-
-    # class method - returns the receiver's class
-    let classMethod = createCoreMethod("class")
-    classMethod.setNativeImpl(classImpl)
-    addMethodToClass(objectClass, "class", classMethod)
-
-    # Add Object to globals as a Class value
     addGlobal("Object", NodeValue(kind: vkClass, classVal: objectClass))
 
   # Create Integer class
+  # Methods are defined in lib/core/Integer.hrd using <primitive> syntax
   if integerClass == nil:
     integerClass = newClass(superclasses = @[objectClass], name = "Integer")
     integerClass.tags = @["Integer", "Number"]
-
-    # Arithmetic methods
-    let plusMethod = createCoreMethod("+")
-    plusMethod.setNativeImpl(plusImpl)
-    addMethodToClass(integerClass, "+", plusMethod)
-
-    let minusMethod = createCoreMethod("-")
-    minusMethod.setNativeImpl(minusImpl)
-    addMethodToClass(integerClass, "-", minusMethod)
-
-    let starMethod = createCoreMethod("*")
-    starMethod.setNativeImpl(starImpl)
-    addMethodToClass(integerClass, "*", starMethod)
-
-    let slashMethod = createCoreMethod("/")
-    slashMethod.setNativeImpl(slashImpl)
-    addMethodToClass(integerClass, "/", slashMethod)
-
-    let intDivMethod = createCoreMethod("//")
-    intDivMethod.setNativeImpl(intDivImpl)
-    addMethodToClass(integerClass, "//", intDivMethod)
-
-    let moduloMethod = createCoreMethod("\\")
-    moduloMethod.setNativeImpl(backslashModuloImpl)
-    addMethodToClass(integerClass, "\\", moduloMethod)
-
-    let modMethod = createCoreMethod("%")
-    modMethod.setNativeImpl(moduloImpl)
-    addMethodToClass(integerClass, "%", modMethod)
-
-    # Comparison methods
-    let ltMethod = createCoreMethod("<")
-    ltMethod.setNativeImpl(ltImpl)
-    addMethodToClass(integerClass, "<", ltMethod)
-
-    let gtMethod = createCoreMethod(">")
-    gtMethod.setNativeImpl(gtImpl)
-    addMethodToClass(integerClass, ">", gtMethod)
-
-    let eqMethod = createCoreMethod("=")
-    eqMethod.setNativeImpl(eqImpl)
-    addMethodToClass(integerClass, "=", eqMethod)
-
-    let leMethod = createCoreMethod("<=")
-    leMethod.setNativeImpl(leImpl)
-    addMethodToClass(integerClass, "<=", leMethod)
-
-    let geMethod = createCoreMethod(">=")
-    geMethod.setNativeImpl(geImpl)
-    addMethodToClass(integerClass, ">=", geMethod)
-
-    let neMethod = createCoreMethod("~=")
-    neMethod.setNativeImpl(neImpl)
-    addMethodToClass(integerClass, "~=", neMethod)
-
     addGlobal("Integer", NodeValue(kind: vkClass, classVal: integerClass))
 
   # Create Float class
+  # Methods are defined in lib/core/Float.hrd using <primitive> syntax
   if floatClass == nil:
     floatClass = newClass(superclasses = @[objectClass], name = "Float")
     floatClass.tags = @["Float", "Number"]
-
-    # Arithmetic (inherit from same impls as Integer - they handle both)
-    let plusMethod = createCoreMethod("+")
-    plusMethod.setNativeImpl(plusImpl)
-    addMethodToClass(floatClass, "+", plusMethod)
-
-    let minusMethod = createCoreMethod("-")
-    minusMethod.setNativeImpl(minusImpl)
-    addMethodToClass(floatClass, "-", minusMethod)
-
-    let starMethod = createCoreMethod("*")
-    starMethod.setNativeImpl(starImpl)
-    addMethodToClass(floatClass, "*", starMethod)
-
-    let slashMethod = createCoreMethod("/")
-    slashMethod.setNativeImpl(slashImpl)
-    addMethodToClass(floatClass, "/", slashMethod)
-
-    let sqrtMethod = createCoreMethod("sqrt")
-    sqrtMethod.setNativeImpl(sqrtImpl)
-    addMethodToClass(floatClass, "sqrt", sqrtMethod)
-
-    # Comparison methods
-    let ltMethod = createCoreMethod("<")
-    ltMethod.setNativeImpl(ltImpl)
-    addMethodToClass(floatClass, "<", ltMethod)
-
-    let gtMethod = createCoreMethod(">")
-    gtMethod.setNativeImpl(gtImpl)
-    addMethodToClass(floatClass, ">", gtMethod)
-
-    let eqMethod = createCoreMethod("=")
-    eqMethod.setNativeImpl(eqImpl)
-    addMethodToClass(floatClass, "=", eqMethod)
-
-    let leMethod = createCoreMethod("<=")
-    leMethod.setNativeImpl(leImpl)
-    addMethodToClass(floatClass, "<=", leMethod)
-
-    let geMethod = createCoreMethod(">=")
-    geMethod.setNativeImpl(geImpl)
-    addMethodToClass(floatClass, ">=", geMethod)
-
-    # printString method for Float
-    let floatPrintStringMethod = createCoreMethod("printString")
-    floatPrintStringMethod.setNativeImpl(printStringImpl)
-    addMethodToClass(floatClass, "printString", floatPrintStringMethod)
-
-    # asString method for Float (calls printString)
-    let floatAsStringMethod = createCoreMethod("asString")
-    floatAsStringMethod.setNativeImpl(printStringImpl)
-    addMethodToClass(floatClass, "asString", floatAsStringMethod)
-
     addGlobal("Float", NodeValue(kind: vkClass, classVal: floatClass))
 
   # Create String class
+  # Methods are defined in lib/core/String.hrd using <primitive> syntax
   if stringClass == nil:
     stringClass = newClass(superclasses = @[objectClass], name = "String")
     stringClass.tags = @["String"]
-
-    let concatMethod = createCoreMethod(",")
-    concatMethod.setNativeImpl(instStringConcatImpl)
-    addMethodToClass(stringClass, ",", concatMethod)
-
-    let sizeMethod = createCoreMethod("size")
-    sizeMethod.setNativeImpl(instStringSizeImpl)
-    addMethodToClass(stringClass, "size", sizeMethod)
-
-    let atMethod = createCoreMethod("at:")
-    atMethod.setNativeImpl(instStringAtImpl)
-    addMethodToClass(stringClass, "at:", atMethod)
-
-    let fromToMethod = createCoreMethod("from:to:")
-    fromToMethod.setNativeImpl(instStringFromToImpl)
-    addMethodToClass(stringClass, "from:to:", fromToMethod)
-
-    let indexOfMethod = createCoreMethod("indexOf:")
-    indexOfMethod.setNativeImpl(instStringIndexOfImpl)
-    addMethodToClass(stringClass, "indexOf:", indexOfMethod)
-
-    let includesMethod = createCoreMethod("includesSubString:")
-    includesMethod.setNativeImpl(instStringIncludesSubStringImpl)
-    addMethodToClass(stringClass, "includesSubString:", includesMethod)
-
-    let replaceMethod = createCoreMethod("replace:with:")
-    replaceMethod.setNativeImpl(instStringReplaceWithImpl)
-    addMethodToClass(stringClass, "replace:with:", replaceMethod)
-
-    let uppercaseMethod = createCoreMethod("asUppercase")
-    uppercaseMethod.setNativeImpl(instStringUppercaseImpl)
-    addMethodToClass(stringClass, "asUppercase", uppercaseMethod)
-
-    let lowercaseMethod = createCoreMethod("asLowercase")
-    lowercaseMethod.setNativeImpl(instStringLowercaseImpl)
-    addMethodToClass(stringClass, "asLowercase", lowercaseMethod)
-
-    let trimMethod = createCoreMethod("trim")
-    trimMethod.setNativeImpl(instStringTrimImpl)
-    addMethodToClass(stringClass, "trim", trimMethod)
-
-    let splitMethod = createCoreMethod("split:")
-    splitMethod.setNativeImpl(instStringSplitImpl)
-    addMethodToClass(stringClass, "split:", splitMethod)
-
-    let asIntegerMethod = createCoreMethod("asInteger")
-    asIntegerMethod.setNativeImpl(instStringAsIntegerImpl)
-    addMethodToClass(stringClass, "asInteger", asIntegerMethod)
-
-    let asSymbolMethod = createCoreMethod("asSymbol")
-    asSymbolMethod.setNativeImpl(instStringAsSymbolImpl)
-    addMethodToClass(stringClass, "asSymbol", asSymbolMethod)
-
     addGlobal("String", NodeValue(kind: vkClass, classVal: stringClass))
 
   # Create Array class
+  # Methods are defined in lib/core/Array.hrd using <primitive> syntax
   if arrayClass == nil:
     arrayClass = newClass(superclasses = @[objectClass], name = "Array")
     arrayClass.tags = @["Array", "Collection"]
-
-    let sizeMethod = createCoreMethod("size")
-    sizeMethod.setNativeImpl(arraySizeImpl)
-    addMethodToClass(arrayClass, "size", sizeMethod)
-
-    let atMethod = createCoreMethod("at:")
-    atMethod.setNativeImpl(arrayAtImpl)
-    addMethodToClass(arrayClass, "at:", atMethod)
-
-    let atPutMethod = createCoreMethod("at:put:")
-    atPutMethod.setNativeImpl(arrayAtPutImpl)
-    addMethodToClass(arrayClass, "at:put:", atPutMethod)
-
-    let addMethod = createCoreMethod("add:")
-    addMethod.setNativeImpl(arrayAddImpl)
-    addMethodToClass(arrayClass, "add:", addMethod)
-
-    let removeAtMethod = createCoreMethod("removeAt:")
-    removeAtMethod.setNativeImpl(arrayRemoveAtImpl)
-    addMethodToClass(arrayClass, "removeAt:", removeAtMethod)
-
-    let includesMethod = createCoreMethod("includes:")
-    includesMethod.setNativeImpl(arrayIncludesImpl)
-    addMethodToClass(arrayClass, "includes:", includesMethod)
-
-    let reverseMethod = createCoreMethod("reverse")
-    reverseMethod.setNativeImpl(arrayReverseImpl)
-    addMethodToClass(arrayClass, "reverse", reverseMethod)
-
-    # Array new: is a class method
-    let newMethod = createCoreMethod("new")
-    newMethod.setNativeImpl(arrayNewImpl)
-    newMethod.hasInterpreterParam = true  # Required for Instance wrapper path
-    addMethodToClass(arrayClass, "new", newMethod, isClassMethod = true)
-
-    # Array new: with size argument
-    let newSizeMethod = createCoreMethod("new:")
-    newSizeMethod.setNativeImpl(arrayNewImpl)
-    newSizeMethod.hasInterpreterParam = true  # Required for Instance wrapper path
-    addMethodToClass(arrayClass, "new:", newSizeMethod, isClassMethod = true)
-
     addGlobal("Array", NodeValue(kind: vkClass, classVal: arrayClass))
 
   # Create Table class
+  # Methods are defined in lib/core/Table.hrd using <primitive> syntax
   if tableClass == nil:
     tableClass = newClass(superclasses = @[objectClass], name = "Table")
     tableClass.tags = @["Table", "Collection", "Dictionary"]
-
-    let atMethod = createCoreMethod("at:")
-    atMethod.setNativeImpl(tableAtImpl)
-    addMethodToClass(tableClass, "at:", atMethod)
-
-    let atPutMethod = createCoreMethod("at:put:")
-    atPutMethod.setNativeImpl(tableAtPutImpl)
-    addMethodToClass(tableClass, "at:put:", atPutMethod)
-
-    let keysMethod = createCoreMethod("keys")
-    keysMethod.setNativeImpl(tableKeysImpl)
-    addMethodToClass(tableClass, "keys", keysMethod)
-
-    let includesKeyMethod = createCoreMethod("includesKey:")
-    includesKeyMethod.setNativeImpl(tableIncludesKeyImpl)
-    addMethodToClass(tableClass, "includesKey:", includesKeyMethod)
-
-    let removeKeyMethod = createCoreMethod("removeKey:")
-    removeKeyMethod.setNativeImpl(tableRemoveKeyImpl)
-    addMethodToClass(tableClass, "removeKey:", removeKeyMethod)
-
-    # Table new is a class method
-    let newMethod = createCoreMethod("new")
-    newMethod.setNativeImpl(tableNewImpl)
-    addMethodToClass(tableClass, "new", newMethod, isClassMethod = true)
-
     addGlobal("Table", NodeValue(kind: vkClass, classVal: tableClass))
 
   # Create Library class (composition: ikObject with bindings Table slot)
+  # Methods are defined in .hrd files using <primitive> syntax
   if libraryClass == nil:
     libraryClass = newClass(superclasses = @[objectClass],
                             slotNames = @["bindings", "imports", "name"],
                             name = "Library")
     libraryClass.tags = @["Library", "Namespace"]
-
-    let libAtMethod = createCoreMethod("at:")
-    libAtMethod.setNativeImpl(libraryAtImpl)
-    addMethodToClass(libraryClass, "at:", libAtMethod)
-
-    let libAtPutMethod = createCoreMethod("at:put:")
-    libAtPutMethod.setNativeImpl(libraryAtPutImpl)
-    addMethodToClass(libraryClass, "at:put:", libAtPutMethod)
-
-    let libKeysMethod = createCoreMethod("keys")
-    libKeysMethod.setNativeImpl(libraryKeysImpl)
-    addMethodToClass(libraryClass, "keys", libKeysMethod)
-
-    let libIncludesKeyMethod = createCoreMethod("includesKey:")
-    libIncludesKeyMethod.setNativeImpl(libraryIncludesKeyImpl)
-    addMethodToClass(libraryClass, "includesKey:", libIncludesKeyMethod)
-
-    let libNewMethod = createCoreMethod("new")
-    libNewMethod.setNativeImpl(libraryNewImpl)
-    addMethodToClass(libraryClass, "new", libNewMethod, isClassMethod = true)
-
     addGlobal("Library", NodeValue(kind: vkClass, classVal: libraryClass))
 
   # Create Set class (using a Table internally for element storage)
+  # Methods are defined in lib/core/Collections.hrd using <primitive> syntax
   if setClass == nil:
     setClass = newClass(superclasses = @[objectClass], name = "Set")
     setClass.tags = @["Set", "Collection"]
-
-    let primSetNewMethod = createCoreMethod("primitiveSetNew")
-    primSetNewMethod.setNativeImpl(primitiveSetNewImpl)
-    addMethodToClass(setClass, "primitiveSetNew", primSetNewMethod, isClassMethod = true)
-
-    let primSetAddMethod = createCoreMethod("primitiveSetAdd:")
-    primSetAddMethod.setNativeImpl(primitiveSetAddImpl)
-    addMethodToClass(setClass, "primitiveSetAdd:", primSetAddMethod)
-
-    let primSetRemoveMethod = createCoreMethod("primitiveSetRemove:")
-    primSetRemoveMethod.setNativeImpl(primitiveSetRemoveImpl)
-    addMethodToClass(setClass, "primitiveSetRemove:", primSetRemoveMethod)
-
-    let primSetIncludesMethod = createCoreMethod("primitiveSetIncludes:")
-    primSetIncludesMethod.setNativeImpl(primitiveSetIncludesImpl)
-    addMethodToClass(setClass, "primitiveSetIncludes:", primSetIncludesMethod)
-
-    let primSetSizeMethod = createCoreMethod("primitiveSetSize")
-    primSetSizeMethod.setNativeImpl(primitiveSetSizeImpl)
-    addMethodToClass(setClass, "primitiveSetSize", primSetSizeMethod)
-
-    let primSetUnionMethod = createCoreMethod("primitiveSetUnion:")
-    primSetUnionMethod.setNativeImpl(primitiveSetUnionImpl)
-    addMethodToClass(setClass, "primitiveSetUnion:", primSetUnionMethod)
-
-    let primSetIntersectionMethod = createCoreMethod("primitiveSetIntersection:")
-    primSetIntersectionMethod.setNativeImpl(primitiveSetIntersectionImpl)
-    addMethodToClass(setClass, "primitiveSetIntersection:", primSetIntersectionMethod)
-
-    let primSetDifferenceMethod = createCoreMethod("primitiveSetDifference:")
-    primSetDifferenceMethod.setNativeImpl(primitiveSetDifferenceImpl)
-    addMethodToClass(setClass, "primitiveSetDifference:", primSetDifferenceMethod)
-
-    let primSetKeysMethod = createCoreMethod("primitiveSetKeys")
-    primSetKeysMethod.setNativeImpl(primitiveSetKeysImpl)
-    addMethodToClass(setClass, "primitiveSetKeys", primSetKeysMethod)
-    # Note: primitiveSetDo: is registered in vm.nim with interpreter parameter
+    # Note: Set primitives like primitiveSetNew, primitiveSetAdd: etc.
+    # are registered in vm.nim initGlobals() for use by Collections.hrd
 
   # Create Block class
   if blockClass == nil:
@@ -1865,6 +1546,18 @@ proc libraryIncludesKeyImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
   if bindings != nil and args.len > 0:
     return toValue(args[0] in bindings.entries)
   return toValue(false)
+
+proc libraryNameImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
+  ## Library name - get the name slot (slot 2: [bindings, imports, name])
+  if self.kind == ikObject and self.slots.len > 2:
+    return self.slots[2]
+  return nilValue()
+
+proc libraryNameSetImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
+  ## Library name: - set the name slot (slot 2: [bindings, imports, name])
+  if self.kind == ikObject and self.slots.len > 2 and args.len > 0:
+    self.slots[2] = args[0]
+  return self.toValue()
 
 # Set primitives (storing elements in a table at slot 0)
 
