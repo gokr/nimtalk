@@ -10,7 +10,7 @@
 
 Table>>at: key <primitive primitiveTableAt: key>
 
-Table>>at: key put: value <primitive primitiveTableAt:put: key put: value>
+Table>>at: key put: value <primitive primitiveTableAt: key put: value>
 
 Table>>keys <primitive primitiveKeys>
 
