@@ -1564,6 +1564,13 @@ proc libraryNameSetImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
     self.slots[2] = args[0]
   return self.toValue()
 
+proc libraryBindingsImpl*(self: Instance, args: seq[NodeValue]): NodeValue =
+  ## Library bindings - get the bindings slot (slot 0: [bindings, imports, name])
+  ## Note: This is typically accessed via slot access (lib bindings), not via this primitive
+  if self.kind == ikObject and self.slots.len > 0:
+    return self.slots[0]
+  return nilValue()
+
 # Set primitives (storing elements in a table at slot 0)
 
 proc getSetElements*(self: Instance): Instance =
