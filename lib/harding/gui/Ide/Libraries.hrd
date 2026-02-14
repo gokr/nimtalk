@@ -45,7 +45,8 @@ Library class>>allNames [
 # Instance method to get classes in a library
 Library>>classes [
     # Return all values that are actual Class objects
-    ^ self bindings values select: [:obj | obj isClass ]
+    # Access bindings slot directly (it's slot 0 in Library)
+    ^ bindings values select: [:obj | obj isClass ]
 ].
 
 # Instance method to get class names in a library
