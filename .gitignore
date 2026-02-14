@@ -94,3 +94,7 @@ test_website_simple.nim
 hardingf
 harding_release
 bona
+tests/test_bitbarrel
+tests/test_website_core
+tests/test_website_docs
+tests/test_website_features
