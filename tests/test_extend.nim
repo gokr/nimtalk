@@ -78,16 +78,16 @@ suite "Method Batching (extend:":
 
   test "extend: can reference self":
     let result = interp.evalStatements("""
-      MyClass := Object derive.
-      MyClass extend: [
+      SelfTestClass := Object derive.
+      SelfTestClass extend: [
         self >> whoami [ ^self class name ]
       ].
-      obj := MyClass new.
+      obj := SelfTestClass new.
       Result := obj whoami
     """)
     check(result[1].len == 0)
     check(result[0][^1].kind == vkString)
-    check(result[0][^1].strVal == "MyClass")
+    check(result[0][^1].strVal == "SelfTestClass")
 
   test "extend: works with accessors":
     let result = interp.evalStatements("""
