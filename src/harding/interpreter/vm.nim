@@ -4497,20 +4497,11 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
 
   of wfPopActivation:
     # Pop activation after method/block body completes
-    # The result value is on top of the eval stack
-    debug("VM: wfPopActivation, evalStack.len=", interp.evalStack.len)
-    let resultValue = if interp.evalStack.len > 0:
-                        interp.popValue()
-                      else:
-                        nilValue()
-    debug("VM: wfPopActivation resultValue=", resultValue.toString())
+    # In Smalltalk, methods without explicit ^ return self
+    # Blocks return the value of the last expression
+    debug("VM: wfPopActivation, evalStack.len=", interp.evalStack.len, " isBlock=", $frame.isBlockActivation)
 
-    # Note: We do NOT save captured variables back to cells here.
-    # setVariable already updates cells directly when a captured variable is assigned.
-    # Saving back here would cause bugs when an outer block (that also captured
-    # the variable but didn't modify it) overwrites the cell with its stale local copy.
-
-    # Check for non-local return
+    # Check for non-local return first
     if interp.currentActivation != nil and interp.currentActivation.hasReturned:
       # Non-local return - propagate the return value
       let returnVal = interp.currentActivation.returnValue
@@ -4526,7 +4517,32 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
 
       interp.pushValue(returnVal.unwrap())
     else:
-      # Normal completion - pop activation and push result
+      # Normal completion - get return value BEFORE popping activation
+      var resultValue: NodeValue
+      if frame.isBlockActivation:
+        # Blocks return the value of the last expression
+        if interp.evalStack.len > 0:
+          resultValue = interp.popValue()
+        else:
+          resultValue = nilValue()
+      else:
+        # Methods without explicit ^ return self
+        # Pop any leftover values from the stack (expressions that were evaluated)
+        debug("VM: method return - evalStack.len=", interp.evalStack.len, " savedDepth=", frame.savedEvalStackDepth)
+        if interp.evalStack.len > frame.savedEvalStackDepth:
+          let discarded = interp.popValue()
+          debug("VM: discarded last expression: ", discarded.toString())
+        # Return self (the receiver of the method being popped)
+        # Must get this BEFORE popping the activation
+        if interp.currentActivation != nil and interp.currentActivation.receiver != nil:
+          resultValue = interp.currentActivation.receiver.toValue().unwrap()
+          debug("VM: returning self (receiver): ", resultValue.toString())
+        else:
+          resultValue = nilValue()
+          debug("VM: returning nil (no receiver)")
+      debug("VM: wfPopActivation resultValue=", resultValue.toString())
+
+      # Now pop the activation
       discard interp.activationStack.pop()
       if interp.activationStack.len > 0:
         interp.currentActivation = interp.activationStack[^1]
