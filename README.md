@@ -28,7 +28,8 @@ p distanceFromOrigin println  # Prints: 5.0
 ```bash
 git clone https://github.com/gokr/harding.git
 cd harding
-nimble local  # Build and copy binaries to root directory
+nimble harding  # Build harding REPL
+nimble bona     # Build bona IDE (optional)
 ```
 
 Binaries: `harding` (REPL/interpreter), `granite` (compiler), `bona` (GTK IDE)

@@ -242,20 +242,20 @@ After installation:
 Nimble provides convenient build automation.
 
 ```bash
-# Build both harding and granite (binaries in subdirectories)
-nimble build
+# Build harding REPL (debug)
+nimble harding
 
-# Build and copy binaries to root directory
-nimble local
+# Build harding REPL (release)
+nimble harding_release
+
+# Build bona IDE (debug)
+nimble bona
+
+# Build bona IDE (release)
+nimble bona_release
 
 # Build with BitBarrel support
 nimble harding_bitbarrel
-
-# Build GUI IDE (debug)
-nimble bona
-
-# Build GUI IDE (release)
-nimble bona_release
 
 # Install desktop integration (.desktop and icon)
 nimble install_bona
@@ -266,8 +266,8 @@ nimble test
 # Clean build artifacts
 nimble clean
 
-# Install to ~/.local/bin/
-nimble install
+# Install harding to ~/.local/bin/
+nimble install_harding
 ```
 
 ## Debugging Techniques
