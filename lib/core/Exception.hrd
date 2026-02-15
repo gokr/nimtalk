@@ -12,6 +12,14 @@ Exception := Object derive: #(message stackTrace signaler)
 Exception>>signal <primitive primitiveSignal>
   # Signal this exception (raise it)
 
+Exception class>>signal: messageText [
+  # Create a new instance, set the message, and signal the exception
+  | ex |
+  ex := self new.
+  ex message: messageText.
+  ^ ex signal
+]
+
 Exception>>signal: messageText [
   # Set message and signal this exception
   message := messageText
