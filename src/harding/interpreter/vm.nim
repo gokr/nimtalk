@@ -17,390 +17,10 @@ when defined(granite):
 # Platform-Specific Output Helpers
 # ============================================================================
 
-when defined(js):
-  proc writeStderr*(s: string) {.inline.} =
-    {.emit: ["console.error(", s, ");"].}
-  template nativeImplIsSet*(meth: BlockNode): bool =
-    meth.nativeImpl != 0
-
-  # ============================================================================
-  # JS Primitive Dispatcher
-  # ============================================================================
-  # For JS builds, native methods don't have function pointers.
-  # We dispatch primitives by selector name instead.
-
-  proc dispatchPrimitive(interp: var Interpreter, receiver: Instance, selector: string, args: seq[NodeValue]): NodeValue =
-    ## Dispatch primitive methods for JS builds
-    ## This replaces the nativeImpl pointer dispatch used in native builds
-
-    case selector
-    of "primitiveClone":
-      # Clone the receiver instance
-      case receiver.kind
-      of ikObject:
-        let clone = Instance(kind: ikObject, class: receiver.class)
-        clone.slots = receiver.slots
-        clone.isNimProxy = receiver.isNimProxy
-        return clone.toValue()
-      of ikArray:
-        let clone = Instance(kind: ikArray, class: receiver.class)
-        clone.elements = receiver.elements
-        return clone.toValue()
-      of ikTable:
-        let clone = Instance(kind: ikTable, class: receiver.class)
-        clone.entries = receiver.entries
-        return clone.toValue()
-      of ikInt:
-        return toValue(receiver.intVal)
-      of ikFloat:
-        return toValue(receiver.floatVal)
-      of ikString:
-        return toValue(receiver.strVal)
-
-    of "primitiveAt:":
-      # Get slot value by name
-      if args.len == 0:
-        return nilValue()
-      if receiver.kind != ikObject or receiver.class == nil:
-        return nilValue()
-      let slotName = args[0].toString()
-      let slotIdx = receiver.class.allSlotNames.find(slotName)
-      if slotIdx >= 0 and slotIdx < receiver.slots.len:
-        return receiver.slots[slotIdx]
-      return nilValue()
-
-    of "primitiveAt:put:":
-      # Set slot value by name
-      if args.len < 2:
-        return args[1]
-      if receiver.kind != ikObject or receiver.class == nil:
-        return args[1]
-      let slotName = args[0].toString()
-      let slotIdx = receiver.class.allSlotNames.find(slotName)
-      if slotIdx >= 0 and slotIdx < receiver.slots.len:
-        receiver.slots[slotIdx] = args[1]
-      return args[1]
-
-    of "primitiveEquals:":
-      # Object equality
-      if args.len == 0:
-        return falseValue
-      # For now, simple reference equality
-      if receiver.kind == ikInt and args[0].kind == vkInt:
-        return if receiver.intVal == args[0].intVal: trueValue else: falseValue
-      if receiver.kind == ikFloat and args[0].kind == vkFloat:
-        return if receiver.floatVal == args[0].floatVal: trueValue else: falseValue
-      if receiver.kind == ikString and args[0].kind == vkString:
-        return if receiver.strVal == args[0].strVal: trueValue else: falseValue
-      return if receiver == args[0].instVal: trueValue else: falseValue
-
-    of "primitiveClass", "class":
-      # Return the class of the receiver
-      if receiver.class != nil:
-        return receiver.class.toValue()
-      return nilValue()
-
-    of "primitiveClassName":
-      # Return the class name
-      if receiver.class != nil:
-        return toValue(receiver.class.name)
-      return toValue("Object")
-
-    of "print":
-      # Print without newline
-      let s = receiver.toValue().toString()
-      {.emit: ["if (typeof process !== 'undefined' && process.stdout) { process.stdout.write(", s.cstring, "); } else { console.log(", s.cstring, "); }"].}
-      return receiver.toValue()
-
-    of "println":
-      # Print with newline
-      let s = receiver.toValue().toString()
-      {.emit: ["console.log(", s.cstring, ");"].}
-      return receiver.toValue()
-
-    of "primitiveIsKindOf:":
-      # Check if receiver is kind of given class
-      if args.len == 0 or args[0].kind != vkClass:
-        return falseValue
-      # Simple check: is receiver's class the same as or subclass of args[0]
-      var cls = receiver.class
-      while cls != nil:
-        if cls == args[0].classVal:
-          return trueValue
-        # Check superclasses
-        for parent in cls.superclasses:
-          if parent == args[0].classVal:
-            return trueValue
-        cls = if cls.superclasses.len > 0: cls.superclasses[0] else: nil
-      return falseValue
-
-    of "primitiveSlotNames":
-      # Return array of slot names
-      if receiver.class == nil:
-        return nilValue()
-      var slotNames: seq[NodeValue] = @[]
-      for name in receiver.class.allSlotNames:
-        slotNames.add(toValue(name))
-      # Create Array instance
-      if arrayClassCache != nil:
-        return newArrayInstance(arrayClassCache, slotNames).toValue()
-      return nilValue()
-
-    of "primitiveProperties":
-      # Return table of properties (for now, same as slot names with values)
-      if receiver.class == nil:
-        return nilValue()
-      var entries: Table[NodeValue, NodeValue]
-      for i, name in receiver.class.allSlotNames:
-        if i < receiver.slots.len:
-          entries[toValue(name)] = receiver.slots[i]
-      if tableClassCache != nil:
-        return newTableInstance(tableClassCache, entries).toValue()
-      return nilValue()
-
-    of "primitiveHasProperty:":
-      # Check if object has a property/slot
-      if args.len == 0:
-        return falseValue
-      if receiver.class == nil:
-        return falseValue
-      let propName = args[0].toString()
-      return if propName in receiver.class.allSlotNames: trueValue else: falseValue
-
-    of "primitiveRespondsTo:", "respondsTo:":
-      # Check if object responds to selector
-      if args.len == 0:
-        return falseValue
-      let sel = args[0].toString()
-      if receiver.class == nil:
-        return falseValue
-      # Check in methods or allMethods
-      return if sel in receiver.class.allMethods: trueValue else: falseValue
-
-    # String primitives
-    of ",", "primitiveConcat:":
-      # String concatenation
-      if receiver.kind == ikString:
-        if args.len > 0:
-          return newStringInstance(receiver.class, receiver.strVal & args[0].toString()).toValue()
-        else:
-          return newStringInstance(receiver.class, receiver.strVal).toValue()
-      return nilValue()
-
-    of "size", "primitiveStringSize", "primitiveArraySize":
-      # String/Array/Collection size
-      if receiver.kind == ikString:
-        return toValue(receiver.strVal.len)
-      elif receiver.kind == ikArray:
-        return toValue(receiver.elements.len)
-      elif receiver.kind == ikTable:
-        return toValue(receiver.entries.len)
-      return toValue(0)
-
-    of "at:", "primitiveStringAt:", "primitiveArrayAt:":
-      # String character or Array element at index (1-based)
-      if receiver.kind == ikString and args.len > 0:
-        let (ok, idx) = args[0].tryGetInt()
-        if ok and idx >= 1 and idx <= receiver.strVal.len:
-          return toValue($receiver.strVal[idx - 1])
-        return toValue("")
-      elif receiver.kind == ikArray and args.len > 0:
-        let (ok, idx) = args[0].tryGetInt()
-        if ok and idx >= 1 and idx <= receiver.elements.len:
-          return receiver.elements[idx - 1]
-        return nilValue()
-      elif receiver.kind == ikTable and args.len > 0:
-        return receiver.entries.getOrDefault(args[0], nilValue())
-      return nilValue()
-
-    of "indexOf:", "primitiveIndexOf:":
-      # String index of substring (1-based)
-      if receiver.kind == ikString and args.len > 0:
-        let sub = args[0].toString()
-        if sub.len > 0:
-          let idx = receiver.strVal.find(sub)
-          if idx >= 0:
-            return toValue(idx + 1)
-        return toValue(0)
-      return toValue(0)
-
-    of "includesSubString:", "primitiveIncludesSubString:":
-      # Check if includes substring
-      if receiver.kind == ikString and args.len > 0:
-        return toValue(args[0].toString() in receiver.strVal)
-      return toValue(false)
-
-    of "replace:with:", "primitiveReplaceWith:":
-      # Replace substring
-      if receiver.kind == ikString and args.len >= 2:
-        let oldStr = args[0].toString()
-        let newStr = args[1].toString()
-        return newStringInstance(receiver.class, receiver.strVal.replace(oldStr, newStr)).toValue()
-      return receiver.toValue()
-
-    of "asUppercase", "primitiveUppercase":
-      # Convert to uppercase
-      if receiver.kind == ikString:
-        return newStringInstance(receiver.class, receiver.strVal.toUpperAscii()).toValue()
-      return receiver.toValue()
-
-    of "asLowercase", "primitiveLowercase":
-      # Convert to lowercase
-      if receiver.kind == ikString:
-        return newStringInstance(receiver.class, receiver.strVal.toLowerAscii()).toValue()
-      return receiver.toValue()
-
-    of "trim", "primitiveTrim":
-      # Trim whitespace
-      if receiver.kind == ikString:
-        return newStringInstance(receiver.class, strip(receiver.strVal)).toValue()
-      return receiver.toValue()
-
-    of "split:", "primitiveSplit:":
-      # Split string by delimiter
-      if receiver.kind == ikString and args.len > 0:
-        let delim = args[0].toString()
-        var parts: seq[NodeValue] = @[]
-        for part in receiver.strVal.split(delim):
-          parts.add(newStringInstance(receiver.class, part).toValue())
-        if arrayClassCache != nil:
-          return newArrayInstance(arrayClassCache, parts).toValue()
-        return NodeValue(kind: vkArray, arrayVal: parts)
-      if arrayClassCache != nil:
-        return newArrayInstance(arrayClassCache, @[]).toValue()
-      return NodeValue(kind: vkArray, arrayVal: @[])
-
-    # Array primitives
-    of "at:put:", "primitiveArrayAt:put:", "primitiveTableAt:put:":
-      # Set array element or table entry
-      if receiver.kind == ikArray and args.len >= 2:
-        let (ok, idx) = args[0].tryGetInt()
-        if ok and idx >= 1 and idx <= receiver.elements.len:
-          receiver.elements[idx - 1] = args[1]
-          return args[1]
-      elif receiver.kind == ikTable and args.len >= 2:
-        receiver.entries[args[0]] = args[1]
-        return args[1]
-      return nilValue()
-
-    of "add:", "primitiveArrayAdd:":
-      # Add element to array
-      if receiver.kind == ikArray:
-        receiver.elements.add(args[0])
-        return receiver.toValue()
-      return nilValue()
-
-    # Note: do: primitive needs forward declaration of evalBlock - skip for now
-
-    # Table primitives
-    of "keys", "primitiveTableKeys":
-      # Get table keys
-      if receiver.kind == ikTable:
-        var keys: seq[NodeValue] = @[]
-        for key, _ in receiver.entries:
-          keys.add(key)
-        if arrayClassCache != nil:
-          return newArrayInstance(arrayClassCache, keys).toValue()
-        return NodeValue(kind: vkArray, arrayVal: keys)
-      if arrayClassCache != nil:
-        return newArrayInstance(arrayClassCache, @[]).toValue()
-      return NodeValue(kind: vkArray, arrayVal: @[])
-
-    of "values", "primitiveTableValues":
-      # Get table values
-      if receiver.kind == ikTable:
-        var vals: seq[NodeValue] = @[]
-        for _, val in receiver.entries:
-          vals.add(val)
-        if arrayClassCache != nil:
-          return newArrayInstance(arrayClassCache, vals).toValue()
-        return NodeValue(kind: vkArray, arrayVal: vals)
-      if arrayClassCache != nil:
-        return newArrayInstance(arrayClassCache, @[]).toValue()
-      return NodeValue(kind: vkArray, arrayVal: @[])
-
-    of "primitiveMethods":
-      # Return array of method selectors
-      if receiver.class == nil:
-        return nilValue()
-      var methodNames: seq[NodeValue] = @[]
-      for selector, _ in receiver.class.allMethods:
-        methodNames.add(toValue(selector))
-      if arrayClassCache != nil:
-        return newArrayInstance(arrayClassCache, methodNames).toValue()
-      return nilValue()
-
-    of "primitiveError:":
-      # Signal an error
-      if args.len > 0:
-        let msg = args[0].toString()
-        raise newException(ValueError, msg)
-      raise newException(ValueError, "Unknown error")
-
-    of "primitiveValue":
-      # Execute a block with no arguments
-      # This requires the interpreter to execute the block's body
-      # For now, delegate to the block's value method if available
-      if receiver.class == blockClassCache and receiver.kind == ikObject:
-        # Get the block node from the class's methods or stored reference
-        # For blocks created as [:x | x + 1], the block node is the method body
-        # This is complex - for now return nil and let fallback handle it
-        return nilValue()
-      return nilValue()
-
-    # Arithmetic operations for integers and floats
-    # Import the actual implementations from objects module
-    of "+":
-      return plusImpl(receiver, args)
-    of "-":
-      return minusImpl(receiver, args)
-    of "*":
-      return starImpl(receiver, args)
-    of "/":
-      return slashImpl(receiver, args)
-    of "//":
-      return intDivImpl(receiver, args)
-    of "<":
-      return ltImpl(receiver, args)
-    of ">":
-      return gtImpl(receiver, args)
-    of "=", "==":
-      return eqImpl(receiver, args)
-    of "<=":
-      return leImpl(receiver, args)
-    of ">=":
-      return geImpl(receiver, args)
-    of "~=", "!=":
-      return neImpl(receiver, args)
-
-    of "primitiveValue:":
-      # Execute a block with one argument
-      if receiver.class == blockClassCache and receiver.kind == ikObject:
-        return nilValue()  # Let fallback handle
-      return nilValue()
-
-    of "primitiveValue:value:":
-      # Execute a block with two arguments
-      if receiver.class == blockClassCache and receiver.kind == ikObject:
-        return nilValue()  # Let fallback handle
-      return nilValue()
-
-    of "primitiveValue:value:value:":
-      # Execute a block with three arguments
-      if receiver.class == blockClassCache and receiver.kind == ikObject:
-        return nilValue()  # Let fallback handle
-      return nilValue()
-
-    else:
-      # Unknown primitive - return nil to let the interpreted fallback run
-      debug("JS: Unknown primitive: ", selector)
-      return nilValue()
-
-else:
-  template writeStderr*(s: string) =
-    stderr.write(s)
-  template nativeImplIsSet*(meth: BlockNode): bool =
-    meth.nativeImpl != nil
+template writeStderr*(s: string) =
+  stderr.write(s)
+template nativeImplIsSet*(meth: BlockNode): bool =
+  meth.nativeImpl != nil
 
 # ============================================================================
 # Evaluation engine for Harding
@@ -450,181 +70,31 @@ proc findSelectorForMethod(classObj: Class, methodBlk: BlockNode, isClassMethod:
 
 proc printStackTrace*(interp: var Interpreter) =
   ## Print the current activation stack for debugging
-  when not defined(js):
-    writeStderr("\n=== Stack Trace ===")
-    if interp.activationStack.len == 0:
-      writeStderr("  (empty activation stack)")
-    else:
-      for i in countdown(interp.activationStack.len - 1, 0):
-        let activation = interp.activationStack[i]
-        let className = if activation.definingObject != nil:
-                          activation.definingObject.name
-                        elif activation.receiver != nil and activation.receiver.class != nil:
-                          activation.receiver.class.name
-                        else:
-                          "(unknown)"
-        let receiverClass = if activation.receiver != nil and activation.receiver.class != nil:
-                              activation.receiver.class.name
-                            else:
-                              "(nil)"
-        let isMethod = activation.currentMethod != nil and activation.currentMethod.isMethod
-        let methodType = if isMethod: "" else: "(block) "
-        let selector = if isMethod:
-                         findSelectorForMethod(activation.definingObject, activation.currentMethod, activation.isClassMethod)
-                       else:
-                         ""
-        let methodDisplay = if selector.len > 0: selector else: methodType
-        writeStderr(fmt("  {interp.activationStack.len - 1 - i}: {className}>>{methodDisplay}(self={receiverClass})"))
-    writeStderr("===================\n")
-
-# ============================================================================
-# AST Rewriter for Slot Access
-# Rewrites IdentNodes to SlotAccessNodes where name matches a class slot
-# This enables O(1) slot access by integer index instead of string lookup
-# ============================================================================
-
-proc rewriteNodeForSlotAccess(node: Node, cls: Class, shadowedNames: seq[string]): Node =
-  ## Recursively rewrite a node, replacing slot access patterns with SlotAccessNodes
-  ## shadowedNames contains parameter and temporary names that shadow slots
-  if node == nil:
-    return nil
-
-  case node.kind
-  of nkIdent:
-    # Check if this identifier is a slot name (and not shadowed)
-    let ident = cast[IdentNode](node)
-    debug("rewriteNode: nkIdent name=", ident.name)
-    if ident.name notin shadowedNames:
-      let idx = cls.getSlotIndex(ident.name)
-      debug("rewriteNode: slot lookup for '", ident.name, "' = ", $idx)
-      if idx >= 0:
-        # Replace with SlotAccessNode for O(1) access
-        debug("rewriteNode: replacing ident '", ident.name, "' with SlotAccessNode index=", $idx)
-        return SlotAccessNode(
-          slotName: ident.name,
-          slotIndex: idx,
-          isAssignment: false,
-          valueExpr: nil
-        )
-    return node
-
-  of nkAssign:
-    # Check if assignment target is a slot name
-    let assign = cast[AssignNode](node)
-    debug("rewriteNode: nkAssign var=", assign.variable)
-    if assign.variable notin shadowedNames:
-      let idx = cls.getSlotIndex(assign.variable)
-      debug("rewriteNode: slot lookup for assignment '", assign.variable, "' = ", $idx)
-      if idx >= 0:
-        # Replace with SlotAccessNode for O(1) slot write
-        debug("rewriteNode: replacing assignment '", assign.variable, "' with SlotAccessNode index=", $idx)
-        return SlotAccessNode(
-          slotName: assign.variable,
-          slotIndex: idx,
-          isAssignment: true,
-          valueExpr: rewriteNodeForSlotAccess(assign.expression, cls, shadowedNames)
-        )
-    # Not a slot - rewrite the expression part only
-    assign.expression = rewriteNodeForSlotAccess(assign.expression, cls, shadowedNames)
-    return assign
-
-  of nkMessage:
-    # Rewrite receiver and arguments
-    let msg = cast[MessageNode](node)
-    if msg.receiver != nil:
-      msg.receiver = rewriteNodeForSlotAccess(msg.receiver, cls, shadowedNames)
-    for i in 0..<msg.arguments.len:
-      msg.arguments[i] = rewriteNodeForSlotAccess(msg.arguments[i], cls, shadowedNames)
-    return msg
-
-  of nkReturn:
-    # Rewrite return expression
-    let ret = cast[ReturnNode](node)
-    if ret.expression != nil:
-      ret.expression = rewriteNodeForSlotAccess(ret.expression, cls, shadowedNames)
-    return ret
-
-  of nkBlock:
-    # Rewrite block body, but add block's parameters and temporaries to shadowed names
-    let blk = cast[BlockNode](node)
-    var newShadowed = shadowedNames
-    for param in blk.parameters:
-      newShadowed.add(param)
-    for temp in blk.temporaries:
-      newShadowed.add(temp)
-    for i in 0..<blk.body.len:
-      blk.body[i] = rewriteNodeForSlotAccess(blk.body[i], cls, newShadowed)
-    return blk
-
-  of nkCascade:
-    # Rewrite cascade receiver and all messages
-    let cascade = cast[CascadeNode](node)
-    if cascade.receiver != nil:
-      cascade.receiver = rewriteNodeForSlotAccess(cascade.receiver, cls, shadowedNames)
-    for i in 0..<cascade.messages.len:
-      let msg = cascade.messages[i]
-      for j in 0..<msg.arguments.len:
-        msg.arguments[j] = rewriteNodeForSlotAccess(msg.arguments[j], cls, shadowedNames)
-    return cascade
-
-  of nkPrimitiveCall:
-    # Rewrite primitive arguments
-    let prim = cast[PrimitiveCallNode](node)
-    for i in 0..<prim.arguments.len:
-      prim.arguments[i] = rewriteNodeForSlotAccess(prim.arguments[i], cls, shadowedNames)
-    return prim
-
-  of nkSuperSend:
-    # Rewrite super send arguments
-    let superNode = cast[SuperSendNode](node)
-    for i in 0..<superNode.arguments.len:
-      superNode.arguments[i] = rewriteNodeForSlotAccess(superNode.arguments[i], cls, shadowedNames)
-    return superNode
-
-  of nkArray:
-    # Rewrite array elements
-    let arr = cast[ArrayNode](node)
-    for i in 0..<arr.elements.len:
-      arr.elements[i] = rewriteNodeForSlotAccess(arr.elements[i], cls, shadowedNames)
-    return arr
-
-  of nkTable:
-    # Rewrite table entries
-    let tbl = cast[TableNode](node)
-    for i in 0..<tbl.entries.len:
-      let (key, value) = tbl.entries[i]
-      tbl.entries[i] = (
-        rewriteNodeForSlotAccess(key, cls, shadowedNames),
-        rewriteNodeForSlotAccess(value, cls, shadowedNames)
-      )
-    return tbl
-
+  writeStderr("\n=== Stack Trace ===")
+  if interp.activationStack.len == 0:
+    writeStderr("  (empty activation stack)")
   else:
-    # Other node types don't need rewriting (literals, pseudo-vars, etc.)
-    return node
-
-proc rewriteMethodForSlotAccess*(blk: BlockNode, cls: Class) =
-  ## Rewrite a method's AST to use SlotAccessNodes for slot access
-  ## Called when a method is installed on a class via selector:put:
-  debug("rewriteMethodForSlotAccess: class=", cls.name, " slots=", $cls.allSlotNames)
-  if cls.allSlotNames.len == 0:
-    debug("rewriteMethodForSlotAccess: no slots, skipping")
-    return  # No slots to optimize
-
-  # Slots are optimized - shadowing is handled by the rewriting logic
-
-  # Build initial shadowed names from method parameters and temporaries
-  var shadowedNames: seq[string] = @[]
-  for param in blk.parameters:
-    shadowedNames.add(param)
-  for temp in blk.temporaries:
-    shadowedNames.add(temp)
-  debug("rewriteMethodForSlotAccess: shadowedNames=", $shadowedNames)
-
-  # Rewrite the method body
-  for i in 0..<blk.body.len:
-    blk.body[i] = rewriteNodeForSlotAccess(blk.body[i], cls, shadowedNames)
-  debug("rewriteMethodForSlotAccess: done")
+    for i in countdown(interp.activationStack.len - 1, 0):
+      let activation = interp.activationStack[i]
+      let className = if activation.definingObject != nil:
+                        activation.definingObject.name
+                      elif activation.receiver != nil and activation.receiver.class != nil:
+                        activation.receiver.class.name
+                      else:
+                        "(unknown)"
+      let receiverClass = if activation.receiver != nil and activation.receiver.class != nil:
+                            activation.receiver.class.name
+                          else:
+                            "(nil)"
+      let isMethod = activation.currentMethod != nil and activation.currentMethod.isMethod
+      let methodType = if isMethod: "" else: "(block) "
+      let selector = if isMethod:
+                       findSelectorForMethod(activation.definingObject, activation.currentMethod, activation.isClassMethod)
+                     else:
+                       ""
+      let methodDisplay = if selector.len > 0: selector else: methodType
+      writeStderr(fmt("  {interp.activationStack.len - 1 - i}: {className}>>{methodDisplay}(self={receiverClass})"))
+  writeStderr("===================\n")
 
 # Initialize interpreter
 proc newInterpreter*(trace: bool = false, maxStackDepth: int = 10000): Interpreter =
@@ -667,7 +137,7 @@ proc newInterpreterWithShared*(globals: ref Table[string, NodeValue],
     lastResult: nilValue(),
     rootObject: rootObject,
     exceptionHandlers: @[],
-    schedulerContextPtr: (when defined(js): 0 else: nil)
+    schedulerContextPtr: nil
   )
 
   # Use the shared root class and root object
@@ -1071,12 +541,18 @@ type
 
 proc lookupMethod*(interp: Interpreter, receiver: Instance, selector: string): MethodResult =
   ## Look up method in receiver's class using O(1) class lookup
+  ## Lazily rebuilds method tables if class is marked dirty
   if receiver == nil or receiver.class == nil:
     debug("Method not found: ", selector, " (receiver or class is nil)")
     return MethodResult(currentMethod: nil, receiver: nil, definingClass: nil, found: false)
 
   let cls = receiver.class
   debug("Looking up method: '", selector, "' in class: ", cls.name)
+
+  # Lazy rebuild: check if method tables are dirty and rebuild if needed
+  if cls.methodsDirty:
+    rebuildAllDescendants(cls)
+    cls.methodsDirty = false
 
   # Fast O(1) lookup in allMethods table (already flattened from parents)
   if selector in cls.allMethods:
@@ -1093,8 +569,14 @@ proc lookupMethod*(interp: Interpreter, receiver: Instance, selector: string): M
 
 proc lookupClassMethod*(cls: Class, selector: string): MethodResult =
   ## Look up class method in class (fast O(1) lookup)
+  ## Lazily rebuilds method tables if class is marked dirty
   if cls == nil:
     return MethodResult(currentMethod: nil, receiver: nil, definingClass: nil, found: false)
+
+  # Lazy rebuild: check if method tables are dirty and rebuild if needed
+  if cls.methodsDirty:
+    rebuildAllDescendants(cls)
+    cls.methodsDirty = false
 
   if selector in cls.allClassMethods:
     return MethodResult(
@@ -1117,25 +599,7 @@ proc executeMethod(interp: var Interpreter, currentMethod: BlockNode,
   debug("Executing method with ", arguments.len, " arguments")
 
   # Check for native implementation first
-  when defined(js):
-    # JS builds: use selector-based dispatch for all native methods
-    debug("JS: Checking for dispatch: ", currentMethod.selector)
-    let jsSavedReceiver = interp.currentReceiver
-    try:
-      let primResult = dispatchPrimitive(interp, receiver, currentMethod.selector, arguments)
-      if primResult.kind != vkNil:
-        return primResult
-      # Special case: some primitives return nil legitimately, check if it's a primitive
-      if currentMethod.selector.startsWith("primitive"):
-        return primResult  # Return nil for primitives that returned nil
-    except:
-      debug("JS: Dispatcher failed, falling through to interpreted")
-    finally:
-      interp.currentReceiver = jsSavedReceiver
-    # Note: nativeImplIsSet always false in JS builds, so fall through to interpreted
-  else:
-    # Native builds: use nativeImpl pointer
-    if nativeImplIsSet(currentMethod):
+  if nativeImplIsSet(currentMethod):
       debug("Calling native implementation")
       let savedReceiver = interp.currentReceiver
       try:
@@ -1736,9 +1200,9 @@ proc primitiveSignalImpl(interp: var Interpreter, self: Instance, args: seq[Node
     if isKindOf(self.class, handler.exceptionClass):
       debug("primitiveSignal: found matching handler at index ", i)
 
-      # Remove the handler from exceptionHandlers - it will be used once
-      del interp.exceptionHandlers, i
-      debug("primitiveSignal: removed handler at index ", i)
+      # Mark handler as consumed - wfPopHandler will check this and not pop it
+      interp.exceptionHandlers[i].consumed = true
+      debug("primitiveSignal: marked handler as consumed at index ", i)
 
       # Found matching handler - schedule handler block execution
       # The handler block receives the exception as argument
@@ -1746,11 +1210,12 @@ proc primitiveSignalImpl(interp: var Interpreter, self: Instance, args: seq[Node
       debug("primitiveSignal: scheduling handler with exception class=", self.class.name, " value kind=", $exValue.kind)
 
       # Schedule handler block - it will receive exception as its argument
-      interp.pushWorkFrame(newApplyBlockFrame(handler.handlerBlock, 1))
+      var applyFrame = newApplyBlockFrame(handler.handlerBlock, 1)
+      applyFrame.blockArgs = @[exValue]  # Pre-bind the exception argument
+      interp.pushWorkFrame(applyFrame)
 
-      # Return the exception value - caller will push it onto the eval stack
-      # The handler block will then pop it as its argument
-      return exValue
+      # Return nil - the handler block will push its result
+      return nilValue()
 
   # No handler found - for now write to stderr and return nil
   # In full implementation, this would open the Debugger
@@ -2275,19 +1740,13 @@ proc initGlobals*(interp: var Interpreter) =
   proc objPrintImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
     # Print self to stdout without newline
     let s = self.toValue().toString()
-    when defined(js):
-      {.emit: "if (typeof process !== 'undefined' && process.stdout) { process.stdout.write(`s`); } else { console.log(`s`); }".}
-    else:
-      stdout.write(s)
+    stdout.write(s)
     return self.toValue()
 
   proc objPrintlnImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
     # Print self to stdout with newline
     let s = self.toValue().toString()
-    when defined(js):
-      {.emit: "console.log(`s`);".}
-    else:
-      echo(s)
+    echo(s)
     return self.toValue()
 
   let printMethod = createCoreMethod("print")
@@ -2492,6 +1951,11 @@ proc initGlobals*(interp: var Interpreter) =
   intCls.methods["primitivePrintString"] = intPrintStringMethod
   intCls.allMethods["primitivePrintString"] = intPrintStringMethod
 
+  let intBackslashModuloMethod = createCoreMethod("primitiveBackslashModulo:")
+  intBackslashModuloMethod.setNativeImpl(backslashModuloImpl)
+  intCls.methods["primitiveBackslashModulo:"] = intBackslashModuloMethod
+  intCls.allMethods["primitiveBackslashModulo:"] = intBackslashModuloMethod
+
   # ============================================================================
   # Register Float primitive selectors (used by lib/core/Float.hrd)
   # Float uses the same primitive implementations as Integer
@@ -2560,19 +2024,12 @@ proc initGlobals*(interp: var Interpreter) =
   floatCls.methods["primitivePrintString"] = floatPrintStringMethod
   floatCls.allMethods["primitivePrintString"] = floatPrintStringMethod
 
-  # Register backslash operator (modulo) - special character needs direct registration
-  # Note: \\ is NOT defined in .hrd files due to parser limitations with special characters
-  let intBackslashMethod = createCoreMethod("\\")
-  intBackslashMethod.setNativeImpl(backslashModuloImpl)
-  intCls.methods["\\"] = intBackslashMethod
-  intCls.allMethods["\\"] = intBackslashMethod
+  let floatBackslashModuloMethod = createCoreMethod("primitiveBackslashModulo:")
+  floatBackslashModuloMethod.setNativeImpl(backslashModuloImpl)
+  floatCls.methods["primitiveBackslashModulo:"] = floatBackslashModuloMethod
+  floatCls.allMethods["primitiveBackslashModulo:"] = floatBackslashModuloMethod
 
-  let floatBackslashMethod = createCoreMethod("\\")
-  floatBackslashMethod.setNativeImpl(backslashModuloImpl)
-  floatCls.methods["\\"] = floatBackslashMethod
-  floatCls.allMethods["\\"] = floatBackslashMethod
-
-  # Note: User-facing methods (+, -, *, /, =, <, //, printString) are now defined in .hrd files:
+  # Note: User-facing methods (+, -, *, /, =, <, //, \\, printString) are now defined in .hrd files:
   #   lib/core/Integer.hrd, lib/core/Float.hrd
   # These use <primitive selector> syntax which dispatches to the primitive selectors above.
 
@@ -2936,31 +2393,26 @@ proc loadStdlib*(interp: var Interpreter, bootstrapFile: string = "") =
 
   # Initialize Process, Scheduler, Monitor, SharedQueue, Semaphore classes
   # Use a callback to avoid circular import with scheduler module
-  if (when defined(js): interp.schedulerContextPtr != 0 else: interp.schedulerContextPtr != nil):
+  if interp.schedulerContextPtr != nil:
     # Scheduler is already initialized, classes should be available
     discard
 
   # Use lib/core/Bootstrap.hrd as default if no bootstrapFile provided
-  when defined(js):
-    # JS builds use embedded library files loaded via jslib module
-    # Skip file-based bootstrap loading
-    discard
-  else:
-    let actualBootstrapFile = if bootstrapFile.len > 0 and fileExists(bootstrapFile):
-                               bootstrapFile
-                             else:
-                               interp.hardingHome / "lib" / "core" / "Bootstrap.hrd"
+  let actualBootstrapFile = if bootstrapFile.len > 0 and fileExists(bootstrapFile):
+                             bootstrapFile
+                           else:
+                             interp.hardingHome / "lib" / "core" / "Bootstrap.hrd"
 
-    if fileExists(actualBootstrapFile):
-      debug("Loading bootstrap file: ", actualBootstrapFile)
-      let source = readFile(actualBootstrapFile)
-      let (_, err) = interp.evalStatements(source)
-      if err.len > 0:
-        warn("Failed to load bootstrap file ", actualBootstrapFile, ": ", err)
-      else:
-        debug("Successfully loaded bootstrap: ", actualBootstrapFile)
+  if fileExists(actualBootstrapFile):
+    debug("Loading bootstrap file: ", actualBootstrapFile)
+    let source = readFile(actualBootstrapFile)
+    let (_, err) = interp.evalStatements(source)
+    if err.len > 0:
+      warn("Failed to load bootstrap file ", actualBootstrapFile, ": ", err)
     else:
-      warn("Bootstrap file not found: ", actualBootstrapFile)
+      debug("Successfully loaded bootstrap: ", actualBootstrapFile)
+  else:
+    warn("Bootstrap file not found: ", actualBootstrapFile)
 
   # Set up class caches for primitive types
   if "Number" in interp.globals[]:
@@ -3035,22 +2487,17 @@ proc loadStdlib*(interp: var Interpreter, bootstrapFile: string = "") =
                          findClassInLibraries(interp, "FileStream")
 
   if fileStreamCls != nil:
-    when defined(js):
-      # JS builds: Define methods using Harding code that captures to buffer
-      # The jsOutputBuffer is defined in hardingjs.nim and accessed via emit
-      discard
-    else:
-      # Native builds: Use native implementations
-      let fsWriteMethod = createCoreMethod("write:")
-      fsWriteMethod.setNativeImpl(writeImpl)
-      fileStreamCls.methods["write:"] = fsWriteMethod
-      fileStreamCls.allMethods["write:"] = fsWriteMethod
+    # Native builds: Use native implementations
+    let fsWriteMethod = createCoreMethod("write:")
+    fsWriteMethod.setNativeImpl(writeImpl)
+    fileStreamCls.methods["write:"] = fsWriteMethod
+    fileStreamCls.allMethods["write:"] = fsWriteMethod
 
-      let fsWritelineMethod = createCoreMethod("writeline:")
-      fsWritelineMethod.setNativeImpl(writelineImpl)
-      fileStreamCls.methods["writeline:"] = fsWritelineMethod
-      fileStreamCls.allMethods["writeline:"] = fsWritelineMethod
-      debug("Registered native FileStream methods")
+    let fsWritelineMethod = createCoreMethod("writeline:")
+    fsWritelineMethod.setNativeImpl(writelineImpl)
+    fileStreamCls.methods["writeline:"] = fsWritelineMethod
+    fileStreamCls.allMethods["writeline:"] = fsWritelineMethod
+    debug("Registered native FileStream methods")
 
     let stdoutInstance = fileStreamCls.newInstance()
     interp.globals[]["Stdout"] = stdoutInstance.toValue()
@@ -3205,8 +2652,7 @@ proc initHardingGlobal*(interp: var Interpreter) =
   globalTableProxies.add(proxy)  # Keep reference alive for GC
   let globalTableInstance = Instance(kind: ikObject, class: globalTableClass, slots: @[])
   globalTableInstance.isNimProxy = true
-  when not defined(js):
-    globalTableInstance.nimValue = cast[pointer](proxy)
+  globalTableInstance.nimValue = cast[pointer](proxy)
 
   # Add to globals as 'Harding' (the global namespace accessor)
   interp.globals[]["Harding"] = globalTableInstance.toValue()
@@ -3316,34 +2762,29 @@ proc globalTableLoadImpl(interp: var Interpreter, self: Instance, args: seq[Node
   if filePath.len == 0:
     return nilValue()
 
-  when defined(js):
-    # JS builds don't support file I/O
-    writeStderr("Error: File I/O not supported in JavaScript build")
+  # Resolve path relative to hardingHome if not absolute
+  let resolvedPath = if filePath.isAbsolute:
+                       filePath
+                     else:
+                       interp.hardingHome / filePath
+
+  # Check if file exists
+  if not fileExists(resolvedPath):
+    writeStderr("Error: File not found: " & resolvedPath)
     return nilValue()
-  else:
-    # Resolve path relative to hardingHome if not absolute
-    let resolvedPath = if filePath.isAbsolute:
-                         filePath
-                       else:
-                         interp.hardingHome / filePath
 
-    # Check if file exists
-    if not fileExists(resolvedPath):
-      writeStderr("Error: File not found: " & resolvedPath)
+  # Read and evaluate the file
+  try:
+    let source = readFile(resolvedPath)
+    let (_, err) = interp.evalStatements(source)
+    if err.len > 0:
+      writeStderr("Error loading " & resolvedPath & ": " & err)
       return nilValue()
-
-    # Read and evaluate the file
-    try:
-      let source = readFile(resolvedPath)
-      let (_, err) = interp.evalStatements(source)
-      if err.len > 0:
-        writeStderr("Error loading " & resolvedPath & ": " & err)
-        return nilValue()
-      debug("Successfully loaded: ", resolvedPath)
-      return toValue(true)
-    except Exception as e:
-      writeStderr("Error reading " & resolvedPath & ": " & e.msg)
-      return nilValue()
+    debug("Successfully loaded: ", resolvedPath)
+    return toValue(true)
+  except Exception as e:
+    writeStderr("Error reading " & resolvedPath & ": " & e.msg)
+    return nilValue()
 
 # ============================================================================
 # Library methods (need interpreter access)
@@ -3354,64 +2795,58 @@ proc libraryLoadImpl(interp: var Interpreter, self: Instance, args: seq[NodeValu
   if args.len < 1:
     return nilValue()
 
-  when defined(js):
-    # JS builds don't support file I/O
-    writeStderr("Error: Library file I/O not supported in JavaScript build")
+  let pathArg = args[0]
+  let filePath = case pathArg.kind
+    of vkString: pathArg.strVal
+    of vkSymbol: pathArg.symVal
+    else: ""
+
+  if filePath.len == 0:
     return nilValue()
-  else:
-    # Native builds: proceed with file I/O
-    let pathArg = args[0]
-    let filePath = case pathArg.kind
-      of vkString: pathArg.strVal
-      of vkSymbol: pathArg.symVal
-      else: ""
 
-    if filePath.len == 0:
-      return nilValue()
+  let resolvedPath = if filePath.isAbsolute:
+                       filePath
+                     else:
+                       interp.hardingHome / filePath
 
-    let resolvedPath = if filePath.isAbsolute:
-                         filePath
-                       else:
-                         interp.hardingHome / filePath
+  if not fileExists(resolvedPath):
+    writeStderr("Error: File not found: " & resolvedPath)
+    return nilValue()
 
-    if not fileExists(resolvedPath):
-      writeStderr("Error: File not found: " & resolvedPath)
-      return nilValue()
+  # Save original globals and create a copy for capturing new definitions
+  let originalGlobals = interp.globals
+  var tempGlobals: ref Table[string, NodeValue]
+  new(tempGlobals)
+  tempGlobals[] = originalGlobals[]
 
-    # Save original globals and create a copy for capturing new definitions
-    let originalGlobals = interp.globals
-    var tempGlobals: ref Table[string, NodeValue]
-    new(tempGlobals)
-    tempGlobals[] = originalGlobals[]
+  # Swap globals to temp table so new definitions go there
+  interp.globals = tempGlobals
 
-    # Swap globals to temp table so new definitions go there
-    interp.globals = tempGlobals
-
-    try:
-      let source = readFile(resolvedPath)
-      let (_, err) = interp.evalStatements(source)
-      if err.len > 0:
-        writeStderr("Error loading " & resolvedPath & ": " & err)
-        interp.globals = originalGlobals
-        return nilValue()
-
-      # Restore original globals
+  try:
+    let source = readFile(resolvedPath)
+    let (_, err) = interp.evalStatements(source)
+    if err.len > 0:
+      writeStderr("Error loading " & resolvedPath & ": " & err)
       interp.globals = originalGlobals
-
-      # Copy new entries into the Library's bindings table
-      let bindings = getLibraryBindings(self)
-      if bindings != nil:
-        for key, val in tempGlobals[]:
-          if key notin originalGlobals[]:
-            setTableValue(bindings, toValue(key), val)
-            debug("Library captured: ", key)
-
-      debug("Successfully loaded into library: ", resolvedPath)
-      return toValue(true)
-    except Exception as e:
-      interp.globals = originalGlobals
-      writeStderr("Error reading " & resolvedPath & ": " & e.msg)
       return nilValue()
+
+    # Restore original globals
+    interp.globals = originalGlobals
+
+    # Copy new entries into the Library's bindings table
+    let bindings = getLibraryBindings(self)
+    if bindings != nil:
+      for key, val in tempGlobals[]:
+        if key notin originalGlobals[]:
+          setTableValue(bindings, toValue(key), val)
+          debug("Library captured: ", key)
+
+    debug("Successfully loaded into library: ", resolvedPath)
+    return toValue(true)
+  except Exception as e:
+    interp.globals = originalGlobals
+    writeStderr("Error reading " & resolvedPath & ": " & e.msg)
+    return nilValue()
 
 proc globalTableImportImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
   ## Harding import: - add a Library to the interpreter's imported libraries list
@@ -4036,13 +3471,10 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       boolInst.kind = ikObject
       boolInst.class = if receiverVal.boolVal: trueClassCache else: falseClassCache
       boolInst.slots = @[]
-      when not defined(js):
-        let p = cast[pointer](alloc(sizeof(bool)))
-        cast[ptr bool](p)[] = receiverVal.boolVal
-        boolInst.isNimProxy = true
-        boolInst.nimValue = p
-      else:
-        boolInst.isNimProxy = false
+      let p = cast[pointer](alloc(sizeof(bool)))
+      cast[ptr bool](p)[] = receiverVal.boolVal
+      boolInst.isNimProxy = true
+      boolInst.nimValue = p
       receiver = boolInst
     of vkNil:
       receiver = nilInstance
@@ -4061,7 +3493,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
         if nativeImplIsSet(currentMethod):
           let savedReceiver = interp.currentReceiver
           # Create class receiver wrapper for consistent receiver handling
-          let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: (when defined(js): 0 else: nil))
+          let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: nil)
           # Set currentReceiver for consistent method context
           interp.currentReceiver = classReceiver
           try:
@@ -4082,7 +3514,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
           return true
 
         # Interpreted class method - create activation with class wrapper as receiver
-        let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: (when defined(js): 0 else: nil))
+        let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: nil)
 
         # Check parameter count
         if currentMethod.parameters.len != args.len:
@@ -4130,7 +3562,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       else:
         # Class method not found - try instance methods on the Class class
         # This allows methods like asSelfDo: to work on class receivers
-        let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: (when defined(js): 0 else: nil))
+        let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: nil)
         let instanceLookup = lookupMethod(interp, classReceiver, frame.selector)
 
         if instanceLookup.found:
@@ -4211,7 +3643,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
             debug("VM: Found class method '", frame.selector, "' for class ", cls.name)
 
             # Create class receiver wrapper
-            let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: (when defined(js): 0 else: nil))
+            let classReceiver = Instance(kind: ikObject, class: cls, slots: @[], isNimProxy: false, nimValue: nil)
 
             # Handle native implementations
             if nativeImplIsSet(classMethodToRun):
@@ -4276,16 +3708,14 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       blockInst.class = blockClass
       blockInst.slots = @[]
       blockInst.isNimProxy = false
-      when not defined(js):
-        blockInst.nimValue = cast[pointer](receiverVal.blockVal)
+      blockInst.nimValue = cast[pointer](receiverVal.blockVal)
       receiver = blockInst
     of vkSymbol:
       receiver = newStringInstance(symbolClassCache, receiverVal.symVal)
 
     # Special stackless handling for control flow primitives
-    when not defined(js):
-      # Native builds only: nimValue pointer operations not supported in JS
-      if receiver.isNimProxy and receiver.kind == ikObject and receiver.class != nil:
+    # Native builds only: nimValue pointer operations
+    if receiver.isNimProxy and receiver.kind == ikObject and receiver.class != nil:
         # Boolean ifTrue:/ifFalse: - use stackless work frames
         if (receiver.class == trueClassCache or receiver.class == falseClassCache) and args.len > 0 and args[0].kind == vkBlock:
           case frame.selector
@@ -4441,23 +3871,6 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
         interp.currentReceiver = savedReceiver
       return true
 
-    # JS builds: try selector-based dispatch for primitives
-    when defined(js):
-      let jsSavedReceiver = interp.currentReceiver
-      try:
-        let primResult = dispatchPrimitive(interp, receiver, frame.selector, args)
-        if primResult.kind != vkNil:
-          interp.pushValue(primResult)
-          return true
-        # Special case: some primitives return nil legitimately
-        if frame.selector.startsWith("primitive"):
-          interp.pushValue(primResult)
-          return true
-      except:
-        debug("JS: Dispatcher failed in wfSendMessage for ", frame.selector)
-      finally:
-        interp.currentReceiver = jsSavedReceiver
-
     # Interpreted method - create activation and execute body
     debug("VM: Executing interpreted method '", frame.selector, "' with ", args.len, " args, body has ", currentMethod.body.len, " statements")
 
@@ -4503,8 +3916,11 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
     return true
 
   of wfApplyBlock:
-    # Apply block with args on stack
-    let args = interp.popValues(frame.argCount)
+    # Apply block with args on stack OR from pre-bound blockArgs
+    let args = if frame.blockArgs.len > 0:
+                 frame.blockArgs  # Use pre-bound args (e.g., from exception handler)
+               else:
+                 interp.popValues(frame.argCount)  # Pop from eval stack
     let blockNode = frame.blockVal
 
     # Check argument count
@@ -4732,13 +4148,10 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       boolInst.kind = ikObject
       boolInst.class = if receiverVal.boolVal: trueClassCache else: falseClassCache
       boolInst.slots = @[]
-      when not defined(js):
-        let p = cast[pointer](alloc(sizeof(bool)))
-        cast[ptr bool](p)[] = receiverVal.boolVal
-        boolInst.isNimProxy = true
-        boolInst.nimValue = p
-      else:
-        boolInst.isNimProxy = false
+      let p = cast[pointer](alloc(sizeof(bool)))
+      cast[ptr bool](p)[] = receiverVal.boolVal
+      boolInst.isNimProxy = true
+      boolInst.nimValue = p
       receiver = boolInst
     of vkBlock:
       var blockInst: Instance
@@ -4747,8 +4160,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       blockInst.class = blockClass
       blockInst.slots = @[]
       blockInst.isNimProxy = false
-      when not defined(js):
-        blockInst.nimValue = cast[pointer](receiverVal.blockVal)
+      blockInst.nimValue = cast[pointer](receiverVal.blockVal)
       receiver = blockInst
     of vkClass:
       var classInst: Instance
@@ -4757,8 +4169,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       classInst.class = objectClass
       classInst.slots = @[]
       classInst.isNimProxy = false
-      when not defined(js):
-        classInst.nimValue = cast[pointer](receiverVal.classVal)
+      classInst.nimValue = cast[pointer](receiverVal.classVal)
       receiver = classInst
     else:
       raise newException(ValueError, "Cascade to unsupported value kind: " & $receiverVal.kind)
@@ -4865,13 +4276,10 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       boolInst.kind = ikObject
       boolInst.class = if receiverVal.boolVal: trueClassCache else: falseClassCache
       boolInst.slots = @[]
-      when not defined(js):
-        let p = cast[pointer](alloc(sizeof(bool)))
-        cast[ptr bool](p)[] = receiverVal.boolVal
-        boolInst.isNimProxy = true
-        boolInst.nimValue = p
-      else:
-        boolInst.isNimProxy = false
+      let p = cast[pointer](alloc(sizeof(bool)))
+      cast[ptr bool](p)[] = receiverVal.boolVal
+      boolInst.isNimProxy = true
+      boolInst.nimValue = p
       receiver = boolInst
     of vkBlock:
       var blockInst: Instance
@@ -4880,8 +4288,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       blockInst.class = blockClass
       blockInst.slots = @[]
       blockInst.isNimProxy = false
-      when not defined(js):
-        blockInst.nimValue = cast[pointer](receiverVal.blockVal)
+      blockInst.nimValue = cast[pointer](receiverVal.blockVal)
       receiver = blockInst
     of vkClass:
       var classInst: Instance
@@ -4890,8 +4297,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       classInst.class = objectClass
       classInst.slots = @[]
       classInst.isNimProxy = false
-      when not defined(js):
-        classInst.nimValue = cast[pointer](receiverVal.classVal)
+      classInst.nimValue = cast[pointer](receiverVal.classVal)
       receiver = classInst
     else:
       raise newException(ValueError, "Cascade to unsupported value kind: " & $receiverVal.kind)
@@ -4989,11 +4395,16 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
   of wfPopHandler:
     # Pop exception handler from handler stack
     # Remove handlers whose activation has exited (current depth < handler's depth)
+    # Also remove handlers that were consumed (used to catch an exception)
     if interp.exceptionHandlers.len > 0:
       var i = 0
       while i < interp.exceptionHandlers.len:
         let handler = interp.exceptionHandlers[i]
-        if interp.activationStack.len < handler.stackDepth:
+        if handler.consumed:
+          # Handler was used to catch an exception, remove it from stack
+          interp.exceptionHandlers.del(i)
+          debug("VM: wfPopHandler removed consumed handler")
+        elif interp.activationStack.len < handler.stackDepth:
           # Handler's activation has exited, remove it
           interp.exceptionHandlers.del(i)
           debug("VM: wfPopHandler removed handler with exited activation, handlerDepth=", handler.stackDepth, " currentDepth=", interp.activationStack.len)
