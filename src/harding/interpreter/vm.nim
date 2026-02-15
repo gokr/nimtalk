@@ -96,6 +96,7 @@ when defined(js):
 
     of "primitiveClass", "class":
       # Return the class of the receiver
+      debug("primitiveClass: receiver.class = ", if receiver.class == nil: "nil" else: receiver.class.name)
       if receiver.class != nil:
         return receiver.class.toValue()
       return nilValue()
@@ -1640,9 +1641,31 @@ proc primitiveAsSelfDoImpl(interp: var Interpreter, self: Instance, args: seq[No
     # Restore original receiver
     interp.currentReceiver = savedReceiver
 
+# Forward declarations for work frame constructors (defined later in the file)
+proc newPushHandlerFrame*(exceptionClass: Class, handlerBlock: BlockNode): WorkFrame
+proc newPopHandlerFrame*(): WorkFrame
+proc newApplyBlockFrame*(blockVal: BlockNode, argCount: int): WorkFrame
+proc newEvalFrame*(node: Node): WorkFrame
+proc pushWorkFrame*(interp: var Interpreter, frame: WorkFrame)
+
+proc isKindOf(cls: Class, parentClass: Class): bool =
+  ## Check if cls is the same as or a subclass of parentClass
+  if cls == nil or parentClass == nil:
+    return false
+  if cls == parentClass:
+    return true
+  # Walk the superclass chain
+  for super in cls.superclasses:
+    if isKindOf(super, parentClass):
+      return true
+  return false
+
 proc primitiveOnDoImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  ## Install exception handler and execute block
-  ## Called from Block>>on:do: - usage: block on: Exception do: handlerBlock
+  ## Install exception handler and execute protected block using work queue
+  ## Usage: [protectedBlock] on: ExceptionClass do: [:ex | handlerBlock]
+  ##
+  ## Uses work queue integration, NOT Nim try/finally.
+  ## The stackless VM requires all control flow to go through the work queue.
   if args.len < 2:
     return nilValue()
 
@@ -1657,34 +1680,73 @@ proc primitiveOnDoImpl(interp: var Interpreter, self: Instance, args: seq[NodeVa
   if exceptionClass == nil or handlerBlock == nil:
     return nilValue()
 
-  # For now, just evaluate the block without exception handling
-  # Full exception handling requires more complex control flow changes
-  debug("primitiveOnDo: called but not fully implemented - evaluating block directly")
-
-  # Get the block to execute (self is a Block instance here)
+  # Get the protected block (self is a Block instance here)
   if self.kind == ikObject and self.class == blockClass and nimValueIsSet(self.nimValue):
-    let blockNode = cast[ptr BlockNode](self.nimValue)[]
-    return invokeBlock(interp, blockNode, @[])
+    let blockNode = cast[BlockNode](self.nimValue)
+
+    debug("primitiveOnDo: installing handler for ", exceptionClass.name)
+
+    # Schedule work frames: [pushHandler] -> [evalBlock] -> [popHandler]
+    # We push in reverse order (LIFO) so they execute in correct order
+
+    # 3. Pop handler after block completes (pushed first, runs last)
+    interp.pushWorkFrame(newPopHandlerFrame())
+
+    # 2. Evaluate the protected block (pushed second, runs middle)
+    # Note: if primitiveSignal: is called during block execution,
+    # it will search the handler stack and find our handler
+    interp.pushWorkFrame(newApplyBlockFrame(blockNode, 0))
+
+    # 1. Push handler onto stack (pushed last, runs first)
+    # This schedules the handler push before block execution
+    interp.pushWorkFrame(newPushHandlerFrame(exceptionClass, handlerBlock))
+
+    # Return - let VM process the work queue
+    # The result will be left on the eval stack by the block execution
+    return nilValue()
 
   return nilValue()
 
 proc primitiveSignalImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  ## Signal/raise an exception
+  ## Signal/raise an exception - walk handler stack WITHOUT unwinding
   ## Called from Exception>>signal - usage: Exception signal: "message"
-  #
-  # For now, this is a placeholder - full exception handling requires:
-  # 1. Traversing the exception handler stack
-  # 2. Matching exception types
-  # 3. Unwinding the call stack
-  # 4. Resuming in the handler block
+  ## Stack remains intact so Debugger can inspect signal point
+  ##
+  ## self is the Exception instance (not the class)
 
-  let message = if args.len > 0 and args[0].kind == vkString: args[0].strVal
-                else: "Exception"
+  # Get message from exception instance if available
+  var message = "Exception"
+  if self != nil and self.kind == ikObject and self.class != nil:
+    # Try to get message from the exception instance
+    let messageSlotIdx = self.class.allSlotNames.find("message")
+    if messageSlotIdx >= 0 and messageSlotIdx < self.slots.len:
+      let msgValue = self.slots[messageSlotIdx]
+      if msgValue.kind == vkString:
+        message = msgValue.strVal
 
-  debug("primitiveSignal: called - raising exception: ", message)
+  debug("primitiveSignal: signaling exception: ", message)
 
-  # For now, just print the error and return
-  writeStderr("Exception: " & message)
+  # Walk exceptionHandlers stack from top (newest) to bottom
+  for i in countdown(interp.exceptionHandlers.len - 1, 0):
+    let handler = interp.exceptionHandlers[i]
+
+    # Check if exception isKindOf: handler's exceptionClass
+    if isKindOf(self.class, handler.exceptionClass):
+      debug("primitiveSignal: found matching handler at index ", i)
+
+      # Found matching handler - schedule handler block execution
+      # The handler block receives the exception as argument
+      let exValue = self.toValue()
+      interp.pushWorkFrame(newApplyBlockFrame(handler.handlerBlock, 1))
+      interp.pushWorkFrame(newEvalFrame(LiteralNode(value: exValue)))
+
+      # Return nil - the handler block will push its result
+      return nilValue()
+
+  # No handler found - for now write to stderr and return nil
+  # In full implementation, this would open the Debugger
+  debug("primitiveSignal: no handler found for exception")
+  writeStderr("Uncaught exception: " & message)
   return nilValue()
 
 proc primitiveHasPropertyImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
@@ -2848,12 +2910,14 @@ proc initGlobals*(interp: var Interpreter) =
   blockCls.methods["primitiveValue:value:value:"] = primitiveValueWithThreeArgsMethod
   blockCls.allMethods["primitiveValue:value:value:"] = primitiveValueWithThreeArgsMethod
 
-  # Register Block exception handling method (primitiveOnDo: for on:do: support)
-  let primitiveOnDoMethod = createCoreMethod("primitiveOnDo:")
+  # Register Block exception handling method (primitiveOnDo:do: for on:do: support)
+  # The selector is primitiveOnDo:do: because the Harding method has two arguments:
+  # Block>>on: exceptionClass do: handlerBlock <primitive primitiveOnDo: exceptionClass do: handlerBlock>
+  let primitiveOnDoMethod = createCoreMethod("primitiveOnDo:do:")
   primitiveOnDoMethod.setNativeImpl(primitiveOnDoImpl)
   primitiveOnDoMethod.hasInterpreterParam = true
-  blockCls.methods["primitiveOnDo:"] = primitiveOnDoMethod
-  blockCls.allMethods["primitiveOnDo:"] = primitiveOnDoMethod
+  blockCls.methods["primitiveOnDo:do:"] = primitiveOnDoMethod
+  blockCls.allMethods["primitiveOnDo:do:"] = primitiveOnDoMethod
 
   # Register Set iteration method (primitiveSetDo: requires interpreter for block evaluation)
   # The Set class itself was created in initCoreClasses (objects.nim)
@@ -2987,6 +3051,12 @@ proc loadStdlib*(interp: var Interpreter, bootstrapFile: string = "") =
       stringClassCache = strVal.classVal
       debug("Set stringClassCache from String global")
 
+  if "Symbol" in interp.globals[]:
+    let symVal = interp.globals[]["Symbol"]
+    if symVal.kind == vkClass:
+      symbolClassCache = symVal.classVal
+      debug("Set symbolClassCache from Symbol global")
+
   if "Boolean" in interp.globals[]:
     let boolVal = interp.globals[]["Boolean"]
     if boolVal.kind == vkClass:
@@ -3083,6 +3153,48 @@ proc loadStdlib*(interp: var Interpreter, bootstrapFile: string = "") =
       compiler_primitives.currentInterpreter = interp
 
       debug("Registered native Granite compiler methods")
+
+  # Register Exception primitive methods
+  # First try to find Exception in globals or imported libraries
+  var exceptionCls: Class = nil
+
+  debug("Looking for Exception, importedLibraries.len = ", $interp.importedLibraries.len)
+
+  # Check globals first
+  if "Exception" in interp.globals[]:
+    let exVal = interp.globals[]["Exception"]
+    if exVal.kind == vkClass:
+      exceptionCls = exVal.classVal
+      debug("Found Exception in globals")
+
+  # If not in globals, check imported libraries
+  if exceptionCls == nil:
+    for lib in interp.importedLibraries:
+      debug("Checking imported library, class = ", lib.class.name)
+      if lib.kind == ikObject and lib.class != nil and lib.class.name == "Library":
+        # Try to get Exception from library bindings
+        let bindingsVal = lib.slots[0]  # bindings table is first slot
+        debug("Library bindings kind: ", $bindingsVal.kind)
+        if bindingsVal.kind == vkInstance and bindingsVal.instVal.kind == ikTable:
+          debug("Library has ", $bindingsVal.instVal.entries.len, " entries")
+          let exKey = toValue("Exception")
+          if exKey in bindingsVal.instVal.entries:
+            let exVal = bindingsVal.instVal.entries[exKey]
+            debug("Found Exception entry, kind: ", $exVal.kind)
+            if exVal.kind == vkClass:
+              exceptionCls = exVal.classVal
+              debug("Found Exception in imported library")
+              break
+
+  if exceptionCls != nil:
+    let primitiveSignalMethod = createCoreMethod("primitiveSignal")
+    primitiveSignalMethod.setNativeImpl(primitiveSignalImpl)
+    primitiveSignalMethod.hasInterpreterParam = true
+    exceptionCls.methods["primitiveSignal"] = primitiveSignalMethod
+    exceptionCls.allMethods["primitiveSignal"] = primitiveSignalMethod
+    debug("Registered native Exception>>primitiveSignal method")
+  else:
+    debug("Exception class not found, cannot register primitiveSignal")
 
 # Simple test function (incomplete - commented out)
 ## proc testBasicArithmetic*(): bool =
@@ -3482,6 +3594,18 @@ proc newIfBranchFrame*(condResult: bool, thenBlock, elseBlock: BlockNode): WorkF
 proc newWhileLoopFrame*(loopKind: bool, conditionBlock, bodyBlock: BlockNode, loopState: LoopState): WorkFrame =
   ## Create a work frame for while loop (whileTrue:, whileFalse:)
   WorkFrame(kind: wfWhileLoop, loopKind: loopKind, conditionBlock: conditionBlock, bodyBlock: bodyBlock, loopState: loopState)
+
+proc newPushHandlerFrame*(exceptionClass: Class, handlerBlock: BlockNode): WorkFrame =
+  ## Create a work frame to push an exception handler
+  WorkFrame(kind: wfPushHandler, exceptionClass: exceptionClass, handlerBlock: handlerBlock)
+
+proc newPopHandlerFrame*(): WorkFrame =
+  ## Create a work frame to pop an exception handler
+  WorkFrame(kind: wfPopHandler)
+
+proc newSignalExceptionFrame*(exceptionInstance: Instance): WorkFrame =
+  ## Create a work frame to signal an exception
+  WorkFrame(kind: wfSignalException, exceptionInstance: exceptionInstance)
 
 # Stack operations
 proc pushWorkFrame*(interp: var Interpreter, frame: WorkFrame) =
@@ -4218,7 +4342,13 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
         blockInst.nimValue = cast[pointer](receiverVal.blockVal)
       receiver = blockInst
     of vkSymbol:
-      receiver = newStringInstance(stringClass, receiverVal.symVal)
+      debug("Creating symbol instance with class: ", if symbolClassCache == nil: "nil" else: symbolClassCache.name)
+      if symbolClassCache == nil:
+        debug("WARNING: symbolClassCache is nil, falling back to stringClass")
+        receiver = newStringInstance(stringClass, receiverVal.symVal)
+      else:
+        receiver = newStringInstance(symbolClassCache, receiverVal.symVal)
+      debug("Created symbol instance, receiver.class = ", if receiver.class == nil: "nil" else: receiver.class.name)
 
     # Special stackless handling for control flow primitives
     when not defined(js):
@@ -4906,6 +5036,32 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       return true
     of lsDone:
       return true
+
+  of wfPushHandler:
+    # Push exception handler onto handler stack
+    let handler = ExceptionHandler(
+      exceptionClass: frame.exceptionClass,
+      handlerBlock: frame.handlerBlock,
+      activation: interp.currentActivation,
+      stackDepth: interp.activationStack.len
+    )
+    interp.exceptionHandlers.add(handler)
+    debug("VM: wfPushHandler pushed handler for ", frame.exceptionClass.name)
+    return true
+
+  of wfPopHandler:
+    # Pop exception handler from handler stack
+    if interp.exceptionHandlers.len > 0:
+      discard interp.exceptionHandlers.pop()
+      debug("VM: wfPopHandler popped handler")
+    return true
+
+  of wfSignalException:
+    # Signal exception - this is handled by primitiveSignalImpl
+    # which schedules the handler block directly
+    # This case should not normally be reached
+    debug("VM: wfSignalException - should be handled by primitiveSignalImpl")
+    return true
 
   of wfEvalNode:
     # Should not reach here - wfEvalNode is handled in handleEvalNode
