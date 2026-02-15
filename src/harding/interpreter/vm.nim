@@ -2571,89 +2571,9 @@ proc initGlobals*(interp: var Interpreter) =
   floatCls.methods["\\"] = floatBackslashMethod
   floatCls.allMethods["\\"] = floatBackslashMethod
 
-  # Register printString for Integer and Float (needed for tests and basic functionality)
-  let intPrintStringMethod2 = createCoreMethod("printString")
-  intPrintStringMethod2.setNativeImpl(printStringImpl)
-  intCls.methods["printString"] = intPrintStringMethod2
-  intCls.allMethods["printString"] = intPrintStringMethod2
-
-  let floatPrintStringMethod2 = createCoreMethod("printString")
-  floatPrintStringMethod2.setNativeImpl(printStringImpl)
-  floatCls.methods["printString"] = floatPrintStringMethod2
-  floatCls.allMethods["printString"] = floatPrintStringMethod2
-
-  # Register arithmetic methods directly on Integer and Float
-  # These are needed for tests that don't load the full stdlib
-  let intPlusMethod2 = createCoreMethod("+")
-  intPlusMethod2.setNativeImpl(plusImpl)
-  intCls.methods["+"] = intPlusMethod2
-  intCls.allMethods["+"] = intPlusMethod2
-
-  let intMinusMethod2 = createCoreMethod("-")
-  intMinusMethod2.setNativeImpl(minusImpl)
-  intCls.methods["-"] = intMinusMethod2
-  intCls.allMethods["-"] = intMinusMethod2
-
-  let intStarMethod2 = createCoreMethod("*")
-  intStarMethod2.setNativeImpl(starImpl)
-  intCls.methods["*"] = intStarMethod2
-  intCls.allMethods["*"] = intStarMethod2
-
-  let intSlashMethod2 = createCoreMethod("/")
-  intSlashMethod2.setNativeImpl(slashImpl)
-  intCls.methods["/"] = intSlashMethod2
-  intCls.allMethods["/"] = intSlashMethod2
-
-  let intEqMethod2 = createCoreMethod("=")
-  intEqMethod2.setNativeImpl(eqImpl)
-  intCls.methods["="] = intEqMethod2
-  intCls.allMethods["="] = intEqMethod2
-
-  let intLtMethod2 = createCoreMethod("<")
-  intLtMethod2.setNativeImpl(ltImpl)
-  intCls.methods["<"] = intLtMethod2
-  intCls.allMethods["<"] = intLtMethod2
-
-  let floatPlusMethod2 = createCoreMethod("+")
-  floatPlusMethod2.setNativeImpl(plusImpl)
-  floatCls.methods["+"] = floatPlusMethod2
-  floatCls.allMethods["+"] = floatPlusMethod2
-
-  let floatMinusMethod2 = createCoreMethod("-")
-  floatMinusMethod2.setNativeImpl(minusImpl)
-  floatCls.methods["-"] = floatMinusMethod2
-  floatCls.allMethods["-"] = floatMinusMethod2
-
-  let floatStarMethod2 = createCoreMethod("*")
-  floatStarMethod2.setNativeImpl(starImpl)
-  floatCls.methods["*"] = floatStarMethod2
-  floatCls.allMethods["*"] = floatStarMethod2
-
-  let floatSlashMethod2 = createCoreMethod("/")
-  floatSlashMethod2.setNativeImpl(slashImpl)
-  floatCls.methods["/"] = floatSlashMethod2
-  floatCls.allMethods["/"] = floatSlashMethod2
-
-  let floatEqMethod2 = createCoreMethod("=")
-  floatEqMethod2.setNativeImpl(eqImpl)
-  floatCls.methods["="] = floatEqMethod2
-  floatCls.allMethods["="] = floatEqMethod2
-
-  let floatLtMethod2 = createCoreMethod("<")
-  floatLtMethod2.setNativeImpl(ltImpl)
-  floatCls.methods["<"] = floatLtMethod2
-  floatCls.allMethods["<"] = floatLtMethod2
-
-  # Register // (integer division) for Integer and Float
-  let intIntDivMethod2 = createCoreMethod("//")
-  intIntDivMethod2.setNativeImpl(intDivImpl)
-  intCls.methods["//"] = intIntDivMethod2
-  intCls.allMethods["//"] = intIntDivMethod2
-
-  let floatIntDivMethod2 = createCoreMethod("//")
-  floatIntDivMethod2.setNativeImpl(intDivImpl)
-  floatCls.methods["//"] = floatIntDivMethod2
-  floatCls.allMethods["//"] = floatIntDivMethod2
+  # Note: User-facing methods (+, -, *, /, =, <, //, printString) are now defined in .hrd files:
+  #   lib/core/Integer.hrd, lib/core/Float.hrd
+  # These use <primitive selector> syntax which dispatches to the primitive selectors above.
 
   # Use existing Array class from initCoreClasses or create if needed
   var arrayCls: Class
