@@ -12,6 +12,7 @@ These are the primary documents for learning and using Harding:
 | [QUICKREF.md](QUICKREF.md) | Quick syntax cheat sheet | Quick lookup |
 | [GTK.md](GTK.md) | GTK bridge and GUI development | GUI developers |
 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | VM internals and architecture | Contributors |
+| [bootstrap.md](bootstrap.md) | Foundation and architecture of the VM bootstrap | Contributors |
 | [TOOLS_AND_DEBUGGING.md](TOOLS_AND_DEBUGGING.md) | Tool usage (`harding`, `granite`) and debugging | All users |
 | [FUTURE.md](FUTURE.md) | Future plans and roadmap | Contributors |
 | [JAVASCRIPT.md](JAVASCRIPT.md) | JavaScript/browser compilation (experimental) | Contributors |
