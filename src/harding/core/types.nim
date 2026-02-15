@@ -62,6 +62,9 @@ type
     hardingType*: string                    # Nim type name for FFI
     hasSlots*: bool                         # Has any instance variables
 
+    # Lazy rebuilding flag
+    methodsDirty*: bool                     # True if method tables need rebuilding
+
   Instance* = ref object of RootObj
     ## Instance object - pure data with reference to its class
     ## Using case object variant for memory efficiency - only allocate fields needed
@@ -80,10 +83,7 @@ type
     of ikString:
       strVal*: string                       # Direct storage
     isNimProxy*: bool                       # Instance wraps Nim value
-    when defined(js):
-      nimValue*: int                          # Dummy field for JS (not used for FFI)
-    else:
-      nimValue*: pointer                      # Pointer to actual Nim value (for FFI)
+    nimValue*: pointer                      # Pointer to actual Nim value (for FFI)
 
   # Mutable cell for captured variables (shared between closures)
   MutableCell* = ref object
@@ -98,6 +98,7 @@ type
     handlerBlock*: BlockNode        # Block to execute when caught
     activation*: Activation         # Activation where handler was installed
     stackDepth*: int                # Stack depth when handler installed
+    consumed*: bool                 # True if handler was already used to catch an exception
 
   # Exception thrown when Processor yield is called for immediate context switch
   YieldException* = object of CatchableError
@@ -143,6 +144,7 @@ type
     isClassMethod*: bool   # For wfSendMessage/wfAfterReceiver: look in class methods
     # For wfApplyBlock
     blockVal*: BlockNode
+    blockArgs*: seq[NodeValue]   # Pre-bound arguments for the block (used by exception handlers)
     # For wfAfterReceiver/wfAfterArg - what message to send
     pendingSelector*: string
     pendingArgs*: seq[Node]
@@ -183,10 +185,7 @@ type
     traceExecution*: bool
     lastResult*: NodeValue
     exceptionHandlers*: seq[ExceptionHandler]  # Stack of active exception handlers
-    when defined(js):
-      schedulerContextPtr*: int  # Dummy field for JS (scheduler not supported)
-    else:
-      schedulerContextPtr*: pointer  # Scheduler context (cast to SchedulerContext when needed)
+    schedulerContextPtr*: pointer  # Scheduler context (cast to SchedulerContext when needed)
     hardingHome*: string  # Home directory for loading libraries
     shouldYield*: bool  # Set to true when Processor yield is called for immediate context switch
     # VM work queue and value stack
@@ -201,10 +200,7 @@ type
     body*: seq[Node]                      # AST statements
     isMethod*: bool                       # true if method definition
     selector*: string                     # method selector (name) - set when method is registered
-    when defined(js):
-      nativeImpl*: int                      # Dummy field for JS (native code not supported)
-    else:
-      nativeImpl*: pointer                  # compiled implementation (not available in JS)
+    nativeImpl*: pointer                  # compiled implementation
     hasInterpreterParam*: bool            # true if native method needs interpreter parameter
     capturedEnv*: Table[string, MutableCell]  # captured variables from outer scope
     capturedEnvInitialized*: bool         # flag to track if capturedEnv has been initialized
