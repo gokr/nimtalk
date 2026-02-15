@@ -5,6 +5,7 @@
 
 import std/[unittest, logging, strutils]
 import ../src/harding/core/types
+import ../src/harding/parser/[lexer, parser]
 import ../src/harding/interpreter/vm
 
 configureLogging(lvlError)
@@ -19,10 +20,10 @@ suite "Super Keyword Support":
 
   test "super calls parent method":
     let result = interp.evalStatements("""
-    Parent := Table derive.
-    Parent>>greet [ "Hello from parent" ].
+    Parent := Object derive.
+    Parent>>greet [ ^"Hello from parent" ].
     Child := Parent derive.
-    Child>>greet [ super greet ].
+    Child>>greet [ ^super greet ].
     c := Child new.
     c greet
     """)
@@ -31,10 +32,10 @@ suite "Super Keyword Support":
 
   test "super works with >> syntax":
     let result = interp.evalStatements("""
-    Parent := Table derive.
-    Parent>>greet [ "Hello from parent" ].
+    Parent := Object derive.
+    Parent>>greet [ ^"Hello from parent" ].
     Child := Parent derive.
-    Child>>greet [ super greet ].
+    Child>>greet [ ^super greet ].
     c := Child new.
     c greet
     """)
@@ -43,17 +44,36 @@ suite "Super Keyword Support":
 
   test "super chains through multiple levels":
     let result = interp.evalStatements("""
-    GrandParent := Table derive.
-    GrandParent>>greet [ "Hello from grandparent" ].
+    GrandParent := Object derive.
+    GrandParent>>greet [ ^"Hello from grandparent" ].
     Parent := GrandParent derive.
-    Parent>>greet [ super greet ].
+    Parent>>greet [ ^super greet ].
     Child := Parent derive.
-    Child>>greet [ super greet ].
+    Child>>greet [ ^super greet ].
     c := Child new.
     c greet
     """)
     check(result[1].len == 0)
     check(result[0][^1].toString().contains("grandparent"))
+
+  test "unqualified super looks up in first parent":
+    let code = "super greet"
+    let (ast, _) = parseExpression(code)
+
+    check(ast != nil)
+    check(ast of SuperSendNode)
+    let superNode = cast[SuperSendNode](ast)
+    check(superNode.selector == "greet")
+    check(superNode.explicitParent == "")
+    check(superNode.arguments.len == 0)
+
+  test "qualified super looks up in specific parent":
+    let (node, _) = parseExpression("super<Parent> method")
+    check(node.kind == nkSuperSend)
+    let superNode = node.SuperSendNode
+    check(superNode.selector == "method")
+    check(superNode.explicitParent == "Parent")
+    check(superNode.arguments.len == 0)
 
 suite ">> Method Definition Syntax":
   var interp: Interpreter
@@ -65,8 +85,8 @@ suite ">> Method Definition Syntax":
 
   test ">> defines unary method":
     let result = interp.evalStatements("""
-    Person := Table derive.
-    Person>>greet [ "Hello, World!" ].
+    Person := Object derive.
+    Person>>greet [ ^"Hello, World!" ].
     p := Person new.
     p greet
     """)
@@ -75,8 +95,8 @@ suite ">> Method Definition Syntax":
 
   test ">> defines keyword method with parameters":
     let result = interp.evalStatements("""
-    Person := Table derive.
-    Person>>name: aName [ aName ].
+    Person := Object derive.
+    Person>>name: aName [ ^aName ].
     p := Person new.
     p name: "Alice"
     """)
@@ -85,8 +105,8 @@ suite ">> Method Definition Syntax":
 
   test ">> defines multi-part keyword method":
     let result = interp.evalStatements("""
-    Point := Table derive.
-    Point>>moveX: x y: y [ x + y ].
+    Point := Object derive.
+    Point>>moveX: x y: y [ ^x + y ].
     p := Point new.
     p moveX: 3 y: 4
     """)
@@ -95,8 +115,8 @@ suite ">> Method Definition Syntax":
 
   test ">> method returns correct value":
     let result = interp.evalStatements("""
-    Obj := Table derive.
-    Obj>>getValue [ 42 ].
+    Obj := Object derive.
+    Obj>>getValue [ ^42 ].
     o := Obj new.
     o getValue
     """)
@@ -105,18 +125,18 @@ suite ">> Method Definition Syntax":
 
   test ">> keyword arguments passed correctly":
     let result = interp.evalStatements("""
-    Box := Table derive.
-    Box>>store: x in: y [ y ].
+    Box := Object derive.
+    Box>>store: x in: y [ ^y ].
     b := Box new.
     b store: 10 in: 5
     """)
     check(result[1].len == 0)
-    check(result[0][^1].toString() == "5")  # Should return second arg (y)
+    check(result[0][^1].toString() == "5")
 
   test ">> keyword args with multiple parameters each":
     let result = interp.evalStatements("""
-    Wrapper := Table derive.
-    Wrapper>>combine: x and: y [ x ].
+    Wrapper := Object derive.
+    Wrapper>>combine: x and: y [ ^x ].
     w := Wrapper new.
     w combine: "first" and: "second"
     """)
@@ -125,9 +145,9 @@ suite ">> Method Definition Syntax":
 
   test ">> mixed unary and keyword methods on same object":
     let result = interp.evalStatements("""
-    Thing := Table derive.
-    Thing>>id [ 42 ].
-    Thing>>label: text [ text ].
+    Thing := Object derive.
+    Thing>>id [ ^42 ].
+    Thing>>label: text [ ^text ].
     t := Thing new.
     t label: "testitem"
     """)
@@ -144,7 +164,7 @@ suite "Self Keyword Support":
 
   test "self refers to the receiver in methods":
     let result = interp.evalStatements("""
-    Counter := Table derive.
+    Counter := Object derive.
     Counter>>getSelf [ self ].
     c := Counter new.
     c getSelf
@@ -152,11 +172,11 @@ suite "Self Keyword Support":
     check(result[1].len == 0)
     check(result[0][^1].kind == vkInstance)
 
-  test "self can access instance variables":
+  test "self can access instance variables with accessors":
     let result = interp.evalStatements("""
-    Person := Table derive.
-    Person>>setName: n [ self at: #name put: n ].
-    Person>>getName [ self at: #name ].
+    Person := Object deriveWithAccessors: #(name).
+    Person>>setName: n [ self name: n ].
+    Person>>getName [ ^self name ].
     p := Person new.
     p setName: "Alice".
     p getName
@@ -166,9 +186,9 @@ suite "Self Keyword Support":
 
   test "self can send messages to itself":
     let result = interp.evalStatements("""
-    Builder := Table derive.
-    Builder>>setPrefix: p [ self at: #prefix put: p ].
-    Builder>>build [ self at: #prefix ].
+    Builder := Object deriveWithAccessors: #(prefix).
+    Builder>>setPrefix: p [ self prefix: p ].
+    Builder>>build [ ^self prefix ].
     b := Builder new.
     b setPrefix: "Hello".
     b build
@@ -178,9 +198,9 @@ suite "Self Keyword Support":
 
   test "self works with >> syntax":
     let result = interp.evalStatements("""
-    Box := Table derive.
-    Box>>store: x [ self at: #item put: x ].
-    Box>>retrieve [ self at: #item ].
+    Box := Object deriveWithAccessors: #(item).
+    Box>>store: x [ self item: x ].
+    Box>>retrieve [ ^self item ].
     b := Box new.
     b store: "test".
     b retrieve
@@ -190,11 +210,11 @@ suite "Self Keyword Support":
 
   test "self call in inherited method starts lookup in receiver":
     let result = interp.evalStatements("""
-    Parent := Table derive.
-    Parent>>greet [ self greeting ].
-    Parent>>greeting [ "Hello from Parent" ].
+    Parent := Object derive.
+    Parent>>greet [ ^self greeting ].
+    Parent>>greeting [ ^"Hello from Parent" ].
     Child := Parent derive.
-    Child>>greeting [ "Hello from Child" ].
+    Child>>greeting [ ^"Hello from Child" ].
     c := Child new.
     c greet
     """)
