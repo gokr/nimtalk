@@ -127,6 +127,9 @@ type
     wfRestoreReceiver      # Restore original receiver after cascade
     wfIfBranch            # Conditional branch (ifTrue:, ifFalse:)
     wfWhileLoop           # While loop (whileTrue:, whileFalse:)
+    wfPushHandler         # Push exception handler onto handler stack
+    wfPopHandler          # Pop exception handler from handler stack
+    wfSignalException     # Signal exception and search for handler
 
   # Work frame for explicit stack VM execution
   WorkFrame* {.acyclic.} = ref object
@@ -162,6 +165,11 @@ type
     conditionBlock*: BlockNode
     bodyBlock*: BlockNode
     loopState*: LoopState
+    # For wfPushHandler/wfPopHandler
+    exceptionClass*: Class     # The exception class to catch
+    handlerBlock*: BlockNode   # Block to execute when exception is caught
+    # For wfSignalException
+    exceptionInstance*: Instance  # The exception instance being signaled
 
   # Interpreter type defined here to avoid circular dependency between scheduler and evaluator
   Interpreter* {.acyclic.} = ref object
@@ -606,6 +614,7 @@ proc unwrap*(val: NodeValue): NodeValue =
   ## Unwrap primitive values from Instance wrappers
   # If the value is vkInstance with kind ikInt, ikFloat, or ikString,
   # convert it to the corresponding primitive NodeValue.
+  # For ikString, check if it's a Symbol (class = symbolClassCache) or String.
   if val.kind == vkInstance and val.instVal != nil:
     case val.instVal.kind
     of ikInt:
@@ -613,6 +622,10 @@ proc unwrap*(val: NodeValue): NodeValue =
     of ikFloat:
       return NodeValue(kind: vkFloat, floatVal: val.instVal.floatVal)
     of ikString:
+      # Check if this is a Symbol instance by checking class name
+      # Symbol instances have class.name == "Symbol"
+      if val.instVal.class != nil and val.instVal.class.name == "Symbol":
+        return NodeValue(kind: vkSymbol, symVal: val.instVal.strVal)
       return NodeValue(kind: vkString, strVal: val.instVal.strVal)
     of ikArray, ikTable, ikObject:
       # These stay wrapped as vkInstance
