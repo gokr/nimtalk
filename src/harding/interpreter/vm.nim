@@ -1736,21 +1736,21 @@ proc primitiveSignalImpl(interp: var Interpreter, self: Instance, args: seq[Node
     if isKindOf(self.class, handler.exceptionClass):
       debug("primitiveSignal: found matching handler at index ", i)
 
+      # Remove the handler from exceptionHandlers - it will be used once
+      del interp.exceptionHandlers, i
+      debug("primitiveSignal: removed handler at index ", i)
+
       # Found matching handler - schedule handler block execution
       # The handler block receives the exception as argument
-      # Note: The primitive return value (nil) is already on the eval stack.
-      # We need to replace it with the exception value for the handler.
       let exValue = self.toValue()
       debug("primitiveSignal: scheduling handler with exception class=", self.class.name, " value kind=", $exValue.kind)
 
-      # Pop the nil return value and push the exception value
-      # The handler block will then pop the exception as its argument
-      discard interp.popValue()  # Remove the primitive's nil return
-      interp.pushValue(exValue)  # Push the exception value
+      # Schedule handler block - it will receive exception as its argument
       interp.pushWorkFrame(newApplyBlockFrame(handler.handlerBlock, 1))
 
-      # Return nil - the handler block will push its result
-      return nilValue()
+      # Return the exception value - caller will push it onto the eval stack
+      # The handler block will then pop it as its argument
+      return exValue
 
   # No handler found - for now write to stderr and return nil
   # In full implementation, this would open the Debugger
@@ -2561,6 +2561,7 @@ proc initGlobals*(interp: var Interpreter) =
   floatCls.allMethods["primitivePrintString"] = floatPrintStringMethod
 
   # Register backslash operator (modulo) - special character needs direct registration
+  # Note: \\ is NOT defined in .hrd files due to parser limitations with special characters
   let intBackslashMethod = createCoreMethod("\\")
   intBackslashMethod.setNativeImpl(backslashModuloImpl)
   intCls.methods["\\"] = intBackslashMethod
@@ -4987,9 +4988,17 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
 
   of wfPopHandler:
     # Pop exception handler from handler stack
+    # Remove handlers whose activation has exited (current depth < handler's depth)
     if interp.exceptionHandlers.len > 0:
-      discard interp.exceptionHandlers.pop()
-      debug("VM: wfPopHandler popped handler")
+      var i = 0
+      while i < interp.exceptionHandlers.len:
+        let handler = interp.exceptionHandlers[i]
+        if interp.activationStack.len < handler.stackDepth:
+          # Handler's activation has exited, remove it
+          interp.exceptionHandlers.del(i)
+          debug("VM: wfPopHandler removed handler with exited activation, handlerDepth=", handler.stackDepth, " currentDepth=", interp.activationStack.len)
+        else:
+          i += 1
     return true
 
   of wfSignalException:
