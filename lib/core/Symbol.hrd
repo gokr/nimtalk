@@ -1,0 +1,31 @@
+#!/usr/bin/env harding
+#
+# Symbol.hrd - Symbol class (immutable interned strings)
+# Symbols are unique, immutable identifiers that can be compared by identity
+#
+
+#====================================================================
+# Symbol class - Immutable interned string
+#====================================================================
+
+Symbol := String derive.
+
+Symbol>>printString [
+  # Symbols print with # prefix and without quotes.
+  ^ "#" , self
+]
+
+Symbol>>asString [
+  # Return the symbol's string representation.
+  ^ self
+]
+
+Symbol>>= other [
+  # Symbols are equal if they are the same object (identity).
+  ^ self == other
+]
+
+Symbol>><> other [
+  # Not equal comparison.
+  ^ (self = other) not
+]
