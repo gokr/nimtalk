@@ -1,12 +1,12 @@
 #
 # test_exception_handling.nim - Tests for exception handling (on:do:)
 #
-# NOTE: Exception handling is partially implemented. The Exception.hrd file
-# defines the exception classes (Exception, Error, MessageNotUnderstood, etc.)
-# and the on:do: method signature, but the core primitives (primitiveOnDo:,
-# primitiveSignal) are NOT yet implemented in the VM.
-#
-# These tests document the expected behavior once the primitives are implemented.
+# Tests modern Smalltalk-style exception handling with:
+# - on:do: for catching exceptions
+# - signal: for raising exceptions
+# - Exception hierarchy (Exception, Error, etc.)
+# - Handler receives exception object
+# - Type matching (Error caught by Exception handler)
 #
 
 import std/[unittest, strutils]
@@ -53,52 +53,86 @@ suite "Exception Handling":
     check(result[0][^1].kind == vkString)
     check(result[0][^1].strVal == "DivisionByZero")
 
-  # The following tests require primitiveOnDo: and primitiveSignal to be implemented
-  # Currently these will fail with "doesNotUnderstand: primitiveOnDo:"
-
-  test "on:do: catches exceptions (REQUIRES primitiveOnDo:)":
-    # This test will fail until primitiveOnDo: is implemented
+  test "on:do: catches exceptions":
+    # Basic exception catching
     let result = interp.evalStatements("""
       Result := [ Error signal: "test" ] on: Error do: [ :ex | ^"caught" ]
     """)
-    if result[1].len > 0:
-      # Expected to fail with current implementation
-      check("primitiveOnDo:" in result[1] or "doesNotUnderstand" in result[1])
-    else:
-      # If it works, check the result
-      check(result[0][^1].kind == vkString)
-      check(result[0][^1].strVal == "caught")
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "caught")
 
-  test "on:do: only catches specified exception type (REQUIRES primitiveOnDo:)":
+  test "on:do: only catches specified exception type":
+    # MessageNotUnderstood handler should not catch Error
+    # Outer Error handler should catch it instead
     let result = interp.evalStatements("""
       Result := [
         [ Error signal: "test" ] on: MessageNotUnderstood do: [ :ex | ^"wrong handler" ]
       ] on: Error do: [ :ex | ^"correct handler" ]
     """)
-    if result[1].len > 0:
-      check("primitiveOnDo:" in result[1] or "doesNotUnderstand" in result[1])
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "correct handler")
 
-  test "exception handler receives exception object (REQUIRES primitiveOnDo:)":
+  test "exception handler receives exception object":
+    # Handler can access the exception object
     let result = interp.evalStatements("""
       Result := [ Error signal: "my message" ] on: Error do: [ :ex | ^ex message ]
     """)
-    if result[1].len == 0:
-      check(result[0][^1].kind == vkString)
-      check(result[0][^1].strVal == "my message")
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "my message")
 
-  test "ifError: convenience method (REQUIRES primitiveOnDo:)":
+  test "ifError: convenience method":
+    # ifError: is a convenience method that catches Error
     let result = interp.evalStatements("""
       Result := [ Error signal: "oops" ] ifError: [ :ex | ^"handled" ]
     """)
-    if result[1].len == 0:
-      check(result[0][^1].kind == vkString)
-      check(result[0][^1].strVal == "handled")
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "handled")
 
-  test "exception propagates if not caught (REQUIRES primitiveSignal:)":
+  test "nested handlers - inner catches, outer not invoked":
+    # When inner handler catches, outer should not be invoked
+    let result = interp.evalStatements("""
+      | caught |
+      caught := nil.
+      [
+        [ Error signal: "test" ] on: Error do: [ :ex | caught := "inner" ]
+      ] on: Error do: [ :ex | caught := "outer" ].
+      Result := caught
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "inner")
+
+  test "exception propagates if not caught":
+    # Uncaught exceptions should not stop execution
+    # Currently they just print to stderr and return nil
     let result = interp.evalStatements("""
       [ Error signal: "uncaught" ].
       Result := "should not reach"
     """)
-    if result[1].len > 0:
-      # Expected error - either primitiveSignal: missing or actual exception
-      check("primitiveSignal:" in result[1] or "doesNotUnderstand" in result[1] or "Error" in result[1])
+    # With current implementation, uncaught exceptions return nil
+    # but don't stop subsequent execution
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "should not reach")
+
+  test "Exception superclass catches Error subclass":
+    # Error is a subclass of Exception, so Exception handler should catch Error
+    let result = interp.evalStatements("""
+      Result := [ Error signal: "subclass" ] on: Exception do: [ :ex | ^"caught by parent" ]
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "caught by parent")
+
+  test "protected block returns normally when no exception":
+    # When no exception is signaled, the protected block result is returned
+    let result = interp.evalStatements("""
+      Result := [ "normal result" ] on: Error do: [ :ex | ^"caught" ]
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "normal result")

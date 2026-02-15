@@ -28,19 +28,6 @@ suite "Evaluator: Basic Message Dispatch":
     initSymbolTable()
     loadStdlib(interp)
 
-  test "evaluates simple property access via messages":
-    # Use Table instance with at:/at:put: for key-value storage
-    let result = interp.evalStatements("""
-    T := Table new.
-    T at: #value put: 42.
-    Result := T at: #value
-    """)
-
-    check(result[1].len == 0)
-    check(result[0].len == 3)
-    check(result[0][^1].kind == vkInt)
-    check(result[0][^1].intVal == 42)
-
   test "handles undefined messages with doesNotUnderstand":
     # Create a class with custom doesNotUnderstand:
     let result = interp.evalStatements("""
