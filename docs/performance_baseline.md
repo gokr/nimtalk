@@ -43,3 +43,29 @@ real 0.10
 | Debug | ~3.0s | ~1.0s |
 | Release | ~0.4s | ~0.14s |
 | Danger | ~0.4s | ~0.14s |
+=== With Float Fast Path ===
+
+## With Float Fast Path (Mon Feb 16 12:14:27 AM CET 2026)
+
+### Sieve (n=500)
+Run 1:
+real 0.20
+Run 2:
+real 0.20
+Run 3:
+real 0.22
+
+### Queens
+Run 1:
+real 0.07
+Run 2:
+real 0.07
+Run 3:
+real 0.09
+
+## Summary Comparison
+
+| Build | Sieve (avg) | Queens (avg) |
+|-------|-------------|--------------|
+| Original Release | ~0.4s | ~0.14s |
+| With Float Fast Path | ~0.4s | ~0.14s |

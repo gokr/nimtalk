@@ -3453,6 +3453,56 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
           interp.pushValue(toNodeValue(taggedResult))
         return true
 
+    # ============================================================================
+    # FAST PATH: Float Operations
+    # Skip Instance allocation for primitive float operations
+    # ============================================================================
+    if receiverVal.kind == vkFloat and args.len > 0 and args[0].kind == vkFloat:
+      let a = receiverVal.floatVal
+      let b = args[0].floatVal
+      var floatResult: float
+      var boolResult: bool
+      var isPrimitive = true
+      var isComparison = false
+
+      case frame.selector
+      of "+":
+        floatResult = a + b
+      of "-":
+        floatResult = a - b
+      of "*":
+        floatResult = a * b
+      of "/":
+        if b == 0.0:
+          raise newException(DivByZeroDefect, "Float division by zero")
+        floatResult = a / b
+      of "=":
+        boolResult = a == b
+        isComparison = true
+      of "<":
+        boolResult = a < b
+        isComparison = true
+      of "<=":
+        boolResult = a <= b
+        isComparison = true
+      of ">":
+        boolResult = a > b
+        isComparison = true
+      of ">=":
+        boolResult = a >= b
+        isComparison = true
+      else:
+        isPrimitive = false  # Not a primitive float operation
+
+      if isPrimitive:
+        if isComparison:
+          # Comparison returns boolean
+          interp.pushValue(NodeValue(kind: vkBool, boolVal: boolResult))
+        else:
+          # Arithmetic returns float
+          interp.pushValue(NodeValue(kind: vkFloat, floatVal: floatResult))
+        return true
+
     # Convert receiver to Instance for method lookup
     var receiver: Instance
     case receiverVal.kind
