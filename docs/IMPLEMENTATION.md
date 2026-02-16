@@ -343,14 +343,24 @@ The VM implements the full method dispatch chain via `lookupMethod`:
 4. **Parent inheritance lookup** - Check superclass chain of each parent
 5. **doesNotUnderstand:** - Fallback when method is not found
 
-### Monomorphic Inline Cache (MIC)
+### Monomorphic Inline Cache (MIC) and Polymorphic Inline Cache (PIC)
 
-Harding uses a Monomorphic Inline Cache to accelerate message sends:
+Harding uses inline caching to accelerate message sends:
 
-- Each call site caches the last method lookup result
-- Cache stores `(classId, method)` pairs for O(1) hit performance
+**MIC (Monomorphic Inline Cache):**
+- Each call site caches a single `(classId, method)` pair for O(1) hit performance
 - Cache miss falls back to full `lookupMethod` and updates cache
-- Implemented at the VM work frame level
+
+**PIC (Polymorphic Inline Cache):**
+- Caches up to 4 different class/method pairs for polymorphic call sites
+- LRU swap on hits to promote hot entries to MIC
+- Megamorphic flag skips caching at highly polymorphic sites
+
+**Version-Based Invalidation:**
+- Classes have a version counter incremented on method changes
+- Cache entries are validated against class versions on each hit
+- Stale entries trigger cache miss and re-lookup
+- Proper invalidation when methods are added or rebuilt
 
 Performance improvement: ~2-3x faster message sends for repeated receivers.
 
