@@ -56,6 +56,98 @@ Source Code (.hrd)
 
 ---
 
+## Bootstrap Architecture
+
+Harding uses a two-phase bootstrap process that balances Nim's performance with Harding's flexibility. The bootstrap Harding is the absolute minimum hard-coded into the VM to allow it to parse and load the standard library (`.hrd` files).
+
+### Two-Phase Bootstrap
+
+1. **Nim Bootstrap Phase**: VM initialization creates core classes and registers essential methods
+2. **Stdlib Loading Phase**: Bootstrap.hrd is evaluated, defining methods using primitive syntax
+
+### Core Class Hierarchy
+
+The `initCoreClasses()` procedure in `src/harding/interpreter/objects.nim` creates these core classes:
+
+```
+Root (empty - for DNU proxies/wrappers)
+  └── Object (core methods)
+      ├── Integer
+      ├── Float
+      ├── String
+      ├── Array
+      ├── Table
+      ├── Block
+      ├── Boolean (parent for True and False)
+      ├── Library
+      └── Set
+```
+
+### Three Categories of Methods
+
+| Category | Location | Count | Example |
+|----------|----------|-------|---------|
+| **Bootstrap Methods** | `objects.nim`, `vm.nim` | ~10 | `selector:put:`, `new`, `load:` |
+| **Primitive Selectors** | Registered in `vm.nim`, used by `.hrd` | ~70 | `primitivePlus:`, `primitiveStringSize` |
+| **User-Facing Methods** | `.hrd` files | ~200 | `+`, `-`, `printString`, `size`, `at:put:` |
+
+### Bootstrap Methods (Required in Nim)
+
+These methods MUST be defined in Nim because they're needed **before** `.hrd` files can be loaded:
+
+| Selector | Purpose | Why Bootstrap? |
+|----------|---------|---------------|
+| `selector:put:` | Define instance method (used by `>>` syntax) | Needed to parse method definitions in .hrd files |
+| `classSelector:put:` | Define class method | Needed to parse class method definitions |
+| `derive:` | Create subclass with slots | Needed to define new classes |
+| `new` | Create instance | Needed before `.hrd` files can define initialization |
+| `load:` | Load and evaluate a `.hrd` file | Required to load stdlib |
+
+### Primitive Selectors
+
+Primitive selectors provide efficient implementations that `.hrd` methods can call:
+
+```harding
+# In Integer.hrd:
+Integer>>+ other <primitive primitivePlus: other>
+
+# What happens when evaluating "3 + 4":
+1. Parser creates MessageNode for "+"
+2. VM looks up method "+" on Integer class
+3. Returns method from Integer.hrd (a BlockNode with primitive selector)
+4. VM executes primitive by looking up `primitivePlus:` selector
+5. Finds Nim implementation in Integer class
+6. Calls the native implementation directly
+```
+
+### Declarative Primitive Syntax
+
+The `.hrd` files use declarative primitive syntax to define user-facing methods:
+
+```harding
+# Declarative form
+Integer>>+ other <primitive primitivePlus: other>
+
+# Inline form (with validation)
+Array>>at: index [
+    index < 1 ifTrue: [self error: "Index out of bounds"].
+    ^ <primitive primitiveAt: index>
+]
+```
+
+This provides a clean separation:
+- **Nim code**: Foundation mechanism (bootstrapping and performance-critical primitives)
+- **Harding code (`.hrd`)**: Language definition and user-facing API
+
+### For More Information
+
+See [bootstrap.md](bootstrap.md) for complete details on the bootstrap architecture, including:
+- Complete list of bootstrap methods
+- Stdlib loading order
+- Extending Harding with new features
+
+---
+
 ## Stackless VM
 
 ### Overview
