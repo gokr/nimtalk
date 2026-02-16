@@ -148,13 +148,27 @@ task clean, "Clean build artifacts using build.nims":
 
 
 task vsix, "Build the VS Code extension (vsix file)":
-  ## Build the Harding VS Code extension package
+  ## Build the Harding VS Code extension package with LSP and DAP support
   ## Requires vsce to be installed: npm install -g vsce
-  if not "package.json".fileExists:
-    echo "Error: package.json not found in current directory"
+  let extDir = "vscode-harding"
+  if not (extDir / "package.json").fileExists:
+    echo "Error: package.json not found in " & extDir
     system.quit(1)
-  exec "vsce package"
-  echo "VSIX file built successfully"
+
+  # Build harding-lsp first
+  echo "Building Harding Language Server..."
+  exec "nim c -o:harding-lsp src/harding/lsp/main.nim"
+
+  # Install npm dependencies and compile TypeScript
+  echo "Installing extension dependencies..."
+  exec "cd " & extDir & " && npm install"
+  echo "Compiling TypeScript..."
+  exec "cd " & extDir & " && npm run compile"
+
+  # Package the extension
+  echo "Packaging extension..."
+  exec "cd " & extDir & " && vsce package"
+  echo "VSIX file built successfully in " & extDir
 
 task jsrelease, "Compile optimized JS for production":
   ## Build optimized JavaScript for production
@@ -170,3 +184,15 @@ task harding_bitbarrel_release, "Build harding with BitBarrel support (release)"
   ## Build REPL with BitBarrel support in release mode
   exec "nim c -d:bitbarrel -d:release -o:harding src/harding/repl/harding.nim"
   echo "Binary available as ./harding (release with BitBarrel support)"
+
+task harding_debug, "Build harding with debugger support":
+  ## Build REPL with debugger support for VSCode integration
+  exec "nim c -d:debugger -o:harding_debug src/harding/repl/harding.nim"
+  echo "Binary available as ./harding_debug (with debugger support)"
+  echo "Run with: ./harding_debug --debugger-port 9877 script.hrd"
+
+task harding_lsp, "Build Harding Language Server":
+  ## Build LSP server for VSCode integration
+  exec "nim c -o:harding-lsp src/harding/lsp/main.nim"
+  echo "Binary available as ./harding-lsp"
+  echo "Usage: harding-lsp --stdio"
