@@ -71,7 +71,7 @@ This document tracks current work items and future directions for Harding develo
 - [ ] Unboxed arithmetic optimization
 - [ ] Symbol export for compiled methods
 - [ ] Dead code elimination
-- [ ] PIC (Polymorphic Inline Cache) - multi-type caching
+- [x] PIC (Polymorphic Inline Cache) - multi-type caching with version-based invalidation
 
 ### FFI Integration
 - [ ] Nim type marshaling
@@ -89,7 +89,7 @@ This document tracks current work items and future directions for Harding develo
 - [ ] Networking primitives
 
 ### Performance
-- [ ] Method caching (beyond current allMethods table)
+- [x] MIC/PIC inline caching with version-based invalidation
 - [ ] AST optimization passes
 - [ ] Memory management improvements for circular references
 
@@ -151,11 +151,11 @@ This document tracks current work items and future directions for Harding develo
 ## Build Quick Reference
 
 ```bash
-nimble local       # Build and copy binaries to root directory (recommended)
-nimble build       # Build harding and granite
+nimble harding     # Build harding REPL in repo root (recommended)
+nimble bona        # Build bona IDE in repo root
 nimble test        # Run tests
 nimble clean       # Clean artifacts
-nimble install     # Install harding to ~/.local/bin/
+nimble install_harding  # Install harding to ~/.local/bin/
 ```
 
 ### Debug Builds
@@ -585,4 +585,17 @@ EOF
 - Updated IDE Browser, Libraries, and Workspace components
 - Simplified blocked process handling in scheduler
 
-*Last Updated: 2026-02-16 - Added JS support removal note*
+### MIC/PIC Inline Caching and VM Fixes (2026-02-16)
+- Polymorphic Inline Cache (PIC): up to 4 class/method entries per call site
+- Version-based cache invalidation: class version counters detect stale entries
+- LRU promotion: PIC hits swap to MIC for fast repeated access
+- Megamorphic flag: skip caching at highly polymorphic sites
+- Fixed exception handling: proper VM state unwinding (work queue, eval stack, activation stack)
+- Fixed Library primitive syntax: declarative form for class>>new and bindings
+- Fixed SortedCollection: use basicNew instead of non-existent newInstance
+- Registered derive:getters:setters: class method on Object
+- Moved ifError: from Object to Block
+- Lazy method table rebuilding with methodsDirty flag
+- Enabled 15 previously skipped tests; all 26 test files pass
+
+*Last Updated: 2026-02-16*

@@ -747,23 +747,40 @@ When caught, exception objects have:
 
 ### Raising Exceptions
 
-Use `error:` to raise an exception:
+Use `signal:` to raise an exception:
 
 ```smalltalk
 someCondition ifTrue: [
-    Error error: "Something went wrong"
+    Error signal: "Something went wrong"
 ]
 ```
+
+### Convenience Methods
+
+```smalltalk
+# ifError: catches Error and its subclasses
+[ riskyOperation ] ifError: [ :ex | "fallback" ]
+```
+
+### Exception Hierarchy
+
+```
+Exception
+  ├── Error
+  ├── MessageNotUnderstood
+  ├── SubscriptOutOfBounds
+  └── DivisionByZero
+```
+
+Parent classes catch subclass exceptions: `on: Exception do:` catches `Error`.
 
 ### Differences from Smalltalk
 
 | Feature | Harding | Smalltalk |
 |---------|------|-----------|
-| Implementation | Built on Nim exceptions | Custom VM mechanism |
-| Stack unwinding | Immediate (Nim default) | Immediate |
+| Implementation | VM work queue (stackless) | Custom VM mechanism |
+| Stack unwinding | Immediate via work queue truncation | Immediate |
 | Resume capability | No | Yes |
-
-Harding trades Smalltalk's advanced features (resumable exceptions) for seamless integration with Nim's ecosystem.
 
 ---
 

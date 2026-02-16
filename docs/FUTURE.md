@@ -58,8 +58,9 @@ value := ch receive.
 
 **Performance Optimizations** (Partially Implemented):
 - ✅ Monomorphic Inline Cache (MIC) - caches single method lookup per call site
+- ✅ Polymorphic Inline Cache (PIC) - caches up to 4 class/method pairs with LRU promotion
+- ✅ Version-based cache invalidation - class version counters detect stale entries
 - ✅ Compiled code 30-200x faster than interpreted (sieve benchmark)
-- Polymorphic Inline Cache (PIC) - cache multiple types for same call site
 - Type specialization for compiled methods
 - Unboxed arithmetic in compiled code
 - Escape analysis for stack allocation

@@ -58,6 +58,7 @@ These are the methods that MUST be defined in Nim because they're needed **befor
 | `classSelector:put:` | Define class method (used by `class>>` syntax) | Needed to parse class method definitions |
 | `derive:` | Create subclass with slots | Needed to define new classes |
 | `deriveWithAccessors:` | Create subclass with slots + accessors | Needed to define classes with convenient API |
+| `derive:getters:setters:` | Create subclass with selective accessors | Needed for classes with read-only or write-only slots |
 | `derive` | Create subclass without slots | Needed to define new classes |
 | `new` | Create instance | Needed before `.hrd` files can define initialization |
 | `basicNew` | Core object creation primitive | Underlying implementation for `new` |
@@ -184,7 +185,7 @@ When adding new features:
 The bootstrap Harding is minimal by design:
 
 - **~10 bootstrap methods** in Nim (required to start and parse)
-- **6 core classes** created in Nim (Object, Integer, Float, String, Array, Table, Block, Boolean, Library, Set)
+- **~10 core classes** created in Nim (Object, Integer, Float, String, Array, Table, Block, Boolean, Library, Set)
 - **~70 primitive selectors** registered in Nim (efficient implementations)
 - **~200 user-facing methods** defined in `.hrd` files (what users actually call)
 

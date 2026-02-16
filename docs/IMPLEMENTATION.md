@@ -190,6 +190,11 @@ Each unit of work is a `WorkFrame` pushed onto the work queue. Frame kinds inclu
 - `wfCascadeMessage` - Send one message in a cascade
 - `wfCascadeMessageDiscard` - Send message and discard result
 - `wfRestoreReceiver` - Restore receiver after cascade
+- `wfIfBranch` - Conditional branch (ifTrue:, ifFalse:)
+- `wfWhileLoop` - While loop (whileTrue:, whileFalse:)
+- `wfPushHandler` - Push exception handler onto handler stack
+- `wfPopHandler` - Pop exception handler from handler stack
+- `wfSignalException` - Signal exception and search for handler
 
 #### Execution Loop
 
@@ -311,7 +316,10 @@ type
     superclass*: Class
     parents*: seq[Class]          # Multiple inheritance
     methods*: Table[string, Method]
+    allMethods*: Table[string, Method]  # Merged method table (own + inherited)
     slotsDefinition*: seq[string] # Slot names
+    version*: int                 # Incremented on method changes (cache invalidation)
+    methodsDirty*: bool           # Lazy rebuilding flag
 
   Class* = ref ClassObj
 ```
