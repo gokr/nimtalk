@@ -1071,7 +1071,7 @@ proc parseMethodDefinition(parser: var Parser, receiver: Node): Node =
           col: parser.lastCol
         )))],
         isMethod: true,
-        nativeImpl: (when defined(js): 0 else: nil),
+        nativeImpl: nil,
         capturedEnv: initTable[string, MutableCell](),
         capturedEnvInitialized: true
       )

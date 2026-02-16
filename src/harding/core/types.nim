@@ -325,10 +325,7 @@ type
   CompiledMethod* = ref object of RootObj
     selector*: string
     arity*: int
-    when defined(js):
-      nativeAddr*: int          # Dummy field for JS (native code not supported)
-    else:
-      nativeAddr*: pointer      # compiled function pointer (not available in JS)
+    nativeAddr*: pointer      # compiled function pointer
     symbolName*: string       # .so symbol name
 
   # Method entries (can be interpreted or compiled)
@@ -883,15 +880,10 @@ proc addSuperclass*(cls: Class, parent: Class) =
   if cls.allSlotNames.len > 0:
     cls.hasSlots = true
 
-# Helper for nimValue initialization and comparison based on platform
-when defined(js):
-  const NimValueDefault* = 0
-  template nimValueIsSet*(nv: int): bool = nv != 0
-  template nimValueIsNil*(nv: int): bool = nv == 0
-else:
-  const NimValueDefault* = nil
-  template nimValueIsSet*(nv: pointer): bool = nv != nil
-  template nimValueIsNil*(nv: pointer): bool = nv == nil
+# Helper for nimValue initialization and comparison
+const NimValueDefault* = nil
+template nimValueIsSet*(nv: pointer): bool = nv != nil
+template nimValueIsNil*(nv: pointer): bool = nv == nil
 
 proc newInstance*(cls: Class): Instance =
   ## Create a new Instance of the given Class (ikObject variant)
@@ -1042,13 +1034,10 @@ proc valueToInstance*(val: NodeValue): Instance =
     else:
       return Instance(kind: ikTable, class: nil, entries: val.tableVal, isNimProxy: false, nimValue: NimValueDefault)
   of vkBool:
-    # Boolean values - store in nimValue for compatibility (native only)
-    when defined(js):
-      return Instance(kind: ikObject, class: booleanClass, slots: @[], isNimProxy: true, nimValue: NimValueDefault)
-    else:
-      let p = cast[pointer](alloc(sizeof(bool)))
-      cast[ptr bool](p)[] = val.boolVal
-      return Instance(kind: ikObject, class: booleanClass, slots: @[], isNimProxy: true, nimValue: p)
+    # Boolean values - store in nimValue for compatibility
+    let p = cast[pointer](alloc(sizeof(bool)))
+    cast[ptr bool](p)[] = val.boolVal
+    return Instance(kind: ikObject, class: booleanClass, slots: @[], isNimProxy: true, nimValue: p)
   of vkBlock:
     # Blocks are passed as-is, created as ikObject instances
     return Instance(kind: ikObject, class: blockClass, slots: @[], isNimProxy: false, nimValue: NimValueDefault)
