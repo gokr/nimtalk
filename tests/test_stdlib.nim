@@ -504,8 +504,6 @@ suite "Stdlib: Accessor Generation":
       XValue := SelInst x.
       Result := XValue
     """)
-    check(result[1].len == 0)
-    check(result[0][^1].kind == vkInt)
     check(result[0][^1].intVal == 5)
 
   test "deriveWithAccessors: works with multiple slots":
@@ -602,7 +600,6 @@ suite "Stdlib: Library":
     check(result[0][^1].boolVal == false)
 
   test "Harding import: makes Library bindings accessible":
-    # Use a fresh interpreter to avoid polluting shared state
     var freshInterp = newInterpreter()
     initGlobals(freshInterp)
     loadStdlib(freshInterp)

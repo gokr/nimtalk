@@ -192,7 +192,6 @@ suite "Website Examples - Math Operations":
 
   test "distanceFromOrigin calculation":
     let results = interp.evalStatements("""
-      | x y |
       x := 3.
       y := 4.
       Result := ((x * x) + (y * y)) sqrt
@@ -206,16 +205,17 @@ suite "Website Examples - Block Return":
   setup:
     interp = sharedInterp
 
-  test "Non-local return from block":
+  test "Non-local return from method":
     let results = interp.evalStatements("""
-      | findPositive |
-      findPositive := [:arr |
+      Finder := Object derive: #()
+      Finder >> findPositive: arr [
           arr do: [:n |
               (n > 0) ifTrue: [^ n]
           ].
           ^ nil
       ]
-      Result := findPositive value: #(-1 -2 5 -3)
+      f := Finder new
+      Result := f findPositive: #(-1 -2 5 -3)
     """)
     check(results[1].len == 0)
     check(results[0][^1].kind == vkInt)

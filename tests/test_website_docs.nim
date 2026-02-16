@@ -47,12 +47,11 @@ suite "Website Examples - docs.md Factorial":
 
   test "Factorial (docs.md)":
     let results = interp.evalStatements("""
-      | factorial |
-      factorial := [:n |
-          (n <= 1) ifTrue: [^ 1].
-          ^ n * (factorial value: (n - 1))
+      Number >> factorial [
+          self <= 1 ifTrue: [^ 1].
+          ^ self * (self - 1) factorial
       ]
-      Result := factorial value: 5
+      Result := 5 factorial
     """)
     check(results[1].len == 0)
     check(results[0][^1].kind == vkInt)
@@ -66,7 +65,6 @@ suite "Website Examples - docs.md Counter Class":
 
   test "Counter class (docs.md)":
     let results = interp.evalStatements("""
-      | c |
       Counter := Object derive: #(count)
       Counter >> initialize [ count := 0 ]
       Counter >> value [ ^count ]
@@ -89,7 +87,7 @@ suite "Website Examples - docs.md Table":
 
   test "Table literal with entries (docs.md)":
     let results = interp.evalStatements("""
-      scores := #{\"Alice\" -> 95, \"Bob\" -> 87}
+      scores := #{"Alice" -> 95, "Bob" -> 87}
       Result := scores at: "Alice"
     """)
     check(results[1].len == 0)

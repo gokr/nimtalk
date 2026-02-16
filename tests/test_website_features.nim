@@ -71,10 +71,10 @@ suite "Website Examples - features.md Class Creation":
     check(results[1].len == 0)
     check(results[0][0].kind == vkClass)
 
-  test "Method definition with selector:put:":
+  test "Method definition with >> syntax":
     let results = interp.evalStatements("""
       Calculator := Object derive
-      Calculator selector: #add:to: put: [:x :y | x + y]
+      Calculator >> add: x to: y [ ^ x + y ]
       C := Calculator new
       Result := C add: 5 to: 10
     """)
@@ -126,12 +126,11 @@ suite "Website Examples - features.md Point Class":
 
   test "Point class with extend: for multiple methods":
     let results = interp.evalStatements("""
-      | p |
-      Point := Object derive: #(x y)
-      Point >> x: val [ x := val ]
-      Point >> y: val [ y := val ]
+      PointE := Object derive: #(x y)
+      PointE >> x: val [ x := val ]
+      PointE >> y: val [ y := val ]
 
-      Point extend: [
+      PointE extend: [
           self >> moveBy: dx and: dy [
               x := x + dx.
               y := y + dy
@@ -141,7 +140,7 @@ suite "Website Examples - features.md Point Class":
           ]
       ]
 
-      p := Point new
+      p := PointE new
       p x: 100; y: 200
       Result := p distanceFromOrigin
     """)
@@ -183,7 +182,6 @@ suite "Website Examples - features.md Collection Methods":
 
   test "do: iteration":
     let results = interp.evalStatements("""
-      | sum |
       sum := 0.
       #(1 2 3) do: [:n | sum := sum + n].
       Result := sum
@@ -208,17 +206,17 @@ suite "Website Examples - features.md Class-Side Methods":
 
   test "class>> defines class-side method":
     let results = interp.evalStatements("""
-      Person := Object derive: #(name age)
-      Person >> initialize [ name := ""; age := 0 ]
-      Person >> name: n aged: a [ name := n; age := a ]
-      Person class >> newNamed: n aged: a [
-        | p |
+      PersonC := Object derive: #(name age)
+      PersonC >> name: n [ name := n ]
+      PersonC >> age: a [ age := a ]
+      PersonC >> age [ ^age ]
+      PersonC class >> newNamed: n aged: a [
         p := self new.
         p name: n.
         p age: a.
         ^ p
       ]
-      alice := Person newNamed: "Alice" aged: 30
+      alice := PersonC newNamed: "Alice" aged: 30
       Result := alice age
     """)
     check(results[1].len == 0)
