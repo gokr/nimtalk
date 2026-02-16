@@ -73,15 +73,14 @@ Block>>on: exceptionClass do: handlerBlock <primitive primitiveOnDo: exceptionCl
 # Error handling utilities
 #====================================================================
 
-Object>>ifError: errorBlock [
-  # Execute self, if error occurs run errorBlock with exception
-  ^ [ self ] on: Error do: errorBlock
+Block>>ifError: errorBlock [
+  # Execute this block, if error occurs run errorBlock with exception
+  ^ self on: Error do: errorBlock
 ]
 
-Object>>ifError: errorBlock ifNoError: normalBlock [
-  # Execute self, handle error or run normal block with result
-  | result |
-  result := [ self ] on: Error do: [ :ex |
+Block>>ifError: errorBlock ifNoError: normalBlock [
+  # Execute this block, handle error or run normal block with result
+  result := self on: Error do: [ :ex |
     ^ errorBlock value: ex
   ]
   ^ normalBlock value: result
