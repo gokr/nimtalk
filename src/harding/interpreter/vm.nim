@@ -3401,6 +3401,40 @@ proc handleEvalNode(interp: var Interpreter, frame: WorkFrame): bool =
       interp.pushWorkFrame(newSendMessageFrame(primCall.selector, 0, isClassMethod = primCall.isClassMethod))
     return true
 
+  of nkIf:
+    # Control Flow Specialization: IfNode - evaluate condition, then branch
+    let ifNode = cast[IfNode](node)
+    # Check if condition is a literal boolean (fast path)
+    if ifNode.condition of LiteralNode:
+      let lit = cast[LiteralNode](ifNode.condition)
+      if lit.value.kind == vkBool:
+        let condResult = lit.value.boolVal
+        if condResult and ifNode.thenBranch != nil:
+          interp.pushWorkFrame(newApplyBlockFrame(cast[BlockNode](ifNode.thenBranch), 0))
+        elif not condResult and ifNode.elseBranch != nil:
+          interp.pushWorkFrame(newApplyBlockFrame(cast[BlockNode](ifNode.elseBranch), 0))
+        else:
+          interp.pushValue(nilValue())
+        return true
+    # General case: evaluate condition and create continuation
+    # Push continuation frame that will check condition result from stack
+    let thenBlk = if ifNode.thenBranch of BlockNode: cast[BlockNode](ifNode.thenBranch) else: nil
+    let elseBlk = if ifNode.elseBranch of BlockNode: cast[BlockNode](ifNode.elseBranch) else: nil
+    var contFrame = WorkFrame(kind: wfIfNodeContinuation)
+    contFrame.thenBlock = thenBlk
+    contFrame.elseBlock = elseBlk
+    interp.pushWorkFrame(contFrame)
+    interp.pushWorkFrame(newEvalFrame(ifNode.condition))
+    return true
+
+  of nkWhile:
+    # Control Flow Specialization: WhileNode - evaluate condition, then body
+    let whileNode = cast[WhileNode](node)
+    let condBlk = cast[BlockNode](whileNode.condition)
+    let bodyBlk = cast[BlockNode](whileNode.body)
+    interp.pushWorkFrame(newWhileLoopFrame(whileNode.isWhileTrue, condBlk, bodyBlk, lsEvaluateCondition))
+    return true
+
 # Handle continuation frames (what to do after subexpression)
 proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
   case frame.kind
@@ -3598,6 +3632,22 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
           else:
             # false ifTrue: [tBlock] ifFalse: [fBlock] -> evaluate fBlock
             interp.pushWorkFrame(newApplyBlockFrame(args[1].blockVal, 0))
+          return true
+      of "and:":
+        if args.len > 0 and args[0].kind == vkBlock:
+          # Short-circuit and: evaluate receiver, if false return false, else evaluate block
+          if not receiverVal.boolVal:
+            interp.pushValue(NodeValue(kind: vkBool, boolVal: false))
+          else:
+            interp.pushWorkFrame(newApplyBlockFrame(args[0].blockVal, 0))
+          return true
+      of "or:":
+        if args.len > 0 and args[0].kind == vkBlock:
+          # Short-circuit or: evaluate receiver, if true return true, else evaluate block
+          if receiverVal.boolVal:
+            interp.pushValue(NodeValue(kind: vkBool, boolVal: true))
+          else:
+            interp.pushWorkFrame(newApplyBlockFrame(args[0].blockVal, 0))
           return true
       else:
         discard  # Fall through to normal dispatch for other boolean methods
@@ -4587,6 +4637,18 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
   of wfRestoreReceiver:
     # Restore original receiver after cascade completes
     interp.currentReceiver = frame.savedReceiver
+    return true
+
+  of wfIfNodeContinuation:
+    # IfNode specialization: condition result is on evalStack, execute appropriate branch
+    let condValue = interp.popValue()
+    let condResult = condValue.isTruthy()
+    if condResult and frame.thenBlock != nil:
+      interp.pushWorkFrame(newApplyBlockFrame(frame.thenBlock, 0))
+    elif not condResult and frame.elseBlock != nil:
+      interp.pushWorkFrame(newApplyBlockFrame(frame.elseBlock, 0))
+    else:
+      interp.pushValue(nilValue())
     return true
 
   of wfIfBranch:

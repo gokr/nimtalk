@@ -133,6 +133,7 @@ type
     wfRestoreReceiver      # Restore original receiver after cascade
     wfIfBranch            # Conditional branch (ifTrue:, ifFalse:)
     wfWhileLoop           # While loop (whileTrue:, whileFalse:)
+    wfIfNodeContinuation  # IfNode specialization continuation (gets condition from stack)
     wfPushHandler         # Push exception handler onto handler stack
     wfPopHandler          # Pop exception handler from handler stack
     wfSignalException     # Signal exception and search for handler
@@ -321,11 +322,23 @@ type
   PseudoVarNode* = ref object of Node
     name*: string          # "self", "nil", "true", "false"
 
+  # Control flow specialization nodes
+  IfNode* = ref object of Node
+    condition*: Node        # Condition expression
+    thenBranch*: Node       # True branch (BlockNode or statement)
+    elseBranch*: Node       # Optional false branch (nil if no else)
+
+  WhileNode* = ref object of Node
+    condition*: Node        # Condition block or expression
+    body*: Node             # Loop body (BlockNode)
+    isWhileTrue*: bool      # true = whileTrue, false = whileFalse
+
   # Node type enum for pattern matching
   NodeKind* = enum
     nkLiteral, nkIdent, nkMessage, nkBlock, nkAssign, nkReturn,
     nkArray, nkTable, nkObjectLiteral, nkPrimitive, nkPrimitiveCall, nkCascade,
-    nkSlotAccess, nkSuperSend, nkPseudoVar
+    nkSlotAccess, nkSuperSend, nkPseudoVar,
+    nkIf, nkWhile  # Control flow specialization nodes
 
   # Compiled method representation
   CompiledMethod* = ref object of RootObj
@@ -402,6 +415,8 @@ proc kind*(node: Node): NodeKind =
   elif node of SlotAccessNode: nkSlotAccess
   elif node of SuperSendNode: nkSuperSend
   elif node of PseudoVarNode: nkPseudoVar
+  elif node of IfNode: nkIf
+  elif node of WhileNode: nkWhile
   else: raise newException(ValueError, "Unknown node type")
 
 # Value conversion utilities
