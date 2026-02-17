@@ -1111,7 +1111,9 @@ proc primitiveAsSelfDoImpl(interp: var Interpreter, self: Instance, args: seq[No
 # Forward declarations for work frame constructors (defined later in the file)
 proc newPushHandlerFrame*(exceptionClass: Class, handlerBlock: BlockNode): WorkFrame
 proc newPopHandlerFrame*(): WorkFrame
+proc newExceptionReturnFrame*(handlerIndex: int): WorkFrame
 proc newApplyBlockFrame*(blockVal: BlockNode, argCount: int): WorkFrame
+proc truncateWorkQueue*(interp: var Interpreter, depth: int)
 proc newEvalFrame*(node: Node): WorkFrame
 proc pushWorkFrame*(interp: var Interpreter, frame: WorkFrame)
 proc popValue*(interp: var Interpreter): NodeValue
@@ -1168,7 +1170,9 @@ proc primitiveOnDoImpl(interp: var Interpreter, self: Instance, args: seq[NodeVa
 
     # 1. Push handler onto stack (pushed last, runs first)
     # This schedules the handler push before block execution
-    interp.pushWorkFrame(newPushHandlerFrame(exceptionClass, handlerBlock))
+    var pushFrame = newPushHandlerFrame(exceptionClass, handlerBlock)
+    pushFrame.protectedBlockForHandler = blockNode
+    interp.pushWorkFrame(pushFrame)
 
     # Return - let VM process the work queue
     # The result will be left on the eval stack by the block execution
@@ -1177,16 +1181,16 @@ proc primitiveOnDoImpl(interp: var Interpreter, self: Instance, args: seq[NodeVa
   return nilValue()
 
 proc primitiveSignalImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
-  ## Signal/raise an exception - walk handler stack WITHOUT unwinding
+  ## Signal an exception - immediate unwind with recorded signal context
   ## Called from Exception>>signal - usage: Exception signal: "message"
-  ## Stack remains intact so Debugger can inspect signal point
   ##
+  ## Unwinds VM state to handler install point, records signal context on
+  ## the handler for return:/pass/retry, then schedules handler block.
   ## self is the Exception instance (not the class)
 
   # Get message from exception instance if available
   var message = "Exception"
   if self != nil and self.kind == ikObject and self.class != nil:
-    # Try to get message from the exception instance
     let messageSlotIdx = self.class.allSlotNames.find("message")
     if messageSlotIdx >= 0 and messageSlotIdx < self.slots.len:
       let msgValue = self.slots[messageSlotIdx]
@@ -1201,12 +1205,18 @@ proc primitiveSignalImpl(interp: var Interpreter, self: Instance, args: seq[Node
     if isKindOf(self.class, handler.exceptionClass):
       debug("primitiveSignal: found matching handler at index ", i)
 
-      # Unwind VM state to the point where the handler was installed:
-      # 1. Truncate work queue - removes all frames from protected block and signal chain
-      interp.workQueue.setLen(handler.workQueueDepth)
-      debug("primitiveSignal: truncated workQueue to depth ", handler.workQueueDepth)
+      # Record signal context on the handler before unwinding
+      # (used by return:, pass, retry)
+      interp.exceptionHandlers[i].exceptionInstance = self
+      interp.exceptionHandlers[i].signalWorkQueueDepth = interp.workQueue.len
+      interp.exceptionHandlers[i].signalEvalStackDepth = interp.evalStack.len
+      interp.exceptionHandlers[i].signalActivationDepth = interp.activationStack.len
 
-      # 2. Truncate eval stack - removes intermediate values from protected block
+      # Unwind VM state to the point where the handler was installed:
+      # 1. Truncate work queue
+      interp.truncateWorkQueue(handler.workQueueDepth)
+
+      # 2. Truncate eval stack
       interp.evalStack.setLen(handler.evalStackDepth)
 
       # 3. Unwind activation stack to handler's depth
@@ -1216,28 +1226,137 @@ proc primitiveSignalImpl(interp: var Interpreter, self: Instance, args: seq[Node
         interp.currentActivation = interp.activationStack[^1]
         interp.currentReceiver = interp.currentActivation.receiver
 
-      # 4. Remove the consumed handler (and any handlers above it)
-      interp.exceptionHandlers.setLen(i)
+      # DON'T remove the handler yet - keep it for return:/pass/retry
+      # Push wfExceptionReturn barrier, then handler block on top
+      interp.pushWorkFrame(newExceptionReturnFrame(i))
 
-      # 5. Schedule handler block with exception as argument
+      # Schedule handler block with exception as argument
       let exValue = self.toValue()
-      debug("primitiveSignal: scheduling handler with exception class=", self.class.name, " value kind=", $exValue.kind)
-
-      var applyFrame = WorkFrame(
-        kind: wfApplyBlock,
-        blockVal: handler.handlerBlock,
-        argCount: 1,
-        blockArgs: @[exValue]
-      )
+      var applyFrame = newApplyBlockFrame(handler.handlerBlock, 1)
+      applyFrame.blockArgs = @[exValue]
       interp.pushWorkFrame(applyFrame)
 
       # Return nil - the handler block will push its result
       return nilValue()
 
-  # No handler found - for now write to stderr and return nil
-  # In full implementation, this would open the Debugger
+  # No handler found
   debug("primitiveSignal: no handler found for exception")
   writeStderr("Uncaught exception: " & message)
+  return nilValue()
+
+proc findHandlerForException(interp: var Interpreter, self: Instance): int =
+  ## Find handler index for a given exception instance (used by return:, pass, retry)
+  for i in countdown(interp.exceptionHandlers.len - 1, 0):
+    if interp.exceptionHandlers[i].exceptionInstance == self:
+      return i
+  return -1
+
+proc primitiveExceptionReturnImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
+  ## Exception>>return: value - explicit unwind, providing value to on:do:
+  let returnValue = if args.len > 0: args[0] else: nilValue()
+  let handlerIdx = interp.findHandlerForException(self)
+  if handlerIdx < 0:
+    writeStderr("return: called on exception with no active handler")
+    return nilValue()
+  let handler = interp.exceptionHandlers[handlerIdx]
+
+  # Unwind to handler install point
+  interp.truncateWorkQueue(handler.workQueueDepth)
+  interp.evalStack.setLen(handler.evalStackDepth)
+  while interp.activationStack.len > handler.stackDepth:
+    discard interp.activationStack.pop()
+  if interp.activationStack.len > 0:
+    interp.currentActivation = interp.activationStack[^1]
+    interp.currentReceiver = interp.currentActivation.receiver
+
+  # Remove handler and any above it
+  interp.exceptionHandlers.setLen(handlerIdx)
+
+  # Push the return value as on:do:'s result
+  return returnValue
+
+proc primitiveExceptionPassImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
+  ## Exception>>pass - delegate to next outer handler
+  let handlerIdx = interp.findHandlerForException(self)
+  if handlerIdx < 0:
+    writeStderr("pass called on exception with no active handler")
+    return nilValue()
+  let handler = interp.exceptionHandlers[handlerIdx]
+
+  # Unwind to handler install point
+  interp.truncateWorkQueue(handler.workQueueDepth)
+  interp.evalStack.setLen(handler.evalStackDepth)
+  while interp.activationStack.len > handler.stackDepth:
+    discard interp.activationStack.pop()
+  if interp.activationStack.len > 0:
+    interp.currentActivation = interp.activationStack[^1]
+    interp.currentReceiver = interp.currentActivation.receiver
+
+  # Remove current handler
+  interp.exceptionHandlers.setLen(handlerIdx)
+
+  # Search for next matching handler from remaining handlers
+  for j in countdown(interp.exceptionHandlers.len - 1, 0):
+    let nextHandler = interp.exceptionHandlers[j]
+    if isKindOf(self.class, nextHandler.exceptionClass):
+      # Record signal context on next handler
+      interp.exceptionHandlers[j].exceptionInstance = self
+      interp.exceptionHandlers[j].signalWorkQueueDepth = interp.workQueue.len
+      interp.exceptionHandlers[j].signalEvalStackDepth = interp.evalStack.len
+      interp.exceptionHandlers[j].signalActivationDepth = interp.activationStack.len
+
+      # Unwind to next handler's install point
+      interp.truncateWorkQueue(nextHandler.workQueueDepth)
+      interp.evalStack.setLen(nextHandler.evalStackDepth)
+      while interp.activationStack.len > nextHandler.stackDepth:
+        discard interp.activationStack.pop()
+      if interp.activationStack.len > 0:
+        interp.currentActivation = interp.activationStack[^1]
+        interp.currentReceiver = interp.currentActivation.receiver
+
+      # Push barrier + handler block
+      interp.pushWorkFrame(newExceptionReturnFrame(j))
+      let exValue = self.toValue()
+      var applyFrame = newApplyBlockFrame(nextHandler.handlerBlock, 1)
+      applyFrame.blockArgs = @[exValue]
+      interp.pushWorkFrame(applyFrame)
+      return nilValue()
+
+  writeStderr("Uncaught exception (pass): no outer handler found")
+  return nilValue()
+
+proc primitiveExceptionRetryImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
+  ## Exception>>retry - re-execute protected block
+  let handlerIdx = interp.findHandlerForException(self)
+  if handlerIdx < 0:
+    writeStderr("retry called on exception with no active handler")
+    return nilValue()
+  let handler = interp.exceptionHandlers[handlerIdx]
+  let protectedBlock = handler.protectedBlock
+
+  if protectedBlock == nil:
+    writeStderr("retry: no protected block recorded")
+    return nilValue()
+
+  # Unwind to handler install point
+  interp.truncateWorkQueue(handler.workQueueDepth)
+  interp.evalStack.setLen(handler.evalStackDepth)
+  while interp.activationStack.len > handler.stackDepth:
+    discard interp.activationStack.pop()
+  if interp.activationStack.len > 0:
+    interp.currentActivation = interp.activationStack[^1]
+    interp.currentReceiver = interp.currentActivation.receiver
+
+  # Remove handler
+  interp.exceptionHandlers.setLen(handlerIdx)
+
+  # Re-schedule same structure as on:do:: popHandler, evalBlock, pushHandler
+  interp.pushWorkFrame(newPopHandlerFrame())
+  interp.pushWorkFrame(newApplyBlockFrame(protectedBlock, 0))
+  var pushFrame = newPushHandlerFrame(handler.exceptionClass, handler.handlerBlock)
+  pushFrame.protectedBlockForHandler = protectedBlock
+  interp.pushWorkFrame(pushFrame)
+
   return nilValue()
 
 proc primitiveHasPropertyImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue =
@@ -2594,6 +2713,30 @@ proc loadStdlib*(interp: var Interpreter, bootstrapFile: string = "") =
         propagateToSubclasses(sub, methodName, meth)
     propagateToSubclasses(exceptionCls, "primitiveSignal", primitiveSignalMethod)
 
+    # Register Exception>>return: primitive
+    let returnMethod = createCoreMethod("primitiveExceptionReturn:")
+    returnMethod.setNativeImpl(primitiveExceptionReturnImpl)
+    returnMethod.hasInterpreterParam = true
+    exceptionCls.methods["primitiveExceptionReturn:"] = returnMethod
+    exceptionCls.allMethods["primitiveExceptionReturn:"] = returnMethod
+    propagateToSubclasses(exceptionCls, "primitiveExceptionReturn:", returnMethod)
+
+    # Register Exception>>pass primitive
+    let passMethod = createCoreMethod("primitiveExceptionPass")
+    passMethod.setNativeImpl(primitiveExceptionPassImpl)
+    passMethod.hasInterpreterParam = true
+    exceptionCls.methods["primitiveExceptionPass"] = passMethod
+    exceptionCls.allMethods["primitiveExceptionPass"] = passMethod
+    propagateToSubclasses(exceptionCls, "primitiveExceptionPass", passMethod)
+
+    # Register Exception>>retry primitive
+    let retryMethod = createCoreMethod("primitiveExceptionRetry")
+    retryMethod.setNativeImpl(primitiveExceptionRetryImpl)
+    retryMethod.hasInterpreterParam = true
+    exceptionCls.methods["primitiveExceptionRetry"] = retryMethod
+    exceptionCls.allMethods["primitiveExceptionRetry"] = retryMethod
+    propagateToSubclasses(exceptionCls, "primitiveExceptionRetry", retryMethod)
+
     debug("Registered native Exception>>primitiveSignal method")
   else:
     debug("Exception class not found, cannot register primitiveSignal")
@@ -3042,7 +3185,19 @@ proc newSignalExceptionFrame*(exceptionInstance: Instance): WorkFrame =
   result.kind = wfSignalException
   result.exceptionInstance = exceptionInstance
 
+proc newExceptionReturnFrame*(handlerIndex: int): WorkFrame =
+  ## Create barrier frame for handler completion - unwinds to on:do: point
+  result = acquireFrame()
+  result.kind = wfExceptionReturn
+  result.handlerIndex = handlerIndex
+
 # Stack operations
+proc truncateWorkQueue*(interp: var Interpreter, depth: int) =
+  ## Truncate work queue to given depth, properly releasing frames to pool
+  while interp.workQueue.len > depth:
+    let frame = interp.workQueue.pop()
+    releaseFrame(frame)
+
 proc pushWorkFrame*(interp: var Interpreter, frame: WorkFrame) =
   interp.workQueue.add(frame)
 
@@ -3077,7 +3232,7 @@ proc popValues*(interp: var Interpreter, count: int): seq[NodeValue] =
 
 # Clear VM state
 proc clearVMState*(interp: var Interpreter) =
-  interp.workQueue.setLen(0)
+  interp.truncateWorkQueue(0)
   interp.evalStack.setLen(0)
 
 # Handle evaluation of simple nodes (Phase 2)
@@ -4521,7 +4676,8 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       activation: interp.currentActivation,
       stackDepth: interp.activationStack.len,
       workQueueDepth: interp.workQueue.len - 2,  # Depth before wfPopHandler and wfApplyBlock
-      evalStackDepth: interp.evalStack.len
+      evalStackDepth: interp.evalStack.len,
+      protectedBlock: frame.protectedBlockForHandler
     )
     interp.exceptionHandlers.add(handler)
     debug("VM: wfPushHandler pushed handler for ", frame.exceptionClass.name)
@@ -4529,22 +4685,22 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
 
   of wfPopHandler:
     # Pop exception handler from handler stack
-    # Remove handlers whose activation has exited (current depth < handler's depth)
-    # Also remove handlers that were consumed (used to catch an exception)
+    # If no exception occurred, the topmost handler is ours.
+    # If an exception WAS caught, the handler was already removed by signal,
+    # and this wfPopHandler was removed from WQ by truncation.
     if interp.exceptionHandlers.len > 0:
-      var i = 0
-      while i < interp.exceptionHandlers.len:
-        let handler = interp.exceptionHandlers[i]
-        if handler.consumed:
-          # Handler was used to catch an exception, remove it from stack
-          interp.exceptionHandlers.del(i)
-          debug("VM: wfPopHandler removed consumed handler")
-        elif interp.activationStack.len < handler.stackDepth:
-          # Handler's activation has exited, remove it
-          interp.exceptionHandlers.del(i)
-          debug("VM: wfPopHandler removed handler with exited activation, handlerDepth=", handler.stackDepth, " currentDepth=", interp.activationStack.len)
-        else:
-          i += 1
+      discard interp.exceptionHandlers.pop()
+    return true
+
+  of wfExceptionReturn:
+    # Handler block completed (fell through without calling return:/pass/retry)
+    # Pop the handler result and use it as on:do:'s return value
+    let handlerIdx = frame.handlerIndex
+    if handlerIdx < interp.exceptionHandlers.len:
+      # Remove handler
+      interp.exceptionHandlers.setLen(handlerIdx)
+    # Handler block's result is already on evalStack from wfApplyBlock
+    # It becomes the on:do: return value - nothing more to do
     return true
 
   of wfSignalException:

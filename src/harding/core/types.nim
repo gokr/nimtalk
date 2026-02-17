@@ -104,6 +104,11 @@ type
     workQueueDepth*: int            # Work queue depth to restore on exception (before wfPopHandler)
     evalStackDepth*: int            # Eval stack depth to restore on exception
     consumed*: bool                 # True if handler was already used to catch an exception
+    protectedBlock*: BlockNode      # Protected block (for retry)
+    exceptionInstance*: Instance    # Exception that activated this handler
+    signalWorkQueueDepth*: int     # WQ depth at signal point
+    signalEvalStackDepth*: int     # ES depth at signal point
+    signalActivationDepth*: int    # AS depth at signal point
 
   # Exception thrown when Processor yield is called for immediate context switch
   YieldException* = object of CatchableError
@@ -136,6 +141,7 @@ type
     wfPushHandler         # Push exception handler onto handler stack
     wfPopHandler          # Pop exception handler from handler stack
     wfSignalException     # Signal exception and search for handler
+    wfExceptionReturn     # Barrier: when handler completes, unwind to on:do: point
 
   # Work frame for explicit stack VM execution
   WorkFrame* {.acyclic.} = ref object
@@ -177,6 +183,10 @@ type
     handlerBlock*: BlockNode   # Block to execute when exception is caught
     # For wfSignalException
     exceptionInstance*: Instance  # The exception instance being signaled
+    # For wfExceptionReturn
+    handlerIndex*: int               # Index into exceptionHandlers
+    # For wfPushHandler (carry protected block for retry)
+    protectedBlockForHandler*: BlockNode
 
   # Interpreter type defined here to avoid circular dependency between scheduler and evaluator
   Interpreter* {.acyclic.} = ref object

@@ -1,7 +1,7 @@
 ## Frame Pool for WorkFrame Recycling
 ## Reduces GC pressure by reusing WorkFrame objects
 
-import std/[logging, strutils]
+import std/[logging]
 import ../core/types
 
 const
@@ -58,6 +58,8 @@ proc clearFrame*(frame: WorkFrame) =
   frame.exceptionClass = nil
   frame.handlerBlock = nil
   frame.exceptionInstance = nil
+  frame.handlerIndex = 0
+  frame.protectedBlockForHandler = nil
 
 proc acquireFrame*(): WorkFrame =
   ## Acquire a frame from the pool, or allocate new if pool is empty
