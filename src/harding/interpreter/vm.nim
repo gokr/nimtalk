@@ -2367,6 +2367,7 @@ proc initGlobals*(interp: var Interpreter) =
   # This allows isKindOf: Class to work properly
   let classCls = newClass(superclasses = @[objectCls], name = "Class")
   classCls.tags = @["Class", "Object"]
+  classClass = classCls  # Set global variable
   interp.globals[]["Class"] = classCls.toValue()
 
   # Add primitive values
@@ -3564,6 +3565,142 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
           # Arithmetic returns float
           interp.pushValue(NodeValue(kind: vkFloat, floatVal: floatResult))
         return true
+
+    # ============================================================================
+    # QUICK PRIMITIVES: Boolean Control Flow
+    # Fast-path for ifTrue:, ifFalse:, ifTrue:ifFalse: on tagged booleans
+    # ============================================================================
+    if receiverVal.kind == vkBool:
+      case frame.selector
+      of "ifTrue:":
+        if args.len > 0 and args[0].kind == vkBlock:
+          if receiverVal.boolVal:
+            # true ifTrue: [block] -> evaluate block
+            interp.pushWorkFrame(newApplyBlockFrame(args[0].blockVal, 0))
+          else:
+            # false ifTrue: [block] -> return nil
+            interp.pushValue(nilValue())
+          return true
+      of "ifFalse:":
+        if args.len > 0 and args[0].kind == vkBlock:
+          if not receiverVal.boolVal:
+            # false ifFalse: [block] -> evaluate block
+            interp.pushWorkFrame(newApplyBlockFrame(args[0].blockVal, 0))
+          else:
+            # true ifFalse: [block] -> return nil
+            interp.pushValue(nilValue())
+          return true
+      of "ifTrue:ifFalse:":
+        if args.len > 1 and args[0].kind == vkBlock and args[1].kind == vkBlock:
+          if receiverVal.boolVal:
+            # true ifTrue: [tBlock] ifFalse: [fBlock] -> evaluate tBlock
+            interp.pushWorkFrame(newApplyBlockFrame(args[0].blockVal, 0))
+          else:
+            # false ifTrue: [tBlock] ifFalse: [fBlock] -> evaluate fBlock
+            interp.pushWorkFrame(newApplyBlockFrame(args[1].blockVal, 0))
+          return true
+      else:
+        discard  # Fall through to normal dispatch for other boolean methods
+
+    # ============================================================================
+    # QUICK PRIMITIVES: Common selectors
+    # Fast-path for class, isNil, notNil, ==, ~= before MIC/PIC
+    # ============================================================================
+    case frame.selector
+    of "class":
+      if receiverVal.kind == vkInstance:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: receiverVal.instVal.class))
+      elif receiverVal.kind == vkInt:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: integerClass))
+      elif receiverVal.kind == vkFloat:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: floatClass))
+      elif receiverVal.kind == vkString:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: stringClass))
+      elif receiverVal.kind == vkBool:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: if receiverVal.boolVal: trueClassCache else: falseClassCache))
+      elif receiverVal.kind == vkNil:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: undefinedObjectClass))
+      elif receiverVal.kind == vkArray:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: arrayClass))
+      elif receiverVal.kind == vkTable:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: tableClass))
+      elif receiverVal.kind == vkBlock:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: blockClass))
+      elif receiverVal.kind == vkClass:
+        # For classes, return the class itself (matches original primitiveClassImpl behavior)
+        interp.pushValue(receiverVal)
+      else:
+        interp.pushValue(nilValue())
+      return true
+
+    of "isNil":
+      interp.pushValue(NodeValue(kind: vkBool, boolVal: receiverVal.kind == vkNil))
+      return true
+
+    of "notNil":
+      interp.pushValue(NodeValue(kind: vkBool, boolVal: receiverVal.kind != vkNil))
+      return true
+
+    of "==":
+      if args.len > 0:
+        # Fast identity comparison
+        let areEqual = case receiverVal.kind
+        of vkInt:
+          args[0].kind == vkInt and receiverVal.intVal == args[0].intVal
+        of vkFloat:
+          args[0].kind == vkFloat and receiverVal.floatVal == args[0].floatVal
+        of vkBool:
+          args[0].kind == vkBool and receiverVal.boolVal == args[0].boolVal
+        of vkNil:
+          args[0].kind == vkNil
+        of vkString:
+          args[0].kind == vkString and receiverVal.strVal == args[0].strVal
+        of vkInstance:
+          args[0].kind == vkInstance and receiverVal.instVal == args[0].instVal
+        of vkClass:
+          args[0].kind == vkClass and receiverVal.classVal == args[0].classVal
+        of vkArray:
+          args[0].kind == vkArray and receiverVal.arrayVal == args[0].arrayVal
+        of vkTable:
+          args[0].kind == vkTable and receiverVal.tableVal == args[0].tableVal
+        of vkBlock:
+          args[0].kind == vkBlock and receiverVal.blockVal == args[0].blockVal
+        of vkSymbol:
+          args[0].kind == vkSymbol and receiverVal.symVal == args[0].symVal
+        interp.pushValue(NodeValue(kind: vkBool, boolVal: areEqual))
+        return true
+
+    of "~=":
+      if args.len > 0:
+        # Fast identity inequality
+        let areNotEqual = case receiverVal.kind
+        of vkInt:
+          args[0].kind != vkInt or receiverVal.intVal != args[0].intVal
+        of vkFloat:
+          args[0].kind != vkFloat or receiverVal.floatVal != args[0].floatVal
+        of vkBool:
+          args[0].kind != vkBool or receiverVal.boolVal != args[0].boolVal
+        of vkNil:
+          args[0].kind != vkNil
+        of vkString:
+          args[0].kind != vkString or receiverVal.strVal != args[0].strVal
+        of vkInstance:
+          args[0].kind != vkInstance or receiverVal.instVal != args[0].instVal
+        of vkClass:
+          args[0].kind != vkClass or receiverVal.classVal != args[0].classVal
+        of vkArray:
+          args[0].kind != vkArray or receiverVal.arrayVal != args[0].arrayVal
+        of vkTable:
+          args[0].kind != vkTable or receiverVal.tableVal != args[0].tableVal
+        of vkBlock:
+          args[0].kind != vkBlock or receiverVal.blockVal != args[0].blockVal
+        of vkSymbol:
+          args[0].kind != vkSymbol or receiverVal.symVal != args[0].symVal
+        interp.pushValue(NodeValue(kind: vkBool, boolVal: areNotEqual))
+        return true
+
+    else:
+      discard  # Fall through to normal dispatch
 
     # Convert receiver to Instance for method lookup
     var receiver: Instance

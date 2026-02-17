@@ -46,10 +46,17 @@ Queens>>solve [
   ^ count = 8
 ]
 
-# Run the benchmark
-solver := Queens new.
-solver initialize.
-result := solver solve.
+# Run the benchmark 5000 times for measurable duration
+n := 5000.
+total := 0.
 
-# Return true if solver completed successfully
-result
+[ n > 0 ] whileTrue: [
+  q := Queens new.
+  q initialize.
+  q solve.
+  total := total + 1.
+  n := n - 1.
+].
+
+# Return total iterations completed
+total

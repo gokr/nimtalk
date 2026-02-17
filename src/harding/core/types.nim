@@ -360,6 +360,7 @@ var
   blockClass*: Class = nil
   libraryClass*: Class = nil                    # Library class for namespace management
   setClass*: Class = nil                        # Set class for hash set operations
+  classClass*: Class = nil                      # Class class (metaclass)
 
 # nil instance - singleton instance of UndefinedObject
 # Initialized during initCoreClasses, used by nilValue()
