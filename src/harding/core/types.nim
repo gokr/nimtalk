@@ -204,6 +204,7 @@ type
     schedulerContextPtr*: pointer  # Scheduler context (cast to SchedulerContext when needed)
     hardingHome*: string  # Home directory for loading libraries
     shouldYield*: bool  # Set to true when Processor yield is called for immediate context switch
+    methodTableDeferRebuild*: bool  # Defers method table rebuilds during batch loading
     # VM work queue and value stack
     workQueue*: seq[WorkFrame]  # Work queue for AST interpreter
     evalStack*: seq[NodeValue]  # Value stack for expression results
