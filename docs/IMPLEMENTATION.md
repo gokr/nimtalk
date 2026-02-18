@@ -264,6 +264,108 @@ The VM returns a `VMStatus` indicating execution outcome:
 
 5. **Stack Reification**: The entire Harding call stack is accessible as data
 
+### Quick Primitives
+
+Quick Primitives provide special-case optimizations for common operations:
+
+- **Inline arithmetic/tagged value operations**: Direct dispatch for `+`, `-`, `*`, `/` on small integers
+- **Specialized work frames**: Fast-path frames for frequently executed primitives
+- **Avoid activation creation**: Primitive results are pushed directly to eval stack
+
+Quick Primitives bypass normal method dispatch and activation creation for performance-critical operations:
+
+```nim
+# Normal message send: creates activation, executes method body
+3 + 4  -> MIC cache hit -> method lookup -> activation -> return value
+
+# Quick primitive: tagged value dispatch, no activation
+primitiveQuickPlus(3, 4) -> tagged arithmetic -> push 7 to eval stack
+```
+
+### Work Frame Pooling
+
+To reduce garbage collection pressure for ARC/ORC memory management, Harding uses a work frame pool:
+
+- Frames are recycled instead of allocated for each operation
+- Pool size: 64 frames (default)
+- Reduces GC overhead by ~30% for tight loops
+
+The pool is bypassed when:
+- Frame count exceeds pool size (fallback to allocation)
+- ARC is disabled (traditional GC)
+
+### ARC Memory Management
+
+Harding is compatible with Nim's ARC (Automatic Reference Counting) and ORC (ARC with cycle collection):
+
+- **Keep-alive registries**: Raw pointers to Nim refs must be registered to prevent premature collection
+- **`.acyclic.` pragmas**: Types involved in cross-thread references marked to prevent cycle detection crashes
+- **Closure elimination**: Callbacks use raw pointers instead of closures to prevent ORC tracking issues
+
+**Keep-Alive Registries:**
+- `blockNodeRegistry` in `types.nim` - for BlockNodes
+- `processProxies` in `scheduler.nim` - for ProcessProxy
+- `schedulerProxies` in `scheduler.nim` - for SchedulerProxy
+- `monitorProxies` in `scheduler.nim` - for MonitorProxy
+- `sharedQueueProxies` in `scheduler.nim` - for SharedQueueProxy
+- `semaphoreProxies` in `scheduler.nim` - for SemaphoreProxy
+- `globalTableProxies` in `vm.nim` - for GlobalTableProxy
+
+### Non-Unwinding Exception Handling
+
+Harding uses a non-unwinding exception handling mechanism based on work queue truncation rather than traditional stack unwinding.
+
+#### How It Works
+
+1. **`on:do:` Primitive**: Schedules three work frames: `[pushHandler][evalBlock][popHandler]`
+
+2. **Handler Installation**: `wfPushHandler` creates an `ExceptionHandler` record with saved depths:
+   - `stackDepth`: Activation stack depth
+   - `workQueueDepth`: Work queue depth
+   - `evalStackDepth`: Evaluation stack depth
+
+3. **Exception Signaling**: `primitiveSignalImpl` finds matching handler and truncates VM state:
+   - Truncates work queue to handler's saved depth
+   - Truncates eval stack to handler's saved depth
+   - Pops activation stack to handler's saved depth
+
+4. **Handler Execution**: Schedules handler block with exception as argument
+
+5. **Cleanup**: `wfPopHandler` removes handler when block completes normally
+
+#### Key Characteristics
+
+**Advantages:**
+- **Stackless**: No native stack unwinding—exceptions work with green threads
+- **Predictable**: VM state is explicitly restored to known checkpoint
+- **Debuggable**: Original activation records still exist (not destroyed)
+- **Composable**: Multiple handlers can be nested
+
+**Trade-offs:**
+- Frames above the handler are truncated, not preserved
+- Cannot inspect "dead" frames after exception is caught
+- Stack traces show handler installation point, not full history
+
+#### Example: Exception Handling Flow
+
+```smalltalk
+# Harding code
+[
+    "outer" printLine.
+    Error signal: "Something went wrong"
+] on: Error do: [:ex |
+    "Caught: " , ex message printLine
+]
+```
+
+Execution flow:
+1. `wfPushHandler` creates handler at depth 0
+2. Block evaluation starts, prints "outer"
+3. `Error signal:` creates exception instance
+4. `primitiveSignalImpl` finds handler, truncates to saved depth
+5. Handler block receives exception, prints "Caught: Something went wrong"
+6. `wfPopHandler` removes handler
+
 ---
 
 ## Core Types
