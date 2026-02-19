@@ -2537,6 +2537,7 @@ proc initGlobals*(interp: var Interpreter) =
   # This allows isKindOf: Class to work properly
   let classCls = newClass(superclasses = @[objectCls], name = "Class")
   classCls.tags = @["Class", "Object"]
+  classClass = classCls  # Set global variable
   interp.globals[]["Class"] = classCls.toValue()
 
   # Add primitive values
@@ -3207,7 +3208,7 @@ proc newReturnValueFrame*(value: NodeValue): WorkFrame =
   result.kind = wfReturnValue
   result.returnValue = value
 
-proc newCascadeFrame*(messages: seq[MessageNode], receiver: NodeValue): WorkFrame =
+proc newCascadeFrame*(messages: seq[Node], receiver: NodeValue): WorkFrame =
   result = acquireFrame()
   result.kind = wfCascade
   result.cascadeMessages = messages
@@ -3672,6 +3673,40 @@ proc handleEvalNode(interp: var Interpreter, frame: WorkFrame): bool =
       interp.pushWorkFrame(newSendMessageFrame(primCall.selector, 0, isClassMethod = primCall.isClassMethod))
     return true
 
+  of nkIf:
+    # Control Flow Specialization: IfNode - evaluate condition, then branch
+    let ifNode = cast[IfNode](node)
+    # Check if condition is a literal boolean (fast path)
+    if ifNode.condition of LiteralNode:
+      let lit = cast[LiteralNode](ifNode.condition)
+      if lit.value.kind == vkBool:
+        let condResult = lit.value.boolVal
+        if condResult and ifNode.thenBranch != nil:
+          interp.pushWorkFrame(newApplyBlockFrame(cast[BlockNode](ifNode.thenBranch), 0))
+        elif not condResult and ifNode.elseBranch != nil:
+          interp.pushWorkFrame(newApplyBlockFrame(cast[BlockNode](ifNode.elseBranch), 0))
+        else:
+          interp.pushValue(nilValue())
+        return true
+    # General case: evaluate condition and create continuation
+    # Push continuation frame that will check condition result from stack
+    let thenBlk = if ifNode.thenBranch of BlockNode: cast[BlockNode](ifNode.thenBranch) else: nil
+    let elseBlk = if ifNode.elseBranch of BlockNode: cast[BlockNode](ifNode.elseBranch) else: nil
+    var contFrame = WorkFrame(kind: wfIfNodeContinuation)
+    contFrame.thenBlock = thenBlk
+    contFrame.elseBlock = elseBlk
+    interp.pushWorkFrame(contFrame)
+    interp.pushWorkFrame(newEvalFrame(ifNode.condition))
+    return true
+
+  of nkWhile:
+    # Control Flow Specialization: WhileNode - evaluate condition, then body
+    let whileNode = cast[WhileNode](node)
+    let condBlk = cast[BlockNode](whileNode.condition)
+    let bodyBlk = cast[BlockNode](whileNode.body)
+    interp.pushWorkFrame(newWhileLoopFrame(whileNode.isWhileTrue, condBlk, bodyBlk, lsEvaluateCondition))
+    return true
+
 # Handle continuation frames (what to do after subexpression)
 proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
   case frame.kind
@@ -3836,6 +3871,158 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
           # Arithmetic returns float
           interp.pushValue(NodeValue(kind: vkFloat, floatVal: floatResult))
         return true
+
+    # ============================================================================
+    # QUICK PRIMITIVES: Boolean Control Flow
+    # Fast-path for ifTrue:, ifFalse:, ifTrue:ifFalse: on tagged booleans
+    # ============================================================================
+    if receiverVal.kind == vkBool:
+      case frame.selector
+      of "ifTrue:":
+        if args.len > 0 and args[0].kind == vkBlock:
+          if receiverVal.boolVal:
+            # true ifTrue: [block] -> evaluate block
+            interp.pushWorkFrame(newApplyBlockFrame(args[0].blockVal, 0))
+          else:
+            # false ifTrue: [block] -> return nil
+            interp.pushValue(nilValue())
+          return true
+      of "ifFalse:":
+        if args.len > 0 and args[0].kind == vkBlock:
+          if not receiverVal.boolVal:
+            # false ifFalse: [block] -> evaluate block
+            interp.pushWorkFrame(newApplyBlockFrame(args[0].blockVal, 0))
+          else:
+            # true ifFalse: [block] -> return nil
+            interp.pushValue(nilValue())
+          return true
+      of "ifTrue:ifFalse:":
+        if args.len > 1 and args[0].kind == vkBlock and args[1].kind == vkBlock:
+          if receiverVal.boolVal:
+            # true ifTrue: [tBlock] ifFalse: [fBlock] -> evaluate tBlock
+            interp.pushWorkFrame(newApplyBlockFrame(args[0].blockVal, 0))
+          else:
+            # false ifTrue: [tBlock] ifFalse: [fBlock] -> evaluate fBlock
+            interp.pushWorkFrame(newApplyBlockFrame(args[1].blockVal, 0))
+          return true
+      of "and:":
+        if args.len > 0 and args[0].kind == vkBlock:
+          # Short-circuit and: evaluate receiver, if false return false, else evaluate block
+          if not receiverVal.boolVal:
+            interp.pushValue(NodeValue(kind: vkBool, boolVal: false))
+          else:
+            interp.pushWorkFrame(newApplyBlockFrame(args[0].blockVal, 0))
+          return true
+      of "or:":
+        if args.len > 0 and args[0].kind == vkBlock:
+          # Short-circuit or: evaluate receiver, if true return true, else evaluate block
+          if receiverVal.boolVal:
+            interp.pushValue(NodeValue(kind: vkBool, boolVal: true))
+          else:
+            interp.pushWorkFrame(newApplyBlockFrame(args[0].blockVal, 0))
+          return true
+      else:
+        discard  # Fall through to normal dispatch for other boolean methods
+
+    # ============================================================================
+    # QUICK PRIMITIVES: Common selectors
+    # Fast-path for class, isNil, notNil, ==, ~= before MIC/PIC
+    # ============================================================================
+    case frame.selector
+    of "class":
+      if receiverVal.kind == vkInstance:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: receiverVal.instVal.class))
+      elif receiverVal.kind == vkInt:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: integerClass))
+      elif receiverVal.kind == vkFloat:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: floatClass))
+      elif receiverVal.kind == vkString:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: stringClass))
+      elif receiverVal.kind == vkBool:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: if receiverVal.boolVal: trueClassCache else: falseClassCache))
+      elif receiverVal.kind == vkNil:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: undefinedObjectClass))
+      elif receiverVal.kind == vkArray:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: arrayClass))
+      elif receiverVal.kind == vkTable:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: tableClass))
+      elif receiverVal.kind == vkBlock:
+        interp.pushValue(NodeValue(kind: vkClass, classVal: blockClass))
+      elif receiverVal.kind == vkClass:
+        # For classes, return the class itself (matches original primitiveClassImpl behavior)
+        interp.pushValue(receiverVal)
+      else:
+        interp.pushValue(nilValue())
+      return true
+
+    of "isNil":
+      interp.pushValue(NodeValue(kind: vkBool, boolVal: receiverVal.kind == vkNil))
+      return true
+
+    of "notNil":
+      interp.pushValue(NodeValue(kind: vkBool, boolVal: receiverVal.kind != vkNil))
+      return true
+
+    of "==":
+      if args.len > 0:
+        # Fast identity comparison
+        let areEqual = case receiverVal.kind
+        of vkInt:
+          args[0].kind == vkInt and receiverVal.intVal == args[0].intVal
+        of vkFloat:
+          args[0].kind == vkFloat and receiverVal.floatVal == args[0].floatVal
+        of vkBool:
+          args[0].kind == vkBool and receiverVal.boolVal == args[0].boolVal
+        of vkNil:
+          args[0].kind == vkNil
+        of vkString:
+          args[0].kind == vkString and receiverVal.strVal == args[0].strVal
+        of vkInstance:
+          args[0].kind == vkInstance and receiverVal.instVal == args[0].instVal
+        of vkClass:
+          args[0].kind == vkClass and receiverVal.classVal == args[0].classVal
+        of vkArray:
+          args[0].kind == vkArray and receiverVal.arrayVal == args[0].arrayVal
+        of vkTable:
+          args[0].kind == vkTable and receiverVal.tableVal == args[0].tableVal
+        of vkBlock:
+          args[0].kind == vkBlock and receiverVal.blockVal == args[0].blockVal
+        of vkSymbol:
+          args[0].kind == vkSymbol and receiverVal.symVal == args[0].symVal
+        interp.pushValue(NodeValue(kind: vkBool, boolVal: areEqual))
+        return true
+
+    of "~=":
+      if args.len > 0:
+        # Fast identity inequality
+        let areNotEqual = case receiverVal.kind
+        of vkInt:
+          args[0].kind != vkInt or receiverVal.intVal != args[0].intVal
+        of vkFloat:
+          args[0].kind != vkFloat or receiverVal.floatVal != args[0].floatVal
+        of vkBool:
+          args[0].kind != vkBool or receiverVal.boolVal != args[0].boolVal
+        of vkNil:
+          args[0].kind != vkNil
+        of vkString:
+          args[0].kind != vkString or receiverVal.strVal != args[0].strVal
+        of vkInstance:
+          args[0].kind != vkInstance or receiverVal.instVal != args[0].instVal
+        of vkClass:
+          args[0].kind != vkClass or receiverVal.classVal != args[0].classVal
+        of vkArray:
+          args[0].kind != vkArray or receiverVal.arrayVal != args[0].arrayVal
+        of vkTable:
+          args[0].kind != vkTable or receiverVal.tableVal != args[0].tableVal
+        of vkBlock:
+          args[0].kind != vkBlock or receiverVal.blockVal != args[0].blockVal
+        of vkSymbol:
+          args[0].kind != vkSymbol or receiverVal.symVal != args[0].symVal
+        interp.pushValue(NodeValue(kind: vkBool, boolVal: areNotEqual))
+        return true
+
+    else:
+      discard  # Fall through to normal dispatch
 
     # Convert receiver to Instance for method lookup
     var receiver: Instance
@@ -4478,11 +4665,24 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
     # Unwind: pop work frames until we find and process the wfPopActivation
     # for the target activation. For each intermediate wfPopActivation (blocks),
     # pop the corresponding activation from the activation stack.
+    # Also unwind past continuation frames (wfIfNodeContinuation, wfWhileLoop)
+    # that may have been set up by control flow specialization.
     debug("VM: wfReturnValue unwinding to target activation")
     var found = false
     var targetEvalStackDepth = 0
     while interp.workQueue.len > 0 and not found:
       let wf = interp.workQueue.pop()
+      # Skip continuation frames from control flow specialization
+      if wf.kind == wfIfNodeContinuation:
+        # Pop the condition result that would have been consumed
+        if interp.evalStack.len > 0:
+          discard interp.evalStack.pop()
+        continue
+      if wf.kind == wfWhileLoop:
+        # Pop the condition result if we're in the check state
+        if wf.loopState == lsCheckCondition and interp.evalStack.len > 0:
+          discard interp.evalStack.pop()
+        continue
       if wf.kind == wfPopActivation:
         # Check if the current activation is the target
         if interp.currentActivation == targetActivation:
@@ -4584,7 +4784,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
 
     if messages.len == 1:
       # Single message - just send it
-      let msg = messages[0]
+      let msg = cast[MessageNode](messages[0])
       interp.pushWorkFrame(newAfterReceiverFrame(msg.selector, msg.arguments))
       interp.pushValue(receiverVal)  # Push receiver back for the message send
     else:
@@ -4594,7 +4794,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
 
       # Push all message frames in reverse order
       for i in countdown(messages.len - 1, 0):
-        let msg = messages[i]
+        let msg = cast[MessageNode](messages[i])
         if i == messages.len - 1:
           # Last message - keep its result
           interp.pushWorkFrame(newCascadeMessageFrame(msg.selector, msg.arguments, receiverVal))
@@ -4700,6 +4900,18 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
   of wfRestoreReceiver:
     # Restore original receiver after cascade completes
     interp.currentReceiver = frame.savedReceiver
+    return true
+
+  of wfIfNodeContinuation:
+    # IfNode specialization: condition result is on evalStack, execute appropriate branch
+    let condValue = interp.popValue()
+    let condResult = condValue.isTruthy()
+    if condResult and frame.thenBlock != nil:
+      interp.pushWorkFrame(newApplyBlockFrame(frame.thenBlock, 0))
+    elif not condResult and frame.elseBlock != nil:
+      interp.pushWorkFrame(newApplyBlockFrame(frame.elseBlock, 0))
+    else:
+      interp.pushValue(nilValue())
     return true
 
   of wfIfBranch:

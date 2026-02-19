@@ -122,7 +122,7 @@ proc parseObjectLiteral(parser: var Parser): ObjectLiteralNode
 proc parseStatement(parser: var Parser; parseMessages = true): Node
 proc parseMethod(parser: var Parser): BlockNode
 proc parsePrimitive(parser: var Parser): Node
-proc checkForCascade(parser: var Parser, primary: Node, firstMsg: MessageNode): Node
+proc checkForCascade(parser: var Parser, primary: Node, firstMsg: Node): Node
 proc parseMethodDefinition(parser: var Parser, receiver: Node): Node
 
 # Reserved pseudo-variables that cannot be used as slot names or regular identifiers
@@ -357,8 +357,11 @@ proc parsePrimaryUnaryOnly(parser: var Parser): Node =
     return primary
   return result
 
+# Forward declaration for control flow transformation
+proc transformControlFlow(msg: MessageNode): Node
+
 # Parse keyword message
-proc parseKeywordMessage(parser: var Parser, receiver: Node): MessageNode =
+proc parseKeywordMessage(parser: var Parser, receiver: Node): Node =
   debug("parseKeywordMessage: entering, receiver type=", receiver.kind, " current token=", parser.peek().kind)
   var selector = ""
   var arguments = newSeq[Node]()
@@ -385,15 +388,68 @@ proc parseKeywordMessage(parser: var Parser, receiver: Node): MessageNode =
 
     arguments.add(finalArg)
 
-  return MessageNode(
+  let msgNode = MessageNode(
     receiver: receiver,
     selector: selector,
     arguments: arguments,
     isCascade: false
   )
 
+  # Control Flow Specialization: Transform control flow patterns to specialized nodes
+  let transformed = transformControlFlow(msgNode)
+  if transformed != nil:
+    return transformed
+
+# Transform control flow message sends to specialized AST nodes
+proc transformControlFlow(msg: MessageNode): Node =
+  ## Transform control flow patterns (ifTrue:, whileTrue:, etc.) to specialized nodes
+  debug("transformControlFlow: selector=", msg.selector, " receiver kind=", msg.receiver.kind)
+  case msg.selector
+  of "ifTrue:":
+    if msg.arguments.len == 1 and msg.arguments[0] of BlockNode:
+      return IfNode(
+        condition: msg.receiver,
+        thenBranch: msg.arguments[0],
+        elseBranch: nil
+      )
+  of "ifFalse:":
+    if msg.arguments.len == 1 and msg.arguments[0] of BlockNode:
+      return IfNode(
+        condition: msg.receiver,
+        thenBranch: nil,
+        elseBranch: msg.arguments[0]
+      )
+  of "ifTrue:ifFalse:":
+    if msg.arguments.len == 2 and
+       msg.arguments[0] of BlockNode and
+       msg.arguments[1] of BlockNode:
+      return IfNode(
+        condition: msg.receiver,
+        thenBranch: msg.arguments[0],
+        elseBranch: msg.arguments[1]
+      )
+  of "whileTrue:":
+    if msg.arguments.len == 1 and msg.arguments[0] of BlockNode:
+      return WhileNode(
+        condition: msg.receiver,
+        body: msg.arguments[0],
+        isWhileTrue: true
+      )
+  of "whileFalse:":
+    if msg.arguments.len == 1 and msg.arguments[0] of BlockNode:
+      return WhileNode(
+        condition: msg.receiver,
+        body: msg.arguments[0],
+        isWhileTrue: false
+      )
+  else:
+    discard
+
+  # Not a control flow pattern, return original message
+  return msg
+
 # Parse binary/unary messages
-proc parseBinaryMessage(parser: var Parser, receiver: Node): MessageNode =
+proc parseBinaryMessage(parser: var Parser, receiver: Node): Node =
   # If there are no unary messages, return the receiver wrapped as a message
   # This should not happen in practice as we only call this when we detect messages
   if not (parser.peek().kind == tkIdent and parser.peek().value[0].isLowerAscii()):
@@ -546,7 +602,7 @@ proc parseExpression*(parser: var Parser; parseMessages = true): Node =
     return primary
 
 # Parse cascade messages
-proc checkForCascade(parser: var Parser, primary: Node, firstMsg: MessageNode): Node =
+proc checkForCascade(parser: var Parser, primary: Node, firstMsg: Node): Node =
   ## Check for cascade and collect all messages separated by ;
   var messages = @[firstMsg]
 
@@ -554,7 +610,7 @@ proc checkForCascade(parser: var Parser, primary: Node, firstMsg: MessageNode): 
   let cascadeReceiver = if primary != nil:
                           primary
                         else:
-                          firstMsg.receiver
+                          cast[MessageNode](firstMsg).receiver
 
   # Check if we have a cascade
   var safetyCounter = 0
@@ -574,7 +630,7 @@ proc checkForCascade(parser: var Parser, primary: Node, firstMsg: MessageNode): 
 
     # Parse next message (could be unary, binary, or keyword)
     let next = parser.peek()
-    var nextMsg: MessageNode
+    var nextMsg: Node
 
     case next.kind
     of tkKeyword:

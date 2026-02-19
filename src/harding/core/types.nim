@@ -139,6 +139,7 @@ type
     wfRestoreReceiver      # Restore original receiver after cascade
     wfIfBranch            # Conditional branch (ifTrue:, ifFalse:)
     wfWhileLoop           # While loop (whileTrue:, whileFalse:)
+    wfIfNodeContinuation  # IfNode specialization continuation (gets condition from stack)
     wfPushHandler         # Push exception handler onto handler stack
     wfPopHandler          # Pop exception handler from handler stack
     wfSignalException     # Signal exception and search for handler
@@ -164,7 +165,7 @@ type
     # For wfReturnValue
     returnValue*: NodeValue
     # For wfCascade
-    cascadeMessages*: seq[MessageNode]
+    cascadeMessages*: seq[Node]
     cascadeReceiver*: NodeValue
     # For wfPopActivation
     savedReceiver*: Instance
@@ -284,7 +285,7 @@ type
 
   CascadeNode* = ref object of Node
     receiver*: Node
-    messages*: seq[MessageNode]
+    messages*: seq[Node]
 
   AssignNode* = ref object of Node
     variable*: string
@@ -333,11 +334,23 @@ type
   PseudoVarNode* = ref object of Node
     name*: string          # "self", "nil", "true", "false"
 
+  # Control flow specialization nodes
+  IfNode* = ref object of Node
+    condition*: Node        # Condition expression
+    thenBranch*: Node       # True branch (BlockNode or statement)
+    elseBranch*: Node       # Optional false branch (nil if no else)
+
+  WhileNode* = ref object of Node
+    condition*: Node        # Condition block or expression
+    body*: Node             # Loop body (BlockNode)
+    isWhileTrue*: bool      # true = whileTrue, false = whileFalse
+
   # Node type enum for pattern matching
   NodeKind* = enum
     nkLiteral, nkIdent, nkMessage, nkBlock, nkAssign, nkReturn,
     nkArray, nkTable, nkObjectLiteral, nkPrimitive, nkPrimitiveCall, nkCascade,
-    nkSlotAccess, nkSuperSend, nkPseudoVar
+    nkSlotAccess, nkSuperSend, nkPseudoVar,
+    nkIf, nkWhile  # Control flow specialization nodes
 
   # Compiled method representation
   CompiledMethod* = ref object of RootObj
@@ -372,6 +385,7 @@ var
   blockClass*: Class = nil
   libraryClass*: Class = nil                    # Library class for namespace management
   setClass*: Class = nil                        # Set class for hash set operations
+  classClass*: Class = nil                      # Class class (metaclass)
 
 # nil instance - singleton instance of UndefinedObject
 # Initialized during initCoreClasses, used by nilValue()
@@ -413,6 +427,8 @@ proc kind*(node: Node): NodeKind =
   elif node of SlotAccessNode: nkSlotAccess
   elif node of SuperSendNode: nkSuperSend
   elif node of PseudoVarNode: nkPseudoVar
+  elif node of IfNode: nkIf
+  elif node of WhileNode: nkWhile
   else: raise newException(ValueError, "Unknown node type")
 
 # Value conversion utilities
