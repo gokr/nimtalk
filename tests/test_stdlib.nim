@@ -5,7 +5,7 @@
 import std/[unittest, os]
 import ../src/harding/core/types
 import ../src/harding/core/scheduler
-import ../src/harding/interpreter/[vm, objects]
+import ../src/harding/interpreter/vm
 
 # Shared interpreter initialized once for all suites
 # This avoids repeated newInterpreter + initGlobals + loadStdlib per test
@@ -980,3 +980,490 @@ suite "Stdlib: SharedQueue":
     check(result[1].len == 0)
     check(result[0][^1].kind == vkBool)
     check(result[0][^1].boolVal == true)
+
+suite "Stdlib: Strings - Advanced":
+  var interp {.used.}: Interpreter
+
+  setup:
+    interp = sharedInterp
+
+  test "indexOf: returns position of substring":
+    let result = interp.evalStatements("""
+      Result := "hello world" indexOf: "world"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal > 0)
+
+  test "indexOf: returns 0 when not found":
+    let result = interp.evalStatements("""
+      Result := "hello" indexOf: "xyz"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 0)
+
+  test "includesSubString: returns true when present":
+    let result = interp.evalStatements("""
+      Result := "hello world" includesSubString: "world"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == true)
+
+  test "includesSubString: returns false when absent":
+    let result = interp.evalStatements("""
+      Result := "hello" includesSubString: "xyz"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == false)
+
+  test "replace:with: replaces substring":
+    let result = interp.evalStatements("""
+      Result := "hello world" replace: "world" with: "there"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "hello there")
+
+  test "asInteger converts string to integer":
+    let result = interp.evalStatements("""
+      Result := "42" asInteger
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 42)
+
+  test "asSymbol converts string to symbol":
+    let result = interp.evalStatements("""
+      Result := "hello" asSymbol
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkSymbol)
+
+  test "repeat: repeats string":
+    let result = interp.evalStatements("""
+      Result := "ab" repeat: 3
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "ababab")
+
+  test "from:to: extracts substring":
+    let result = interp.evalStatements("""
+      Result := "hello" from: 2 to: 4
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "ell")
+
+  test "startsWith: returns true for matching prefix":
+    let result = interp.evalStatements("""
+      Result := "hello world" startsWith: "hello"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == true)
+
+  test "startsWith: returns false for non-matching prefix":
+    let result = interp.evalStatements("""
+      Result := "hello world" startsWith: "world"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == false)
+
+  test "endsWith: returns true for matching suffix":
+    let result = interp.evalStatements("""
+      Result := "hello world" endsWith: "world"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == true)
+
+  test "endsWith: returns false for non-matching suffix":
+    let result = interp.evalStatements("""
+      Result := "hello world" endsWith: "hello"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == false)
+
+suite "Stdlib: Symbol":
+  var interp {.used.}: Interpreter
+
+  setup:
+    interp = sharedInterp
+
+  test "symbol literal has vkSymbol kind":
+    let (result, err) = interp.doit("#foo")
+    check(err.len == 0)
+    check(result.kind == vkSymbol)
+
+  test "symbol name is accessible via asString":
+    let results = interp.evalStatements("""
+      S := #foo asString.
+      T := #foo asString.
+      Result := S = T
+    """)
+    check(results[1].len == 0)
+    check(results[0][^1].kind == vkBool)
+    check(results[0][^1].boolVal == true)
+
+  test "different symbols are not equal":
+    let (result, err) = interp.doit("#foo = #bar")
+    check(err.len == 0)
+    check(result.kind == vkBool)
+    check(result.boolVal == false)
+
+  test "symbol asString returns string":
+    let (result, err) = interp.doit("#hello asString")
+    check(err.len == 0)
+    check(result.kind == vkString)
+    check(result.strVal == "hello")
+
+  test "symbol printString returns #-prefixed form":
+    let (result, err) = interp.doit("#hello printString")
+    check(err.len == 0)
+    check(result.kind == vkString)
+    check(result.strVal == "#hello")
+
+  test "string asSymbol produces vkSymbol":
+    let (result, err) = interp.doit("\"hello\" asSymbol")
+    check(err.len == 0)
+    check(result.kind == vkSymbol)
+
+suite "Stdlib: Arrays - Advanced":
+  var interp {.used.}: Interpreter
+
+  setup:
+    interp = sharedInterp
+
+  test "removeAt: removes element at index":
+    let result = interp.evalStatements("""
+      Arr := Array new.
+      Arr add: 10.
+      Arr add: 20.
+      Arr add: 30.
+      Arr removeAt: 1.
+      Result := Arr size
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 2)
+
+  test "withIndexDo: passes element and index":
+    let result = interp.evalStatements("""
+      Arr := #(10 20 30).
+      sum := 0.
+      Arr withIndexDo: [:elem :idx | sum := sum + idx].
+      Result := sum
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 6)
+
+  test "copyFrom:to: extracts subarray":
+    let result = interp.evalStatements("""
+      Arr := #(10 20 30 40 50).
+      Sub := Arr copyFrom: 2 to: 4.
+      Result := Sub size
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 3)
+
+  test "copyFrom:to: contains correct elements":
+    let result = interp.evalStatements("""
+      Arr := #(10 20 30 40 50).
+      Sub := Arr copyFrom: 2 to: 4.
+      Result := Sub at: 1
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 20)
+
+  test "indexOf: returns 1-based index of element":
+    let result = interp.evalStatements("""
+      Arr := #(10 20 30).
+      Result := Arr indexOf: 20
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 2)
+
+  test "indexOf: returns nil when not found":
+    let result = interp.evalStatements("""
+      Arr := #(10 20 30).
+      Result := Arr indexOf: 99
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInstance)
+
+  test "removeFirst removes and returns first element":
+    let result = interp.evalStatements("""
+      Arr := Array new.
+      Arr add: 10.
+      Arr add: 20.
+      First := Arr removeFirst.
+      Result := First
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 10)
+
+  test "removeLast removes and returns last element":
+    let result = interp.evalStatements("""
+      Arr := Array new.
+      Arr add: 10.
+      Arr add: 20.
+      Last := Arr removeLast.
+      Result := Last
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 20)
+
+  test "includes: returns true for present element":
+    let (result, err) = interp.doit("#(1 2 3) includes: 2")
+    check(err.len == 0)
+    check(result.kind == vkBool)
+    check(result.boolVal == true)
+
+  test "includes: returns false for absent element":
+    let (result, err) = interp.doit("#(1 2 3) includes: 99")
+    check(err.len == 0)
+    check(result.kind == vkBool)
+    check(result.boolVal == false)
+
+  test "sorted returns elements in ascending order":
+    let result = interp.evalStatements("""
+      Arr := #(3 1 4 1 5 9 2 6).
+      Sorted := Arr sorted.
+      Result := Sorted first
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 1)
+
+  test "sorted: with custom block sorts descending":
+    let result = interp.evalStatements("""
+      Arr := #(3 1 4 1 5 9 2 6).
+      Sorted := Arr sorted: [:a :b | a > b].
+      Result := Sorted first
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 9)
+
+suite "Stdlib: Tables - Advanced":
+  var interp {.used.}: Interpreter
+
+  setup:
+    interp = sharedInterp
+
+  test "at:ifAbsent: returns value when key present":
+    let result = interp.evalStatements("""
+      T := Table new.
+      T at: "key" put: "value".
+      Result := T at: "key" ifAbsent: [ "missing" ]
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "value")
+
+  test "at:ifAbsent: evaluates block when key absent":
+    let result = interp.evalStatements("""
+      T := Table new.
+      Result := T at: "missing" ifAbsent: [ "default" ]
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "default")
+
+  test "at:ifPresent: evaluates block when key present":
+    let result = interp.evalStatements("""
+      T := Table new.
+      T at: "name" put: "Alice".
+      Result := T at: "name" ifPresent: [:v | v uppercase]
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkString)
+    check(result[0][^1].strVal == "ALICE")
+
+  test "at:ifPresent: returns nil when key absent":
+    let result = interp.evalStatements("""
+      T := Table new.
+      Result := T at: "missing" ifPresent: [:v | v]
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInstance)
+
+  test "do: iterates over key-value pairs":
+    let result = interp.evalStatements("""
+      T := Table new.
+      T at: "a" put: 1.
+      T at: "b" put: 2.
+      T at: "c" put: 3.
+      sum := 0.
+      T do: [:k :v | sum := sum + v].
+      Result := sum
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 6)
+
+  test "values returns array of all values":
+    let result = interp.evalStatements("""
+      T := Table new.
+      T at: "x" put: 10.
+      T at: "y" put: 20.
+      Result := T values size
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 2)
+
+  test "removeKey: removes a key-value pair":
+    let result = interp.evalStatements("""
+      T := Table new.
+      T at: "key" put: "value".
+      T removeKey: "key".
+      Result := T includesKey: "key"
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == false)
+
+  test "isEmpty returns true for empty table":
+    let result = interp.evalStatements("""
+      T := Table new.
+      Result := T isEmpty
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == true)
+
+  test "notEmpty returns true after adding entry":
+    let result = interp.evalStatements("""
+      T := Table new.
+      T at: "x" put: 1.
+      Result := T notEmpty
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == true)
+
+suite "Stdlib: Number - Advanced":
+  var interp {.used.}: Interpreter
+
+  setup:
+    interp = sharedInterp
+
+  test "between:and: returns true when in range":
+    let result = interp.evalStatements("""
+      Result := 5 between: 1 and: 10
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == true)
+
+  test "between:and: returns false when out of range":
+    let result = interp.evalStatements("""
+      Result := 15 between: 1 and: 10
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == false)
+
+  test "isZero returns true for zero":
+    let (result, err) = interp.doit("0 isZero")
+    check(err.len == 0)
+    check(result.kind == vkBool)
+    check(result.boolVal == true)
+
+  test "isZero returns false for non-zero":
+    let (result, err) = interp.doit("5 isZero")
+    check(err.len == 0)
+    check(result.kind == vkBool)
+    check(result.boolVal == false)
+
+  test "isPositive returns true for positive":
+    let (result, err) = interp.doit("5 isPositive")
+    check(err.len == 0)
+    check(result.kind == vkBool)
+    check(result.boolVal == true)
+
+  test "isPositive returns false for negative":
+    let result = interp.evalStatements("""
+      N := 0 - 3.
+      Result := N isPositive
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == false)
+
+  test "isNegative returns true for negative":
+    let result = interp.evalStatements("""
+      N := 0 - 3.
+      Result := N isNegative
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkBool)
+    check(result[0][^1].boolVal == true)
+
+  test "sign returns 1 for positive":
+    let (result, err) = interp.doit("5 sign")
+    check(err.len == 0)
+    check(result.kind == vkInt)
+    check(result.intVal == 1)
+
+  test "sign returns 0 for zero":
+    let (result, err) = interp.doit("0 sign")
+    check(err.len == 0)
+    check(result.kind == vkInt)
+    check(result.intVal == 0)
+
+  test "sign returns -1 for negative":
+    let result = interp.evalStatements("""
+      N := 0 - 5.
+      Result := N sign
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == -1)
+
+  test "squared returns correct value":
+    let (result, err) = interp.doit("7 squared")
+    check(err.len == 0)
+    check(result.kind == vkInt)
+    check(result.intVal == 49)
+
+  test "gcd: returns greatest common divisor":
+    let result = interp.evalStatements("""
+      Result := 12 gcd: 8
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 4)
+
+  test "lcm: returns least common multiple":
+    let result = interp.evalStatements("""
+      Result := 4 lcm: 6
+    """)
+    check(result[1].len == 0)
+    check(result[0][^1].kind == vkInt)
+    check(result[0][^1].intVal == 12)
+
+  test "factorial returns correct value":
+    let (result, err) = interp.doit("5 factorial")
+    check(err.len == 0)
+    check(result.kind == vkInt)
+    check(result.intVal == 120)
+
+  test "factorial of 0 returns 1":
+    let (result, err) = interp.doit("0 factorial")
+    check(err.len == 0)
+    check(result.kind == vkInt)
+    check(result.intVal == 1)
