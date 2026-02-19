@@ -4614,11 +4614,24 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
     # Unwind: pop work frames until we find and process the wfPopActivation
     # for the target activation. For each intermediate wfPopActivation (blocks),
     # pop the corresponding activation from the activation stack.
+    # Also unwind past continuation frames (wfIfNodeContinuation, wfWhileLoop)
+    # that may have been set up by control flow specialization.
     debug("VM: wfReturnValue unwinding to target activation")
     var found = false
     var targetEvalStackDepth = 0
     while interp.workQueue.len > 0 and not found:
       let wf = interp.workQueue.pop()
+      # Skip continuation frames from control flow specialization
+      if wf.kind == wfIfNodeContinuation:
+        # Pop the condition result that would have been consumed
+        if interp.evalStack.len > 0:
+          discard interp.evalStack.pop()
+        continue
+      if wf.kind == wfWhileLoop:
+        # Pop the condition result if we're in the check state
+        if wf.loopState == lsCheckCondition and interp.evalStack.len > 0:
+          discard interp.evalStack.pop()
+        continue
       if wf.kind == wfPopActivation:
         # Check if the current activation is the target
         if interp.currentActivation == targetActivation:
