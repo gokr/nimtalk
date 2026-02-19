@@ -102,18 +102,61 @@ The GTK bridge provides basic widget support. GUI tools can be written in Hardin
 4. **Launcher** - Main IDE window with navigation
 5. **Desktop integration** - Proper dock/Alt-Tab icons
 
-#### Full IDE (In Progress)
+#### System Browser ✅ Completed (2026-02-08)
 
-After MVP, add:
-1. **System Browser** - Class/method browsing, editing, saving
-2. **Enhanced Inspector** - Slot tree, drill-down navigation
-3. **Debugger** - Stack frame display, step over/into/out/continue
+- Four-pane class/method browser
+- Class library selection (Core, Collections, GUI, IDE)
+- Method listing and viewing
+
+#### Enhanced Inspector ✅ Completed (2026-02-11)
+
+- Slot inspection for object instances
+- Property viewing
+- Drilling down into nested objects
+
+#### Full IDE (Future)
+
+Remaining tools:
+1. **Enhanced Debugger** - Stack frame display within IDE
+2. **Source Editor** - Class/method editing with save capability
 
 ### Key Design Principle
 
 All GUI tools are written in Harding code, making them malleable at runtime. Only a thin Nim wrapper (~20 core GTK widgets) is static.
 
 ---
+
+## VSCode Extension
+
+**Status**: ✅ Completed (2026-02-13)
+
+Full IDE support for `.hrd` files via VSCode extension:
+
+**Features:**
+- **Syntax highlighting** - TextMate grammar with comprehensive scopes
+- **Language Server Protocol (LSP)**:
+  - Completions - Context-aware selector suggestions
+  - Hover - Documentation and type information
+  - Go to Definition - Navigate to method definitions
+  - Document Symbols - Outline view
+  - Workspace Symbols - Global search
+- **Debug Adapter Protocol (DAP)**:
+  - Breakpoints - Conditional and standard breakpoints
+  - Stepping - Step over, into, out
+  - Call Stack - Stack frame inspection
+  - Variables - Locals, arguments, self inspection
+  - Watch Expressions - Evaluate expressions
+  - Debug Console - Interactive evaluation
+
+**Building:**
+```bash
+nimble vsix  # Builds extension as .vsix package
+```
+
+**Architecture:**
+- LSP implemented in Nim (`harding-lsp`)
+- DAP adapter in TypeScript
+- Harding Debug Protocol (HDP) via TCP for VM debugging
 
 ## BitBarrel Integration
 
@@ -259,12 +302,14 @@ pid send: #compute with: 42.
 - ✅ Desktop integration with proper icons
 - ✅ Granite compiler: standalone script compilation with inline control flow
 - ✅ BitBarrel integration: persistent collections with range queries
+- ✅ VSCode extension with LSP and DAP
+- ✅ Phase 1 & 2 VM optimizations (MIC/PIC, Work Frame pooling, Quick Primitives)
 - First-class block compilation with captures and non-local returns
-- Start test framework implementation
+- Start test framework implementation (all 26 tests passing)
 
 ### Medium Term (3-6 months)
 
-- Full IDE (System Browser, enhanced Inspector, Debugger)
+- Full IDE (Source Editor, enhanced Debugger)
 - Granite: class/method compilation from in-VM code
 - Granite: unboxed arithmetic optimization
 - Channels and goroutines

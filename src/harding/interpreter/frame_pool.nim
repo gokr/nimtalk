@@ -1,7 +1,7 @@
 ## Frame Pool for WorkFrame Recycling
 ## Reduces GC pressure by reusing WorkFrame objects
 
-import std/[logging, strutils]
+import std/[logging]
 import ../core/types
 
 const
@@ -29,7 +29,7 @@ proc initFramePool*() =
   debug("Frame pool initialized with ", $InitialPoolSize, " frames")
 
 proc clearFrame*(frame: WorkFrame) =
-  ## Clear all fields of a frame to prevent stale data
+  ## Clear all fields of a frame to prevent stale data and ARC leaks
   if frame == nil:
     return
   frame.node = nil
@@ -38,12 +38,12 @@ proc clearFrame*(frame: WorkFrame) =
   frame.msgNode = nil
   frame.isClassMethod = false
   frame.blockVal = nil
-  frame.blockArgs = @[]
+  frame.blockArgs.setLen(0)
   frame.pendingSelector = ""
-  frame.pendingArgs = @[]
+  frame.pendingArgs.setLen(0)
   frame.currentArgIndex = 0
   frame.returnValue = NodeValue(kind: vkNil)
-  frame.cascadeMessages = @[]
+  frame.cascadeMessages.setLen(0)
   frame.cascadeReceiver = NodeValue(kind: vkNil)
   frame.savedReceiver = nil
   frame.isBlockActivation = false
@@ -58,6 +58,8 @@ proc clearFrame*(frame: WorkFrame) =
   frame.exceptionClass = nil
   frame.handlerBlock = nil
   frame.exceptionInstance = nil
+  frame.handlerIndex = 0
+  frame.protectedBlockForHandler = nil
 
 proc acquireFrame*(): WorkFrame =
   ## Acquire a frame from the pool, or allocate new if pool is empty

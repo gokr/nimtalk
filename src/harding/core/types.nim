@@ -96,7 +96,8 @@ type
   Activation* = ref ActivationObj
 
   # Exception handler record for on:do: mechanism
-  ExceptionHandler* {.acyclic.} = object
+  # Using ref object for proper ARC memory management with contained ref fields
+  ExceptionHandler* = ref object
     exceptionClass*: Class    # The exception class to catch
     handlerBlock*: BlockNode        # Block to execute when caught
     activation*: Activation         # Activation where handler was installed
@@ -104,6 +105,11 @@ type
     workQueueDepth*: int            # Work queue depth to restore on exception (before wfPopHandler)
     evalStackDepth*: int            # Eval stack depth to restore on exception
     consumed*: bool                 # True if handler was already used to catch an exception
+    protectedBlock*: BlockNode      # Protected block (for retry)
+    exceptionInstance*: Instance    # Exception that activated this handler
+    signalWorkQueueDepth*: int     # WQ depth at signal point
+    signalEvalStackDepth*: int     # ES depth at signal point
+    signalActivationDepth*: int    # AS depth at signal point
 
   # Exception thrown when Processor yield is called for immediate context switch
   YieldException* = object of CatchableError
@@ -137,9 +143,10 @@ type
     wfPushHandler         # Push exception handler onto handler stack
     wfPopHandler          # Pop exception handler from handler stack
     wfSignalException     # Signal exception and search for handler
+    wfExceptionReturn     # Barrier: when handler completes, unwind to on:do: point
 
   # Work frame for explicit stack VM execution
-  WorkFrame* {.acyclic.} = ref object
+  WorkFrame* = ref object
     kind*: WorkFrameKind
     # For wfEvalNode
     node*: Node
@@ -178,9 +185,13 @@ type
     handlerBlock*: BlockNode   # Block to execute when exception is caught
     # For wfSignalException
     exceptionInstance*: Instance  # The exception instance being signaled
+    # For wfExceptionReturn
+    handlerIndex*: int               # Index into exceptionHandlers
+    # For wfPushHandler (carry protected block for retry)
+    protectedBlockForHandler*: BlockNode
 
   # Interpreter type defined here to avoid circular dependency between scheduler and evaluator
-  Interpreter* {.acyclic.} = ref object
+  Interpreter* = ref object
     globals*: ref Table[string, NodeValue]
     activationStack*: seq[Activation]
     currentActivation*: Activation
@@ -194,6 +205,7 @@ type
     schedulerContextPtr*: pointer  # Scheduler context (cast to SchedulerContext when needed)
     hardingHome*: string  # Home directory for loading libraries
     shouldYield*: bool  # Set to true when Processor yield is called for immediate context switch
+    methodTableDeferRebuild*: bool  # Defers method table rebuilds during batch loading
     # VM work queue and value stack
     workQueue*: seq[WorkFrame]  # Work queue for AST interpreter
     evalStack*: seq[NodeValue]  # Value stack for expression results
@@ -219,7 +231,7 @@ type
     homeActivation*: Activation           # for non-local returns: method that created this block
 
   # Activation records for method execution (defined after BlockNode)
-  ActivationObj* {.acyclic.} = object of RootObj
+  ActivationObj* = object of RootObj
     sender*: Activation               # calling context
     receiver*: Instance               # 'self' (Instance type)
     currentMethod*: BlockNode         # current method
@@ -1056,8 +1068,8 @@ proc valueToInstance*(val: NodeValue): Instance =
     else:
       return Instance(kind: ikTable, class: nil, entries: val.tableVal, isNimProxy: false, nimValue: NimValueDefault)
   of vkBool:
-    # Boolean values - store in nimValue for compatibility
-    let p = cast[pointer](alloc(sizeof(bool)))
+    # Boolean values - allocate on GC heap for ARC compatibility
+    let p = cast[pointer](new(bool))
     cast[ptr bool](p)[] = val.boolVal
     return Instance(kind: ikObject, class: booleanClass, slots: @[], isNimProxy: true, nimValue: p)
   of vkBlock:
@@ -1127,3 +1139,30 @@ proc lessThan*(a, b: TaggedValue): bool {.inline.} = tagged.lessThan(a, b)
 proc lessOrEqual*(a, b: TaggedValue): bool {.inline.} = tagged.lessOrEqual(a, b)
 proc greaterThan*(a, b: TaggedValue): bool {.inline.} = tagged.greaterThan(a, b)
 proc greaterOrEqual*(a, b: TaggedValue): bool {.inline.} = tagged.greaterOrEqual(a, b)
+
+# ============================================================================
+# BlockNode Registry for ARC Compatibility
+# ============================================================================
+# When storing BlockNodes in Instance.nimValue (as raw pointers), ARC doesn't
+# know about these references and may collect the BlockNodes prematurely.
+# This registry keeps BlockNodes alive by storing them in a global seq that
+# ARC can track.
+
+var blockNodeRegistry*: seq[BlockNode] = @[]
+  ## Global registry of BlockNodes to prevent ARC from collecting them
+
+proc registerBlockNode*(blk: BlockNode) =
+  ## Register a BlockNode to keep it alive for ARC
+  if blk != nil and blk notin blockNodeRegistry:
+    blockNodeRegistry.add(blk)
+
+proc unregisterBlockNode*(blk: BlockNode) =
+  ## Unregister a BlockNode (if it was explicitly registered)
+  for i in 0..<blockNodeRegistry.len:
+    if blockNodeRegistry[i] == blk:
+      blockNodeRegistry.delete(i)
+      break
+
+proc initBlockNodeRegistry*() =
+  ## Initialize the BlockNode registry (called at startup)
+  blockNodeRegistry = @[]

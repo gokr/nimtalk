@@ -600,7 +600,6 @@ EOF
 - Updated IDE Browser, Libraries, and Workspace components
 - Simplified blocked process handling in scheduler
 
-<<<<<<< HEAD
 ### MIC/PIC Inline Caching and VM Fixes (2026-02-16)
 - Polymorphic Inline Cache (PIC): up to 4 class/method entries per call site
 - Version-based cache invalidation: class version counters detect stale entries

@@ -44,11 +44,60 @@ These tasks match the functionality previously only available through `nim e bui
 
 ## Testing
 
-Tests use Nim's built-in unittest framework. Run tests with:
+Tests use Nim's built-in unittest framework. Run all tests with:
+
+```bash
+nimble test              # Run all tests
+```
+
+Or run individual test files:
 
 ```bash
 nim c -r tests/test_core.nim
+nim c -r tests/test_exception_handling.nim
 ```
+
+### Test Coverage
+
+The test suite includes 25+ test files covering:
+
+**Core Interpreter:**
+- `test_interpreter_basic.nim` - Message dispatch, method execution, globals
+- `test_interpreter_closures.nim` - Block closures and variable capture
+- `test_interpreter_controlflow.nim` - Conditionals and loops
+- `test_interpreter_errors.nim` - Error handling scenarios
+- `test_interpreter_returns.nim` - Non-local returns
+
+**Object Model:**
+- `test_class_model.nim` - Class creation, inheritance, slots
+- `test_slot_ivars.nim` - Instance variables and accessors
+- `test_super_and_syntax.nim` - Super sends and method syntax
+- `test_extend.nim` - Method batching with extend:
+
+**Parser & Syntax:**
+- `test_cascade.nim` - Message cascading (obj msg1; msg2)
+- `test_message_precedence.nim` - Unary/binary/keyword precedence
+
+**Exception Handling:**
+- `test_exception_handling.nim` - on:do:, signal, return:, pass
+
+**Concurrency:**
+- `test_process.nim` - Green threads and Process management
+- `test_scheduler.nim` - Scheduler context and forking
+- `test_sync_primitives.nim` - Monitor, Semaphore, SharedQueue
+- `test_harding_processes_and_globals.nim` - Harding-side Process/Scheduler
+
+**Standard Library:**
+- `test_stdlib.nim` - Comprehensive library tests
+- `test_primitives.nim` - Primitive method declarations
+- `test_perform.nim` - Dynamic message sending
+
+**Integration:**
+- `test_tagged.nim` - Tagged values (NaN boxing)
+- `test_bitbarrel.nim` - BitBarrel database (conditional)
+- `test_website_*.nim` - Documentation examples
+
+All tests pass with ARC (ORC) memory management enabled.
 
 ## Logging and Debugging
 
@@ -395,6 +444,75 @@ This provides a more Java-esque mental model where objects are naturally heap-al
 - Use `ptr` only for FFI or when you specifically need manual memory management
 - Never use `addr` and `cast` to create refs from value types in containers
 
+### ARC Memory Management and Pointer Safety
+
+**Critical for ARC/ORC**: When using Nim's ARC (Automatic Reference Counting) or ORC (ARC with cycle collection), raw `pointer` types can cause memory corruption if not handled properly.
+
+#### The Problem
+
+When you store a Nim `ref` object in an `Instance.nimValue` field as a raw `pointer`:
+
+```nim
+# DANGEROUS with ARC/ORC
+blockNode = BlockNode()  # ARC tracks this ref
+instance.nimValue = cast[pointer](blockNode)  # ARC loses track
+# ... later when blockNode goes out of scope ...
+blockNode2 = cast[BlockNode](instance.nimValue)  # CRASH! Original was collected
+```
+
+ARC doesn't know about the pointer reference and collects the BlockNode prematurely.
+
+#### The Solution: Keep-Alive Registries
+
+Create a global seq that keeps references alive:
+
+```nim
+# In types.nim or relevant module
+var blockNodeRegistry*: seq[BlockNode] = @[]
+
+proc registerBlockNode*(blk: BlockNode) =
+  ## Register a BlockNode to keep it alive for ARC
+  if blk != nil and blk notin blockNodeRegistry:
+    blockNodeRegistry.add(blk)
+```
+
+When storing in nimValue:
+
+```nim
+# SAFE with ARC/ORC
+registerBlockNode(receiverVal.blockVal)  # Keep alive
+receiver = Instance(
+  kind: ikObject,
+  class: blockClass,
+  nimValue: cast[pointer](receiverVal.blockVal)  # Now safe to cast
+)
+```
+
+#### Existing Registries
+
+The codebase already has several keep-alive registries:
+
+- `blockNodeRegistry` in `types.nim` - for BlockNodes
+- `processProxies` in `scheduler.nim` - for ProcessProxy
+- `schedulerProxies` in `scheduler.nim` - for SchedulerProxy  
+- `monitorProxies` in `scheduler.nim` - for MonitorProxy
+- `sharedQueueProxies` in `scheduler.nim` - for SharedQueueProxy
+- `semaphoreProxies` in `scheduler.nim` - for SemaphoreProxy
+- `globalTableProxies` in `vm.nim` - for GlobalTableProxy
+
+**Rule**: When adding new pointer storage to `nimValue`, always add to the appropriate keep-alive registry first.
+
+#### Safe vs Unsafe Pointer Usage
+
+**Always need registry (Nim refs):**
+- BlockNode, ProcessProxy, SchedulerProxy, etc.
+- Any `ref object` created with `new()` or constructor syntax
+
+**Don't need registry (C/FFI pointers):**
+- GTK widgets (returned by C functions)
+- File handles, socket descriptors
+- Memory allocated with `alloc()` (not tracked by ARC)
+
 ### Function and Return Style
 - **Single-line functions**: Use direct expression without `result =` or `return`
 - **Multi-line functions**: Use `result =` assignment and `return` for clarity
@@ -476,6 +594,64 @@ interp.pushWorkFrame(newEvalFrame(block))  # Schedule evaluation
 - Exception handling uses the `exceptionHandlers` stack, not Nim exceptions
 
 See `src/harding/interpreter/vm.nim` for the work queue implementation.
+
+## Exception Handling and Debugging
+
+### Non-Unwinding Exception Design
+
+Harding uses a **non-unwinding exception handling** mechanism based on work queue truncation rather than traditional stack unwinding. This design is crucial for supporting features like green threads and debugging.
+
+#### How It Works
+
+1. **`on:do:` Primitive**: Schedules three work frames: `[pushHandler][evalBlock][popHandler]`
+2. **Handler Installation**: `wfPushHandler` creates an `ExceptionHandler` record with saved depths:
+   - `stackDepth`: Activation stack depth
+   - `workQueueDepth`: Work queue depth  
+   - `evalStackDepth`: Evaluation stack depth
+3. **Exception Signaling**: `primitiveSignalImpl` finds matching handler and **truncates** VM state:
+   - Truncates work queue to handler's saved depth
+   - Truncates eval stack to handler's saved depth
+   - Pops activation stack to handler's saved depth
+4. **Handler Execution**: Schedules handler block with exception as argument
+5. **Cleanup**: `wfPopHandler` removes handler when block completes normally
+
+#### Key Characteristics
+
+**Advantages:**
+- **Stackless**: No native stack unwinding - exceptions work with green threads
+- **Predictable**: VM state is explicitly restored to known checkpoint
+- **Debuggable**: Original activation records still exist (not destroyed)
+- **Composable**: Multiple handlers can be nested
+
+**Trade-offs:**
+- Frames above the handler are **truncated**, not preserved
+- Cannot inspect "dead" frames after exception is caught
+- Stack traces show handler installation point, not full history
+
+#### Debugger Implications
+
+**What works:**
+- Single-stepping through code before exceptions
+- Inspecting local variables in active frames
+- Setting breakpoints in handler blocks
+- Examining exception instance when caught
+
+**Limitations:**
+- **No post-mortem debugging**: Frames above handler are truncated and lost
+- **Limited stack history**: Stack trace shows checkpoint, not full unwind
+- **No re-execution**: Cannot "rewind" and retry from exception point
+
+#### Comparison with Traditional Unwinding
+
+| Feature | Traditional Unwinding | Harding Truncation |
+|---------|----------------------|-------------------|
+| Stack preservation | Frames destroyed | Frames truncated |
+| Green thread safe | No | Yes |
+| Post-mortem debug | Possible | Limited |
+| Stack traces | Full history | To handler only |
+| Performance | Fast unwind | Truncation cost |
+
+**Recommendation**: For full Smalltalk-style debugging with persistent stack frames, consider adding an optional "preservation mode" that copies frames before truncation instead of discarding them.
 
 ## Documentation Guidelines
 
