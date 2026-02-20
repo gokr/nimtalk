@@ -37,6 +37,24 @@ Exception>>retry <primitive primitiveExceptionRetry>
 
 Exception>>isResumable [ ^ true ]
 
+Exception>>resume <primitive primitiveExceptionResume>
+  # Resume execution from signal point, returning nil from signal
+
+Exception>>resume: value <primitive primitiveExceptionResume: value>
+  # Resume execution from signal point, returning value from signal
+
+Exception>>signalContext <primitive primitiveExceptionSignalContext>
+  # Return the signal point context for debugging
+  # This provides access to the full call stack at signal point
+
+Exception>>signaler <primitive primitiveExceptionSignaler>
+  # Return the object that signaled this exception
+  # This is the receiver of the method that called signal
+
+Exception>>signalActivationDepth <primitive primitiveExceptionSignalActivationDepth>
+  # Return the activation stack depth at signal point
+  # Useful for debugging and stack inspection
+
 Exception>>message [
   # Get exception message
   ^ message
@@ -65,6 +83,10 @@ Exception>>printString [
 #====================================================================
 
 Error := Exception derive
+
+Notification := Exception derive
+
+Notification>>isResumable [ ^ true ]
 
 MessageNotUnderstood := Exception derive
 
