@@ -17,17 +17,23 @@ Pet>>greet [
   ^ "Hello, " , self owner , "!"
 ]
 
+Pet>>speak [
+  ^ "I am a pet and I say hello!"
+]
+
 # Create a class with multiple parents using addSuperclass:
 # Note: Define all slots in the child class to avoid conflicts
-Dog := Object deriveWithAccessors: #(name owner breed)
+Dog := Object deriveWithAccessors: #(breed)  
 
-# Override any conflicting methods before adding parents
+# Override any conflicting methods before adding parents to avoid
+# method selector conflict error, both Animal and Pet have a 'speak' method
 Dog>>speak [
   ^ "Woof!"
 ]
 
 Dog addSuperclass: Animal
 Dog addSuperclass: Pet
+
 
 # Create an instance
 MyDog := Dog new
