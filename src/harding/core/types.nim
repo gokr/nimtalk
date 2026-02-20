@@ -406,6 +406,7 @@ var
   blockClass*: Class = nil
   libraryClass*: Class = nil                    # Library class for namespace management
   setClass*: Class = nil                        # Set class for hash set operations
+  randomClass*: Class = nil                     # Random class for random number generation
   classClass*: Class = nil                      # Class class (metaclass)
 
 # nil instance - singleton instance of UndefinedObject
@@ -417,6 +418,7 @@ var nilInstance*: Instance = nil
 # ============================================================================
 proc isTruthy*(val: NodeValue): bool =
   ## Check if a value is "truthy" (true, non-zero, non-empty, non-nil)
+  ## Note: nilInstance (UndefinedObject) is NOT falsy - it doesn't respond to conditionals
   case val.kind
   of vkNil: return false
   of vkBool: return val.boolVal
@@ -426,7 +428,7 @@ proc isTruthy*(val: NodeValue): bool =
   of vkSymbol: return val.symVal.len > 0
   of vkArray: return val.arrayVal.len > 0
   of vkTable: return val.tableVal.len > 0
-  else: return true  # Blocks, classes, instances are truthy
+  else: return true  # Blocks, classes, instances (including nilInstance) are truthy
 
 # ============================================================================
 # Node kind helper

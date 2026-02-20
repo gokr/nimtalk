@@ -35,21 +35,15 @@ result3 := calc factorial: 5
 ("5! = " , result3 asString) println
 
 "" println
-"=== Method Batching with extend: ===" println
+"=== Method Definition with >> ===" println
 
-Greeter := Object derive: #(#greeting)
+GreeterClass := Object deriveWithAccessors: #(greeting)
 
-Greeter extend: [
-  self >> greet: name [
-    ^ (self greeting) , ", " , name , "!"
-  ]
-
-  self >> setGreeting: text [
-    greeting := text
-  ]
+GreeterClass>>greet: name [
+  ^ (self greeting) , ", " , name , "!"
 ]
 
-greeter := Greeter new
-greeter setGreeting: "Hello"
+Greeter := GreeterClass new
+Greeter greeting: "Hello"
 
-("Greeting: " , (greeter greet: "World")) println
+("Greeting: " , (Greeter greet: "World")) println

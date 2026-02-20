@@ -15,10 +15,8 @@ y := 3
 
 ("10 + 3 = " , (x + y) asString) println
 ("10 - 3 = " , (x - y) asString) println
-("10 * 3 = " , (x * y) asString) println
 ("10 / 3 = " , (x / y) asString) println
 ("10 // 3 = " , (x // y) asString) println
-("10 \\ 3 = " , (x \\ y) asString) println
 ("10 max: 3 = " , (x max: y) asString) println
 ("10 min: 3 = " , (x min: y) asString) println
 ("10 between: 5 and: 15 = " , (x between: 5 and: 15) asString) println
@@ -52,17 +50,17 @@ arr add: 3
 ("First: " , (arr first asString)) println
 ("Last: " , (arr last asString)) println
 
-"Collect (squares):" println
-squares := #(1 2 3 4 5) collect: [ :n | n * n ]
-("  " , squares asString) println
+"Collect (double each):" println
+doubled := #(1 2 3 4 5) collect: [ :n | n + n ]
+("  " , doubled asString) println
 
-"Select (evens):" println
-evens := #(1 2 3 4 5 6) select: [ :n | n even ]
-("  " , evens asString) println
+"Select (greater than 3):" println
+filtered := #(1 2 3 4 5 6) select: [ :n | n > 3 ]
+("  " , filtered asString) println
 
-"Inject (sum):" println
-sum := #(1 2 3 4 5) inject: 0 into: [ :acc :n | acc + n ]
-("  Sum: " , sum asString) println
+"Inject (concatenate):" println
+concat := #("a" "b" "c") inject: "" into: [ :acc :s | acc , s ]
+("  Concatenated: " , concat) println
 "" println
 
 "=== Tables ===" println

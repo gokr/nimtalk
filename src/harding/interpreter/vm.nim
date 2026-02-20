@@ -1,4 +1,4 @@
-import std/[tables, strutils, math, strformat, logging, os, hashes]
+import std/[tables, strutils, math, strformat, logging, os]
 import ../core/types
 import ../parser/lexer
 import ../parser/parser
@@ -544,7 +544,6 @@ proc captureEnvironment*(interp: Interpreter, blockNode: BlockNode) =
     if blockNode.homeActivation == nil:
       # Fallback: use current activation (e.g., in top-level scripts)
       blockNode.homeActivation = interp.currentActivation
-  debug("Set home activation for non-local returns")
 
 # Method lookup and dispatch
 type
@@ -1275,10 +1274,10 @@ proc primitiveSignalImpl(interp: var Interpreter, self: Instance, args: seq[Node
       # Return nil - the handler block will push its result
       return nilValue()
 
-  # No handler found - TODO: call defaultAction, raise UnhandledError
+  # No handler found - raise as a Nim exception so the CLI can print and exit
   debug("primitiveSignal: no handler found for exception")
-  writeStderr("Uncaught exception: " & message)
-  return nilValue()
+  let className = if self != nil and self.class != nil: self.class.name else: "Exception"
+  raise newException(EvalError, className & ": " & message)
 
 proc findHandlerForException(interp: var Interpreter, self: Instance): int =
   ## Find handler index for a given exception instance (used by return:, pass, retry)
@@ -2460,6 +2459,23 @@ proc initGlobals*(interp: var Interpreter) =
   arrayCls.classMethods["primitiveArrayNew:"] = arrayNewSizeMethod
   arrayCls.allClassMethods["primitiveArrayNew:"] = arrayNewSizeMethod
 
+  proc arrayClassNewWithAllImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+    ## Create new array with size and fill value
+    var elements: seq[NodeValue] = @[]
+    if args.len >= 2:
+      let (ok, size) = args[0].tryGetInt()
+      if ok:
+        for i in 0..<size:
+          elements.add(args[1])
+    let inst = newArrayInstance(arrayClass, elements)
+    return NodeValue(kind: vkInstance, instVal: inst)
+
+  let arrayNewWithAllMethod = createCoreMethod("primitiveArrayNew:withAll:")
+  arrayNewWithAllMethod.setNativeImpl(arrayClassNewWithAllImpl)
+  arrayNewWithAllMethod.hasInterpreterParam = true
+  arrayCls.classMethods["primitiveArrayNew:withAll:"] = arrayNewWithAllMethod
+  arrayCls.allClassMethods["primitiveArrayNew:withAll:"] = arrayNewWithAllMethod
+
   # Use existing Table class from initCoreClasses or create if needed
   var tableCls: Class
   if tableClass != nil:
@@ -2714,6 +2730,34 @@ proc initGlobals*(interp: var Interpreter) =
     setCls.methods["primitiveSetDo:"] = setDoMethod
     setCls.allMethods["primitiveSetDo:"] = setDoMethod
 
+  # ============================================================================
+  # Create Random class (derives from Object) - random number generator
+  # ============================================================================
+  let randomCls = newClass(superclasses = @[objectCls], name = "Random")
+  randomCls.tags = @["Random", "Object"]
+  randomClass = randomCls
+
+  # Register Random primitive methods
+  let randomNextMethod = createCoreMethod("primitiveRandomNext")
+  randomNextMethod.setNativeImpl(randomNextImpl)
+  randomCls.methods["primitiveRandomNext"] = randomNextMethod
+  randomCls.allMethods["primitiveRandomNext"] = randomNextMethod
+
+  let randomNextMaxMethod = createCoreMethod("primitiveRandomNext:")
+  randomNextMaxMethod.setNativeImpl(randomNextMaxImpl)
+  randomCls.methods["primitiveRandomNext:"] = randomNextMaxMethod
+  randomCls.allMethods["primitiveRandomNext:"] = randomNextMaxMethod
+
+  let randomSeedMethod = createCoreMethod("primitiveRandomSeed")
+  randomSeedMethod.setNativeImpl(randomSeedImpl)
+  randomCls.methods["primitiveRandomSeed"] = randomSeedMethod
+  randomCls.allMethods["primitiveRandomSeed"] = randomSeedMethod
+
+  let randomSeedSetMethod = createCoreMethod("primitiveRandomSeed:")
+  randomSeedSetMethod.setNativeImpl(randomSeedSetImpl)
+  randomCls.methods["primitiveRandomSeed:"] = randomSeedSetMethod
+  randomCls.allMethods["primitiveRandomSeed:"] = randomSeedSetMethod
+
   # Create UndefinedObject class (derives from Object) - the class of nil
   let undefinedObjCls = newClass(superclasses = @[objectCls], name = "UndefinedObject")
   undefinedObjCls.tags = @["UndefinedObject", "Object"]
@@ -2738,6 +2782,7 @@ proc initGlobals*(interp: var Interpreter) =
   interp.globals[]["Array"] = arrayCls.toValue()
   interp.globals[]["Table"] = tableCls.toValue()
   interp.globals[]["Set"] = types.setClass.toValue()
+  interp.globals[]["Random"] = randomCls.toValue()
   interp.globals[]["Boolean"] = booleanCls.toValue()
   interp.globals[]["True"] = trueCls.toValue()
   interp.globals[]["False"] = falseCls.toValue()
@@ -2767,6 +2812,8 @@ proc initGlobals*(interp: var Interpreter) =
   protectGlobal("String")
   protectGlobal("Array")
   protectGlobal("Table")
+  protectGlobal("Set")
+  protectGlobal("Random")
   protectGlobal("Boolean")
   protectGlobal("True")
   protectGlobal("False")
@@ -4133,6 +4180,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
     # ============================================================================
     # QUICK PRIMITIVES: Boolean Control Flow
     # Fast-path for ifTrue:, ifFalse:, ifTrue:ifFalse: on tagged booleans
+    # Note: nil does NOT respond to ifTrue:/ifFalse: - this should raise DNU
     # ============================================================================
     if receiverVal.kind == vkBool:
       case frame.selector
@@ -4214,11 +4262,11 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
       return true
 
     of "isNil":
-      interp.pushValue(NodeValue(kind: vkBool, boolVal: receiverVal.kind == vkNil))
+      interp.pushValue(NodeValue(kind: vkBool, boolVal: isNilValue(receiverVal)))
       return true
 
     of "notNil":
-      interp.pushValue(NodeValue(kind: vkBool, boolVal: receiverVal.kind != vkNil))
+      interp.pushValue(NodeValue(kind: vkBool, boolVal: not isNilValue(receiverVal)))
       return true
 
     of "==":
@@ -4891,7 +4939,6 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
                 else:
                   interp.popValue()
     let returnVal = value.unwrap()
-
     # Find target activation for the return
     # For blocks, target is homeActivation (the enclosing method)
     # For methods, target is the current activation
@@ -4905,6 +4952,7 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
 
     if targetActivation == nil:
       # No target - just push value (shouldn't happen in well-formed code)
+      debug("VM: wfReturnValue no target activation!")
       interp.pushValue(returnVal)
       return true
 
@@ -4931,7 +4979,6 @@ proc handleContinuation(interp: var Interpreter, frame: WorkFrame): bool =
     # pop the corresponding activation from the activation stack.
     # Also unwind past continuation frames (wfIfNodeContinuation, wfWhileLoop)
     # that may have been set up by control flow specialization.
-    debug("VM: wfReturnValue unwinding to target activation")
     var found = false
     var targetEvalStackDepth = 0
     while interp.workQueue.len > 0 and not found:

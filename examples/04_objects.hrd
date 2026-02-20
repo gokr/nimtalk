@@ -1,31 +1,31 @@
 #!/usr/bin/env harding
 #
-# Basic object creation and property access
+# Basic object creation using classes with slots
 #
 
-"=== Creating Objects ===" println
+"=== Creating a Class with Slots ===" println
 
-obj := Object new
+Person := Object deriveWithAccessors: #(name age)
 
-"Object created successfully" println
-
-"" println
-"=== Property Access ===" println
-
-obj at: #name put: "Alice"
-obj at: #age put: 30
-
-("Name: " , (obj at: #name)) println
-("Age: " , (obj at: #age) asString) println
+"Person class created with automatic accessors" println
 
 "" println
-"=== Checking Properties ===" println
+"=== Creating Instances ===" println
 
-("Has name property: " , (obj hasProperty: #name) asString) println
-("Has city property: " , (obj hasProperty: #city) asString) println
+person1 := Person new
+person1 name: "Alice"
+person1 age: 30
+
+person2 := Person new
+person2 name: "Bob"
+person2 age: 25
+
+("Person 1: " , (person1 name) , ", age: " , (person1 age) asString) println
+("Person 2: " , (person2 name) , ", age: " , (person2 age) asString) println
 
 "" println
-"=== Property List ===" println
+"=== Reading Properties ===" println
 
-"Properties: " print
-obj properties println
+("person1 name: " , person1 name) println
+("person1 age as string: " , (person1 age asString)) println
+("person2 name: " , person2 name) println
