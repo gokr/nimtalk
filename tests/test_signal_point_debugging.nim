@@ -1,4 +1,4 @@
-import std/[unittest, tables]
+import std/unittest
 import ../src/harding/core/types
 import ../src/harding/interpreter/[vm]
 
