@@ -1,4 +1,4 @@
-import std/[tables, strutils, math, strformat, logging, os]
+import std/[tables, strutils, math, strformat, logging, os, random]
 import ../core/types
 import ../parser/lexer
 import ../parser/parser
@@ -1856,6 +1856,14 @@ proc initGlobals*(interp: var Interpreter) =
       raise newException(ValueError, "addSuperclass: superclass cannot be nil")
 
     addSuperclass(cls, parentClass)
+
+    # Refresh slot indices in all methods since slot layout changed
+    refreshAllSlotIndices(cls)
+
+    # Also refresh slot indices in all subclasses since they inherit the slot layout
+    for subclass in cls.subclasses:
+      refreshAllSlotIndices(subclass)
+
     return nilValue()
 
   let addSuperclassMethod = createCoreMethod("addSuperclass:")
@@ -2729,6 +2737,43 @@ proc initGlobals*(interp: var Interpreter) =
     setDoMethod.hasInterpreterParam = true
     setCls.methods["primitiveSetDo:"] = setDoMethod
     setCls.allMethods["primitiveSetDo:"] = setDoMethod
+
+  # ============================================================================
+  # Random number generator primitives
+  # ============================================================================
+  var randomGenerator {.threadvar.}: Rand
+  var randomInitialized {.threadvar.}: bool
+
+  proc randomNextImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+    ## Generate random integer
+    if not randomInitialized:
+      randomGenerator = initRand()
+      randomInitialized = true
+    return NodeValue(kind: vkInt, intVal: rand(randomGenerator, int.high))
+
+  proc randomNextMaxImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+    ## Generate random integer from 0 to max-1
+    if not randomInitialized:
+      randomGenerator = initRand()
+      randomInitialized = true
+    if args.len > 0:
+      let (ok, maxVal) = args[0].tryGetInt()
+      if ok and maxVal > 0:
+        return NodeValue(kind: vkInt, intVal: rand(randomGenerator, maxVal))
+    return NodeValue(kind: vkInt, intVal: 0)
+
+  proc randomSeedImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+    ## Get current random seed (not implemented - just return 0)
+    return NodeValue(kind: vkInt, intVal: 0)
+
+  proc randomSeedSetImpl(interp: var Interpreter, self: Instance, args: seq[NodeValue]): NodeValue {.nimcall.} =
+    ## Set random seed
+    if args.len > 0:
+      let (ok, seedVal) = args[0].tryGetInt()
+      if ok:
+        randomGenerator = initRand(seedVal)
+        randomInitialized = true
+    return nilValue()
 
   # ============================================================================
   # Create Random class (derives from Object) - random number generator

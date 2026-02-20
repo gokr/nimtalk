@@ -1046,6 +1046,68 @@ proc classDeriveWithAccessorsImpl*(self: Class, args: seq[NodeValue]): NodeValue
 
   return NodeValue(kind: vkClass, classVal: newCls)
 
+proc refreshSlotIndicesInNode(node: Node, cls: Class) =
+  ## Recursively scan AST and update SlotAccessNode indices to match current class layout
+  if node == nil:
+    return
+  case node.kind:
+  of nkSlotAccess:
+    let slotNode = cast[SlotAccessNode](node)
+    let newIndex = cls.getSlotIndex(slotNode.slotName)
+    if newIndex >= 0:
+      slotNode.slotIndex = newIndex
+  of nkReturn:
+    let ret = cast[ReturnNode](node)
+    refreshSlotIndicesInNode(ret.expression, cls)
+  of nkMessage:
+    let msg = cast[MessageNode](node)
+    refreshSlotIndicesInNode(msg.receiver, cls)
+    for arg in msg.arguments:
+      refreshSlotIndicesInNode(arg, cls)
+  of nkAssign:
+    let assign = cast[AssignNode](node)
+    refreshSlotIndicesInNode(assign.expression, cls)
+  of nkBlock:
+    let blk = cast[BlockNode](node)
+    for bodyNode in blk.body:
+      refreshSlotIndicesInNode(bodyNode, cls)
+  of nkCascade:
+    let cascade = cast[CascadeNode](node)
+    refreshSlotIndicesInNode(cascade.receiver, cls)
+    for msg in cascade.messages:
+      refreshSlotIndicesInNode(msg, cls)
+  of nkPrimitiveCall:
+    let prim = cast[PrimitiveCallNode](node)
+    for arg in prim.arguments:
+      refreshSlotIndicesInNode(arg, cls)
+  of nkSuperSend:
+    let superNode = cast[SuperSendNode](node)
+    for arg in superNode.arguments:
+      refreshSlotIndicesInNode(arg, cls)
+  of nkArray:
+    let arr = cast[ArrayNode](node)
+    for elem in arr.elements:
+      refreshSlotIndicesInNode(elem, cls)
+  of nkTable:
+    let tbl = cast[TableNode](node)
+    for (key, value) in tbl.entries:
+      refreshSlotIndicesInNode(key, cls)
+      refreshSlotIndicesInNode(value, cls)
+  else:
+    discard
+
+proc refreshAllSlotIndices*(cls: Class) =
+  ## Refresh slot indices in all methods of the class
+  ## Call this after slot layout changes (e.g., after addSuperclass:)
+  for sel, meth in cls.methods:
+    refreshSlotIndicesInNode(cast[Node](meth), cls)
+  for sel, meth in cls.classMethods:
+    refreshSlotIndicesInNode(cast[Node](meth), cls)
+  # Also refresh in allMethods (inherited methods may have slot accesses)
+  for sel, meth in cls.allMethods:
+    if sel notin cls.methods:
+      refreshSlotIndicesInNode(cast[Node](meth), cls)
+
 proc classDeriveGettersSettersImpl*(self: Class, args: seq[NodeValue]): NodeValue =
   ## Create a new subclass with selective accessor generation
   ## args[0]: array of all slot names
