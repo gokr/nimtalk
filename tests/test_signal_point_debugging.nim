@@ -80,13 +80,37 @@ suite "Signal Point Preservation (TODO)":
   test "full activation stack accessible from handler":
     skip() # TODO: Don't truncate activation stack
 
-suite "Handler Actions (TODO)":
+suite "Handler Actions":
   
   test "resume continues from signal point":
-    skip() # TODO: Implement Exception>>resume
+    ## Exception>>resume causes signal to return nil, execution continues after signal
+    let result = sharedInterp.evalStatements("""
+      Result := [
+        [
+          Notification signal: "test".
+          42
+        ] on: Notification do: [ :ex | ex resume ]
+      ] value
+    """)
+
+    # After resume, signal returns nil and execution continues to 42
+    check(result[0].len > 0)
+    check(result[0][^1].intVal == 42)
 
   test "resume: provides return value":
-    skip() # TODO: Implement Exception>>resume:
+    ## Exception>>resume: should return the provided value from signal
+    let result = sharedInterp.evalStatements("""
+      Result := [
+        [
+          | val |
+          val := Notification signal: "test".
+          val
+        ] on: Notification do: [ :ex | ex resume: 42 ]
+      ] value
+    """)
+    
+    check(result[0].len > 0)
+    check(result[0][^1].intVal == 42)
 
   test "retry re-executes protected block":
     skip() # TODO: Implement Exception>>retry
